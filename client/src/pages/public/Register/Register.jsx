@@ -13,6 +13,7 @@ function Register() {
     password: '',
     address: '',
   });
+  const [role, setRole] = useState('customer');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -35,6 +36,7 @@ function Register() {
       phone: form.phone,
       address: form.address,
       password: form.password,
+      role: role,
     });
     setSubmitting(false);
     if (nextUser) {
@@ -95,6 +97,37 @@ function Register() {
             </div>
 
             <form className="space-y-md" onSubmit={handleSubmit}>
+              {/* Role Selection */}
+              <div className="space-y-xs">
+                <label className="font-label-sm text-label-sm text-on-surface-variant">Account Type</label>
+                <div className="grid grid-cols-2 gap-sm p-1 bg-surface-container rounded-xl border border-outline-variant">
+                  <button
+                    type="button"
+                    onClick={() => setRole('customer')}
+                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-xs ${
+                      role === 'customer'
+                        ? 'bg-white text-primary shadow-sm font-semibold'
+                        : 'text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">person</span>
+                    Customer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('company')}
+                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-xs ${
+                      role === 'company'
+                        ? 'bg-white text-primary shadow-sm font-semibold'
+                        : 'text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">storefront</span>
+                    Dealer / Fleet Provider
+                  </button>
+                </div>
+              </div>
+
               {/* Full Name */}
               <div className="space-y-xs">
                 <label className="font-label-sm text-label-sm text-on-surface-variant" htmlFor="full_name">Full Name</label>

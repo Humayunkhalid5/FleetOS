@@ -166,14 +166,19 @@ function LiveTracking() {
   useEffect(() => {
     if (mapRef.current || !mapContainerRef.current) return;
 
-    const origin = tracking?.origin || DEFAULT_ORIGIN;
-    const destination = tracking?.destination || DEFAULT_DESTINATION;
+    // Use userPos dynamically if available to ensure map reflects real client location
+    const baseLat = userPos?.lat || 31.5204;
+    const baseLng = userPos?.lng || 74.3587;
+
+    const dynamicOrigin = { lat: baseLat - 0.015, lng: baseLng - 0.012, label: 'FleetOS Service Center' };
+    const dynamicDestination = { lat: baseLat, lng: baseLng, label: 'Your Current Location' };
+
+    const origin = tracking?.origin || dynamicOrigin;
+    const destination = tracking?.destination || dynamicDestination;
     const currentPosition = tracking?.currentPosition || origin;
 
-    // Prefer the route (origin/destination) when we have a real booking;
-    // otherwise center on the user's real location / origin in demo mode.
-    const hasRoute = !!(tracking?.origin && tracking?.destination);
-    const center = hasRoute ? currentPosition : userPos || origin;
+    const hasRoute = true;
+    const center = userPos || currentPosition;
 
     const map = L.map(mapContainerRef.current, {
       zoomControl: false,

@@ -13,7 +13,13 @@ const hashPassword = async (pw) => {
 };
 
 const bootstrap = async () => {
-  // Clear existing data
+  // If store already contains users and companies (loaded from disk), retain them
+  if (db.store.users.length > 0 && db.store.companies.length > 0) {
+    console.log(`Persistent data store loaded (${db.store.users.length} users, ${db.store.companies.length} companies).`);
+    return { user: db.store.users[0], companies: db.store.companies };
+  }
+
+  // Clear existing data for fresh seed
   db.resetStore();
 
   // Create demo user (hash password)
@@ -28,7 +34,7 @@ const bootstrap = async () => {
   const booking = db.create('bookings', {
     ...demoBooking,
     user: user._id,
-    company: swiftfleet._id,
+    company: swiftfleet?._id || createdCompanies[0]?._id,
     reference: `#FOS-${Math.floor(10000 + Math.random() * 90000)}`,
   });
 
@@ -38,11 +44,11 @@ const bootstrap = async () => {
       ...r,
       user: user._id,
       booking: booking._id,
-      company: swiftfleet._id,
+      company: swiftfleet?._id || createdCompanies[0]?._id,
     });
   });
 
-  console.log('In-memory data seeded.');
+  console.log('Persistent data store initialized and seeded.');
   console.log('Login with: alex@fleetos.com / demo1234');
 
   return { user, companies: createdCompanies, booking };

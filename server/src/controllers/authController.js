@@ -25,7 +25,7 @@ const toPublicUser = (user) => ({
 // @route  POST /api/auth/register
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, phone, address } = req.body;
+    const { name, email, password, phone, address, role } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Please provide name, email and password' });
@@ -36,7 +36,7 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'An account with that email already exists' });
     }
 
-    const user = await User.create({ name, email, password, phone, address });
+    const user = await User.create({ name, email, password, phone, address, role: role || 'customer' });
 
     const token = generateToken(user._id);
     return res.status(201).json({

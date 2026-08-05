@@ -22,6 +22,8 @@ const Bookings = lazy(() => import('./pages/customer/Bookings/Bookings'))
 const Reviews = lazy(() => import('./pages/customer/Reviews/Reviews'))
 const Chat = lazy(() => import('./pages/customer/Chat/Chat'))
 const Companies = lazy(() => import('./pages/customer/Companies/Companies'))
+const Payments = lazy(() => import('./pages/customer/Payments/Payments'))
+const Notifications = lazy(() => import('./pages/customer/Notifications/Notifications'))
 
 function PageLoader() {
   return (
@@ -52,7 +54,9 @@ function App() {
               <Route path="/customer/dashboard" element={<CustomerDashboard />} />
               <Route path="/customer/profile" element={<Profile />} />
               <Route path="/customer/bookings" element={<Bookings />} />
-<Route path="/customer/reviews" element={<Reviews />} />
+              <Route path="/customer/reviews" element={<Reviews />} />
+              <Route path="/customer/payments" element={<Payments />} />
+              <Route path="/customer/notifications" element={<Notifications />} />
               <Route path="/customer/company/:id" element={<CompanyDetails />} />
               <Route path="/customer/companies" element={<Companies />} />
               <Route path="/customer/customize-booking" element={<CustomizeBooking />} />

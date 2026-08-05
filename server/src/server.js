@@ -1,11 +1,13 @@
 require('dotenv').config();
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'fleetos_dev_secret_key_2026_super_secure';
 const app = require('./app');
 const connectDB = require('./config/db');
 const bootstrap = require('./data/bootstrap');
 const { initSocket } = require('./socket');
 const http = require('http');
 
-const START_PORT = process.env.PORT ? Number(process.env.PORT) : 0;
+const START_PORT = process.env.PORT ? Number(process.env.PORT) : 5000;
+
 
 const start = async () => {
   try {

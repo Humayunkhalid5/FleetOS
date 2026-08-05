@@ -13,11 +13,13 @@ function CustomizeBooking() {
   const [service, setService] = useState(location.state?.service || 'Fleet Full Inspection');
   const [servicePrice, setServicePrice] = useState(Number(location.state?.price) || BASE_LABOR);
   const [serviceLocation, setServiceLocation] = useState({
-    address: '882 Modern Way, Tech Park, San Francisco, CA 94103',
-    lat: 37.7894,
-    lng: -122.3946,
+    address: '',
+    lat: null,
+    lng: null,
   });
   const [locatingAddress, setLocatingAddress] = useState(false);
+  const [locationMode, setLocationMode] = useState('manual'); // 'manual' | 'gps'
+  const [gpsLabel, setGpsLabel] = useState('');
 
   const [materials, setMaterials] = useState(() => {
     const init = {};
@@ -52,28 +54,50 @@ const saveDraft = () => {
   const materialsTotal = Object.values(materials).reduce((sum, item) => sum + (item.qty * item.price), 0);
   const grandTotal = baseLabor + materialsTotal;
 
-  // Capture the user's real location for the service destination
+  // Capture the user's real GPS location
   const useMyLocation = () => {
     if (!('geolocation' in navigator)) {
-      alert('Geolocation is not supported by this browser.');
+      alert('Geolocation is not supported by this browser. Please type your address below.');
       return;
     }
     setLocatingAddress(true);
+    setLocationMode('gps');
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setServiceLocation({
-          address: 'My Current Location (use precise address at checkout)',
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        });
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        // Attempt reverse-geocode via OpenStreetMap Nominatim (no API key required)
+        let label = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+          );
+          const data = await res.json();
+          if (data?.display_name) label = data.display_name;
+        } catch {
+          // fall back to coordinates if reverse geocode fails
+        }
+        setGpsLabel(label);
+        setServiceLocation({ address: label, lat: latitude, lng: longitude });
         setLocatingAddress(false);
       },
-      () => {
-        alert('Could not access your location. Please enter an address manually.');
+      (err) => {
+        const messages = {
+          1: 'Location permission denied. Please allow access or type your address below.',
+          2: 'Location unavailable. Please type your address manually.',
+          3: 'Location request timed out. Please type your address manually.',
+        };
+        alert(messages[err.code] || 'Could not access your location. Please enter an address manually.');
+        setLocationMode('manual');
         setLocatingAddress(false);
       },
-      { enableHighAccuracy: true, timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 10000 }
     );
+  };
+
+  const clearGpsLocation = () => {
+    setLocationMode('manual');
+    setGpsLabel('');
+    setServiceLocation({ address: '', lat: null, lng: null });
   };
 
   return (
@@ -132,20 +156,75 @@ const saveDraft = () => {
               <div className="mt-md pt-md border-t border-surface-container">
                 <div className="flex items-center justify-between mb-sm">
                   <h4 className="font-headline-md text-headline-md">Service Location</h4>
-                  <button onClick={useMyLocation} className="flex items-center gap-xs text-primary font-nav-item text-nav-item hover:underline">
-                    <span className="material-symbols-outlined text-md">{locatingAddress ? 'progress_activity' : 'my_location'}</span>
-                    {locatingAddress ? 'Locating...' : 'Use My Location'}
+                </div>
+
+                {/* Two-option selector */}
+                <div className="grid grid-cols-2 gap-sm mb-md">
+                  <button
+                    type="button"
+                    onClick={() => setLocationMode('manual')}
+                    className={`flex items-center gap-sm p-md rounded-xl border-2 transition-all text-left ${
+                      locationMode === 'manual'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-outline-variant hover:border-primary/50'
+                    }`}
+                  >
+                    <span className={`material-symbols-outlined ${locationMode === 'manual' ? 'text-primary' : 'text-on-surface-variant'}`}>edit_location</span>
+                    <div>
+                      <p className="font-nav-item text-nav-item text-on-surface text-sm">Type address</p>
+                      <p className="text-xs text-on-surface-variant">Enter preferred location</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={useMyLocation}
+                    disabled={locatingAddress}
+                    className={`flex items-center gap-sm p-md rounded-xl border-2 transition-all text-left disabled:opacity-70 ${
+                      locationMode === 'gps'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-outline-variant hover:border-primary/50'
+                    }`}
+                  >
+                    <span className={`material-symbols-outlined ${locatingAddress ? 'animate-spin' : ''} ${locationMode === 'gps' ? 'text-primary' : 'text-on-surface-variant'}`}>
+                      {locatingAddress ? 'progress_activity' : 'my_location'}
+                    </span>
+                    <div>
+                      <p className="font-nav-item text-nav-item text-on-surface text-sm">
+                        {locatingAddress ? 'Detecting…' : 'Use GPS'}
+                      </p>
+                      <p className="text-xs text-on-surface-variant">Detect current location</p>
+                    </div>
                   </button>
                 </div>
+
+                {/* GPS result pill */}
+                {locationMode === 'gps' && gpsLabel && (
+                  <div className="mb-sm flex items-start gap-sm p-sm rounded-xl bg-primary-container text-on-primary-container text-sm">
+                    <span className="material-symbols-outlined text-[16px] mt-0.5 shrink-0">location_on</span>
+                    <span className="flex-1 leading-snug">{gpsLabel}</span>
+                    <button onClick={clearGpsLocation} className="shrink-0 hover:opacity-70 transition-opacity" title="Clear GPS location">
+                      <span className="material-symbols-outlined text-[16px]">close</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Manual address input — always visible so user can refine */}
                 <div className="relative group">
                   <span className="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">location_on</span>
                   <input
-                    value={serviceLocation.address}
-                    onChange={(e) => setServiceLocation((prev) => ({ ...prev, address: e.target.value }))}
+                    value={locationMode === 'gps' && gpsLabel ? gpsLabel : serviceLocation.address}
+                    onChange={(e) => {
+                      setLocationMode('manual');
+                      setGpsLabel('');
+                      setServiceLocation((prev) => ({ ...prev, address: e.target.value }));
+                    }}
                     className="w-full pl-xl pr-md py-md bg-surface-container-low border border-outline-variant rounded-xl focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all font-body-md text-on-surface"
-                    placeholder="Enter service address"
+                    placeholder="Enter or confirm your service address (city, area, street)"
                   />
                 </div>
+                <p className="mt-xs text-xs text-on-surface-variant">
+                  You can type a preferred address even after using GPS — just edit the field above.
+                </p>
               </div>
             </section>
 
