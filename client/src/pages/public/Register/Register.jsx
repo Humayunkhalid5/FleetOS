@@ -40,7 +40,11 @@ function Register() {
     });
     setSubmitting(false);
     if (nextUser) {
-      navigate(ROUTES.dashboard);
+      if (role === 'company') {
+        navigate(ROUTES.companyDashboard);
+      } else {
+        navigate(ROUTES.dashboard);
+      }
     }
   };
 
@@ -115,7 +119,7 @@ function Register() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setRole('company')}
+                    onClick={() => navigate(ROUTES.companyRegister)}
                     className={`py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-xs ${
                       role === 'company'
                         ? 'bg-white text-primary shadow-sm font-semibold'

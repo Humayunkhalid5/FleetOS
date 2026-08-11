@@ -60,6 +60,11 @@ const bookingSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company' },
+    companyId: { type: String, default: '', index: true },
+    companyName: { type: String, default: '' },
+    customerName: { type: String, default: '' },
+    customerPhone: { type: String, default: '' },
+    customerEmail: { type: String, default: '' },
     technician: { type: String, default: '' },
     service: { type: String, default: '' },
     servicePrice: { type: Number, default: 0 },

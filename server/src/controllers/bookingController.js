@@ -1,25 +1,18 @@
 const Booking = require('../models/Booking');
 const Company = require('../models/Company');
+const User = require('../models/User');
 
-// Helper: pick the best available technician for a company
-// The company (not the customer) decides who is dispatched.
 const pickTechnician = (company, requestedName) => {
   const pool = company?.technicians || [];
-
-  // If the customer requested a specific technician that belongs to this
-  // company, honour it. Otherwise the company auto-assigns the best fit.
   if (requestedName && pool.some((t) => t.name === requestedName)) {
     return requestedName;
   }
-
-  // Prioritise technicians available today, then highest rating.
   const sorted = pool.slice().sort((a, b) => {
     if (Boolean(a.availableToday) !== Boolean(b.availableToday)) {
       return Boolean(b.availableToday) ? 1 : -1;
     }
     return (b.rating || 0) - (a.rating || 0);
   });
-
   return sorted[0]?.name || pool[0]?.name || 'Company will assign';
 };
 
@@ -43,17 +36,35 @@ exports.createBooking = async (req, res) => {
       destination,
       currentPosition,
       vehicleLabel,
+      customerName,
+      customerPhone,
+      customerEmail,
     } = req.body;
 
     if (!companyId || !service) {
       return res.status(400).json({ message: 'Please provide company and service' });
     }
 
-    // Support both ObjectId and slug
     const isObjectId = /^[0-9a-fA-F]{24}$/.test(companyId);
-    const company = isObjectId
+    let company = isObjectId
       ? await Company.findById(companyId)
       : await Company.findOne({ slug: companyId });
+
+    if (!company) {
+      const userComp = isObjectId
+        ? await User.findById(companyId)
+        : await User.findOne({ $or: [{ companyId }, { companyName: new RegExp(`^${companyId}$`, 'i') }] });
+      
+      if (userComp) {
+        company = {
+          _id: userComp._id,
+          name: userComp.companyName || userComp.name,
+          slug: userComp.companyId || (userComp.companyName || userComp.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          location: userComp.address || '',
+          technicians: []
+        };
+      }
+    }
 
     if (!company) {
       return res.status(404).json({ message: 'Company not found' });
@@ -65,12 +76,17 @@ exports.createBooking = async (req, res) => {
     const tax = subtotal * 0.085;
     const total = subtotal + tax;
 
-    // The company allots a technician — never the customer.
     const assignedTechnician = pickTechnician(company, technician);
+    const resolvedCompanySlug = company.slug || (company._id ? company._id.toString() : companyId);
 
     const booking = await Booking.create({
-      user: req.user._id,
+      user: req.user?._id,
       company: company._id,
+      companyId: resolvedCompanySlug,
+      companyName: company.name || 'Service Provider',
+      customerName: customerName || req.user?.name || 'Valued Client',
+      customerPhone: customerPhone || req.user?.phone || '',
+      customerEmail: customerEmail || req.user?.email || '',
       technician: assignedTechnician,
       service,
       servicePrice: serviceCost,
@@ -99,24 +115,51 @@ exports.createBooking = async (req, res) => {
         updatedAt: new Date(),
       },
       vehicleLabel: vehicleLabel || 'Fleet Van #012',
-      status: 'in-progress',
+      status: 'Pending',
       tracking: { stage: 'assigned', etaMinutes: 12 },
     });
 
     const populated = await Booking.findById(booking._id).populate('company', 'name slug logo');
-    return res.status(201).json({ booking: populated });
+    return res.status(201).json({ booking: populated || booking });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
 };
 
-// @desc   Get logged-in user's bookings
+// @desc   Get logged-in user's or company's bookings
 // @route  GET /api/bookings
 exports.getMyBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find({ user: req.user._id })
-      .populate('company', 'name slug logo')
-      .sort({ createdAt: -1 });
+    const { companyId } = req.query;
+
+    let query = {};
+    if (companyId) {
+      query = {
+        $or: [
+          { companyId: companyId },
+          { company: companyId },
+        ],
+      };
+    } else if (req.user) {
+      if (req.user.role === 'company' && req.user.companyId) {
+        query = {
+          $or: [
+            { companyId: req.user.companyId },
+            { company: req.user._id },
+          ],
+        };
+      } else {
+        query = { user: req.user._id };
+      }
+    }
+
+    let bookings = await Booking.find(query);
+    if (Array.isArray(bookings)) {
+      bookings = bookings.slice().sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    } else {
+      bookings = [];
+    }
+
     return res.json({ bookings });
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -127,7 +170,7 @@ exports.getMyBookings = async (req, res) => {
 // @route  GET /api/bookings/:id
 exports.getBooking = async (req, res) => {
   try {
-    const booking = await Booking.findOne({ _id: req.params.id, user: req.user._id }).populate('company', 'name slug logo');
+    const booking = await Booking.findById(req.params.id);
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found' });
     }
@@ -137,27 +180,29 @@ exports.getBooking = async (req, res) => {
   }
 };
 
-// @desc   Update booking status/tracking
-// @route  PATCH /api/bookings/:id
+// @desc   Update booking status/tracking/technician (called by Company or Client)
+// @route  PUT /api/bookings/:id or PATCH /api/bookings/:id
 exports.updateBooking = async (req, res) => {
   try {
-    const { status, tracking, vehicleLabel } = req.body;
-    const booking = await Booking.findOne({ _id: req.params.id, user: req.user._id });
+    const { status, tracking, vehicleLabel, technician, notes } = req.body;
+    let booking = await Booking.findById(req.params.id);
 
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    if (status) booking.status = status;
-    if (vehicleLabel) booking.vehicleLabel = vehicleLabel;
+    const updates = {};
+    if (status !== undefined) updates.status = status;
+    if (technician !== undefined) updates.technician = technician;
+    if (vehicleLabel !== undefined) updates.vehicleLabel = vehicleLabel;
+    if (notes !== undefined) updates.notes = notes;
     if (tracking) {
-      booking.tracking = { ...booking.tracking, ...tracking };
+      updates.tracking = { ...(booking.tracking || {}), ...tracking };
     }
 
-    await booking.save();
-    return res.json({ booking });
+    const updated = await Booking.save({ ...booking, ...updates });
+    return res.json({ booking: updated });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
 };
-

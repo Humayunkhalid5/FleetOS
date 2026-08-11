@@ -57,6 +57,7 @@ function Payments() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('history'); // 'history' | 'methods'
   const [addCardOpen, setAddCardOpen] = useState(false);
+  const [cards, setCards] = useState(SAVED_CARDS);
   const [newCard, setNewCard] = useState({ number: '', name: '', expiry: '', cvv: '' });
   const [saving, setSaving] = useState(false);
 
@@ -79,15 +80,32 @@ function Payments() {
     .filter((t) => t.status === 'paid')
     .reduce((sum, t) => sum + (t.amount || 0), 0);
 
+  const handleSetDefaultCard = (id) => {
+    setCards(cards.map(c => ({ ...c, primary: c.id === id })));
+  };
+
+  const handleRemoveCard = (id) => {
+    setCards(cards.filter(c => c.id !== id));
+  };
+
   const handleSaveCard = async (e) => {
     e.preventDefault();
     setSaving(true);
-    // Simulate save — real integration would call an API
-    await new Promise((r) => setTimeout(r, 900));
+    await new Promise((r) => setTimeout(r, 600));
+
+    const newCardObj = {
+      id: `card-${Date.now()}`,
+      label: newCard.number.startsWith('4') ? 'Visa' : 'Mastercard',
+      last4: newCard.number.slice(-4) || '1234',
+      expiry: newCard.expiry || '12/28',
+      icon: 'credit_card',
+      primary: cards.length === 0
+    };
+
+    setCards([...cards, newCardObj]);
     setSaving(false);
     setAddCardOpen(false);
     setNewCard({ number: '', name: '', expiry: '', cvv: '' });
-    alert('Card saved successfully! (demo mode)');
   };
 
   return (
@@ -235,7 +253,7 @@ function Payments() {
               </button>
             </div>
 
-            {SAVED_CARDS.map((card) => (
+            {cards.map((card) => (
               <div
                 key={card.id}
                 className={`relative bg-surface-container-lowest rounded-xl p-lg shadow-elevation-1 border-2 ${card.primary ? 'border-primary' : 'border-surface-container-low'}`}
@@ -256,11 +274,17 @@ function Payments() {
                 </div>
                 <div className="mt-md flex gap-sm">
                   {!card.primary && (
-                    <button className="flex-1 py-2 rounded-lg bg-surface-container-low text-on-surface-variant text-sm font-medium hover:bg-surface-container-high transition-colors">
+                    <button 
+                      onClick={() => handleSetDefaultCard(card.id)}
+                      className="flex-1 py-2 rounded-lg bg-surface-container-low text-on-surface-variant text-sm font-medium hover:bg-surface-container-high transition-colors"
+                    >
                       Set as Default
                     </button>
                   )}
-                  <button className="flex-1 py-2 rounded-lg bg-error-container text-on-error-container text-sm font-medium hover:opacity-80 transition-colors">
+                  <button 
+                    onClick={() => handleRemoveCard(card.id)}
+                    className="flex-1 py-2 rounded-lg bg-error-container text-on-error-container text-sm font-medium hover:opacity-80 transition-colors"
+                  >
                     Remove
                   </button>
                 </div>

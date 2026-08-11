@@ -22,6 +22,16 @@ export const ROUTES = {
   serviceReview: '/customer/service-review',
   chat: '/customer/chat',
   companies: '/customer/companies',
+  companyDashboard: '/company/dashboard',
+  companyRegister: '/company/register',
+  companyInventory: '/company/inventory',
+  companyTechnicians: '/company/technicians',
+  companyServices: '/company/services',
+  companyBookings: '/company/bookings',
+  companyReviews: '/company/reviews',
+  companyCustomers: '/company/customers',
+  companyAnalytics: '/company/analytics',
+  companyChat: '/company/chat',
 };
 
 export const companyRoute = (id = 'swiftfleet') => `/customer/company/${id}`;

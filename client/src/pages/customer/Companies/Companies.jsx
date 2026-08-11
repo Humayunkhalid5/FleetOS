@@ -105,13 +105,31 @@ function Companies() {
       setError('');
       try {
         const response = await api.get('/companies');
-        const fetched = response.companies || [];
+        let fetched = response.companies || [];
+        
+        let localCompanies = [];
+        try {
+          localCompanies = JSON.parse(localStorage.getItem('fleetos-registered-companies') || '[]');
+        } catch (e) {}
+
+        for (const locComp of localCompanies) {
+          const exists = fetched.some((c) => c.slug === locComp.slug || c._id === locComp._id || c.name === locComp.name);
+          if (!exists) {
+            fetched.unshift(locComp);
+          }
+        }
+
         setCompanies(fetched.length ? fetched : DEMO_COMPANIES);
-        if (response.cities?.length)         setCities(['All', ...response.cities]);
-        if (response.areasByCity)            setAreasByCity({ ...FALLBACK_AREAS, ...response.areasByCity });
+        if (response.cities?.length) setCities(['All', ...response.cities]);
+        if (response.areasByCity) setAreasByCity({ ...FALLBACK_AREAS, ...response.areasByCity });
       } catch {
-        setError('Could not load companies from server — showing demo data.');
-        setCompanies(DEMO_COMPANIES);
+        let localCompanies = [];
+        try {
+          localCompanies = JSON.parse(localStorage.getItem('fleetos-registered-companies') || '[]');
+        } catch (e) {}
+
+        const combined = [...localCompanies, ...DEMO_COMPANIES];
+        setCompanies(combined);
       } finally {
         setLoading(false);
       }

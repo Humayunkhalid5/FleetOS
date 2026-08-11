@@ -45,6 +45,84 @@
       "_id": "64083c52a110149d4c8a075b",
       "createdAt": "2026-08-05T09:56:43.400Z",
       "updatedAt": "2026-08-05T09:56:43.400Z"
+    },
+    {
+      "name": "abcd",
+      "email": "ayesha2311@gmail.com",
+      "password": "$2a$10$31ArNdKKGcOWtEIR0WQVbeOFWeDbaBVbNq8Zr33GB/bbqlskZjzme",
+      "phone": "1839247928102",
+      "address": "whatever  hehe",
+      "role": "company",
+      "_id": "46d2886123d9abee86501948",
+      "createdAt": "2026-08-07T15:45:48.941Z",
+      "updatedAt": "2026-08-07T15:51:36.677Z",
+      "plan": "Free Member"
+    },
+    {
+      "name": "Ayesha Asim",
+      "email": "meena2311@gmail.com",
+      "password": "$2a$10$ayJu2hS65Bve71kCmuDaIO4V1o3Dy20fG6LWxWgIzk8e60TOvYqZu",
+      "phone": "03185268769",
+      "address": "31-C, Kohistan Enclave GT Road Wah Cantt",
+      "role": "customer",
+      "_id": "c1883af05f1952df12b6ab11",
+      "createdAt": "2026-08-07T15:58:39.607Z",
+      "updatedAt": "2026-08-07T15:58:39.607Z"
+    },
+    {
+      "name": "abcd",
+      "email": "meena456@gmail.com",
+      "password": "$2a$10$zh3k.Gs4GSHM7dJZzlge/ea0VU9HcihwC292VWlONUp7HfcpfkZwC",
+      "phone": "65383219",
+      "address": "bhofs",
+      "role": "company",
+      "_id": "6f407e107bacdc66785c11da",
+      "createdAt": "2026-08-07T16:00:28.505Z",
+      "updatedAt": "2026-08-07T16:45:03.257Z"
+    },
+    {
+      "name": "Ayesha Asim",
+      "email": "panda2311@gmail.com",
+      "password": "$2a$10$9xc08KW9z4tqxlvlsDo4B.MR1Qi.RR1H7JCu/yVg.uKoBvVg1w3Ru",
+      "phone": "03185268769",
+      "address": "31-C, Kohistan Enclave GT Road Wah Cantt",
+      "role": "customer",
+      "_id": "e77dca44abc0ff813e7370b3",
+      "createdAt": "2026-08-07T16:50:41.647Z",
+      "updatedAt": "2026-08-07T16:50:41.647Z"
+    },
+    {
+      "name": "Ayesha Asim",
+      "email": "panda123@gmail.com",
+      "password": "$2a$10$2PjzvyRb4BgEHne0Kz00CeRM3gnW/wB8biK5GaIy6ZyIL5fK97v4.",
+      "phone": "03185268769",
+      "address": "31-C, Kohistan Enclave GT Road Wah Cantt",
+      "role": "customer",
+      "_id": "b87b6f7c1a735ccc1806c4fd",
+      "createdAt": "2026-08-07T17:44:06.799Z",
+      "updatedAt": "2026-08-07T17:44:06.799Z"
+    },
+    {
+      "name": "Ayesha Asim",
+      "email": "aisha@gmail.com",
+      "password": "$2a$10$MES1XYciXspRC6Ibt93gzej3F/BJ3s1pXCb6qtUtiKlVZhfGxAWHu",
+      "phone": "+923185268769",
+      "address": "31-C, Kohistan Enclave GT Road Wah Cantt",
+      "role": "customer",
+      "_id": "e409ecb7ce87df66db343043",
+      "createdAt": "2026-08-10T05:42:39.344Z",
+      "updatedAt": "2026-08-10T05:42:39.344Z"
+    },
+    {
+      "name": "Humayon logistics",
+      "email": "humayon@gmail.com",
+      "password": "$2a$10$FCB4.S7byENi.xysOyWIM.NFkpuuwiM87jSaQqCdEp0qM5aQrsTMq",
+      "phone": "003894682931",
+      "address": "sugfwslkaxdsjk",
+      "role": "company",
+      "_id": "a437eeee19441db77e52ed5d",
+      "createdAt": "2026-08-10T05:44:31.627Z",
+      "updatedAt": "2026-08-10T05:44:31.627Z"
     }
   ],
   "companies": [
@@ -2206,6 +2284,135 @@
       "_id": "73c42798c23c77427f67efb4",
       "createdAt": "2026-08-05T10:55:52.973Z",
       "updatedAt": "2026-08-05T10:55:52.973Z"
+    },
+    {
+      "user": "e77dca44abc0ff813e7370b3",
+      "company": "cce445e17fb27cba439efdf7",
+      "technician": "Elena Rodriguez",
+      "service": "Fleet Inspection",
+      "servicePrice": 89,
+      "materials": [
+        {
+          "name": "Shut-off Valve",
+          "qty": 1,
+          "price": 12
+        }
+      ],
+      "materialsTotal": 12,
+      "subtotal": 101,
+      "tax": 8.585,
+      "total": 109.58500000000001,
+      "scheduledDate": "Aug 7, 2026",
+      "scheduledTime": "09:30 AM - 11:00 AM",
+      "location": "Lane#13, 24 Area, Wah, Taxila Tehsil, Rawalpindi District, Rawalpindi Division, Punjab, 47040, Pakistan",
+      "paymentMethod": "card",
+      "origin": {
+        "lat": 37.7749,
+        "lng": -122.4194,
+        "label": "FleetOS Dispatch Center"
+      },
+      "destination": {
+        "lat": 33.78,
+        "lng": 72.72,
+        "label": "Lane#13, 24 Area, Wah, Taxila Tehsil, Rawalpindi District, Rawalpindi Division, Punjab, 47040, Pakistan"
+      },
+      "currentPosition": {
+        "lat": 37.7749,
+        "lng": -122.4194,
+        "updatedAt": "2026-08-07T16:51:52.243Z"
+      },
+      "vehicleLabel": "Fleet Van #012",
+      "status": "in-progress",
+      "tracking": {
+        "stage": "assigned",
+        "etaMinutes": 12
+      },
+      "reference": "#FOS-32124",
+      "_id": "8a4b3bc696240953327b4a74",
+      "createdAt": "2026-08-07T16:51:52.261Z",
+      "updatedAt": "2026-08-07T16:51:52.261Z"
+    },
+    {
+      "user": "e77dca44abc0ff813e7370b3",
+      "company": "ee719d152c0bb19009aa1a48",
+      "technician": "Umar Farooq",
+      "service": "Engine Diagnostics",
+      "servicePrice": 105,
+      "materials": [],
+      "materialsTotal": 0,
+      "subtotal": 105,
+      "tax": 8.925,
+      "total": 113.925,
+      "scheduledDate": "Aug 7, 2026",
+      "scheduledTime": "09:30 AM - 11:00 AM",
+      "location": "DHA, Lahore, Punjab, Pakistan",
+      "paymentMethod": "card",
+      "origin": {
+        "lat": 37.7749,
+        "lng": -122.4194,
+        "label": "FleetOS Dispatch Center"
+      },
+      "destination": {
+        "lat": null,
+        "lng": null,
+        "label": ""
+      },
+      "currentPosition": {
+        "lat": 37.7749,
+        "lng": -122.4194,
+        "updatedAt": "2026-08-07T16:56:11.816Z"
+      },
+      "vehicleLabel": "Fleet Van #012",
+      "status": "in-progress",
+      "tracking": {
+        "stage": "assigned",
+        "etaMinutes": 12
+      },
+      "reference": "#FOS-17111",
+      "_id": "ad64866ae2c5f3be93237547",
+      "createdAt": "2026-08-07T16:56:11.836Z",
+      "updatedAt": "2026-08-07T16:56:11.836Z"
+    },
+    {
+      "user": "b87b6f7c1a735ccc1806c4fd",
+      "company": "ee719d152c0bb19009aa1a48",
+      "technician": "Umar Farooq",
+      "service": "Engine Diagnostics",
+      "servicePrice": 105,
+      "materials": [],
+      "materialsTotal": 0,
+      "subtotal": 105,
+      "tax": 8.925,
+      "total": 113.925,
+      "scheduledDate": "Aug 7, 2026",
+      "scheduledTime": "09:30 AM - 11:00 AM",
+      "location": "DHA, Lahore, Punjab, Pakistan",
+      "paymentMethod": "card",
+      "origin": {
+        "lat": 37.7749,
+        "lng": -122.4194,
+        "label": "FleetOS Dispatch Center"
+      },
+      "destination": {
+        "lat": null,
+        "lng": null,
+        "label": ""
+      },
+      "currentPosition": {
+        "lat": 37.7749,
+        "lng": -122.4194,
+        "updatedAt": "2026-08-07T17:50:40.739Z"
+      },
+      "vehicleLabel": "Fleet Van #012",
+      "status": "in-progress",
+      "tracking": {
+        "stage": "assigned",
+        "etaMinutes": 12
+      },
+      "reference": "#FOS-22426",
+      "_id": "a6222c95803d48514402cb4e",
+      "createdAt": "2026-08-07T17:50:40.760Z",
+      "updatedAt": "2026-08-07T17:50:40.760Z"
     }
   ],
   "reviews": [
@@ -2232,6 +2439,18 @@
       "_id": "58231d183b64f1044f9cf657",
       "createdAt": "2026-08-05T09:39:58.503Z",
       "updatedAt": "2026-08-05T09:39:58.503Z"
+    },
+    {
+      "user": "e77dca44abc0ff813e7370b3",
+      "booking": null,
+      "technician": "Marcus Vance",
+      "service": "Fleet Full Inspection",
+      "rating": 2,
+      "comment": "nice nice",
+      "photos": [],
+      "_id": "9bbd23af74f4b78dbc3a3486",
+      "createdAt": "2026-08-07T16:53:02.517Z",
+      "updatedAt": "2026-08-07T16:53:02.517Z"
     }
   ],
   "chatMessages": [
@@ -2245,6 +2464,28 @@
       "createdAt": "2026-08-05T10:08:41.138Z",
       "_id": "2890df7c144943bf4a782cea",
       "updatedAt": "2026-08-05T10:08:41.138Z"
+    },
+    {
+      "roomId": "lahore-auto-experts",
+      "sender": "b87b6f7c1a735ccc1806c4fd",
+      "senderRole": "customer",
+      "recipient": "lahore-auto-experts",
+      "recipientRole": "company",
+      "text": "jdkakdkjka",
+      "createdAt": "2026-08-07T17:44:37.472Z",
+      "_id": "1e2d0d29a6a8b518efe02d72",
+      "updatedAt": "2026-08-07T17:44:37.472Z"
+    },
+    {
+      "roomId": "lahore-electricians",
+      "sender": "b87b6f7c1a735ccc1806c4fd",
+      "senderRole": "customer",
+      "recipient": "lahore-electricians",
+      "recipientRole": "company",
+      "text": "BCDYUDKAD",
+      "createdAt": "2026-08-07T17:50:05.826Z",
+      "_id": "61b3e6bc3447409e8717d3e0",
+      "updatedAt": "2026-08-07T17:50:05.826Z"
     }
   ]
 }

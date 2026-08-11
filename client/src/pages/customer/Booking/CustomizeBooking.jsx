@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES, MATERIALS, BASE_LABOR } from '../../../constants';
+import api from '../../../services/api';
 
 function CustomizeBooking() {
   const navigate = useNavigate();
@@ -9,9 +10,26 @@ function CustomizeBooking() {
   const companyName = location.state?.companyName || 'Selected company';
   const [problemDetails, setProblemDetails] = useState(location.state?.problemDetails || '');
 
-  // Capture the chosen service and service location
-  const [service, setService] = useState(location.state?.service || 'Fleet Full Inspection');
+  const [availableServices, setAvailableServices] = useState([]);
+  const [service, setService] = useState(location.state?.service || 'Fleet Maintenance');
   const [servicePrice, setServicePrice] = useState(Number(location.state?.price) || BASE_LABOR);
+
+  useEffect(() => {
+    async function loadCompanyServices() {
+      if (!companyId) return;
+      try {
+        const res = await api.get(`/services?companyId=${companyId}`);
+        if (res && Array.isArray(res.services) && res.services.length > 0) {
+          setAvailableServices(res.services);
+          if (!location.state?.service) {
+            setService(res.services[0].name);
+            setServicePrice(Number(res.services[0].price) || BASE_LABOR);
+          }
+        }
+      } catch (err) {}
+    }
+    loadCompanyServices();
+  }, [companyId, location.state]);
   const [serviceLocation, setServiceLocation] = useState({
     address: '',
     lat: null,
@@ -114,8 +132,8 @@ const saveDraft = () => {
           <button onClick={() => navigate(ROUTES.bookings)} className="p-sm rounded-full hover:bg-surface-container-low transition-colors duration-200">
             <span className="material-symbols-outlined text-on-surface-variant">notifications</span>
           </button>
-          <div className="w-8 h-8 rounded-full overflow-hidden border border-outline-variant">
-            <img className="w-full h-full object-cover" alt="Profile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBHJ-tIFrH0h8kobUtglmS0Aa0JWF67kSGq14RRcl9CHjEhrHHBHzGM_ry8my-ABPzmixZA-ByCoDwWYCDG7-AhzYTX23Q48a4lx_RlnlC3hQ7K5PmXCsxMdcyCNe4MHSkgckPLl2m_Zgv0XbvBtZLrpxZQx_h6p6lmPPglsrCRqrTk95u_Ii4bCT7k0VGjeuOtb1Fnrt71AmmCzsvMNdNRfRVwe8NsTMpZXxB7-oNJcWygFDWbSe5mIw" />
+          <div className="w-8 h-8 rounded-full overflow-hidden border border-outline-variant bg-primary text-white flex items-center justify-center font-bold text-xs">
+            U
           </div>
         </div>
       </header>
@@ -123,11 +141,11 @@ const saveDraft = () => {
       <main className="pt-24 pb-40 px-container-margin max-w-7xl mx-auto">
         <div className="mb-xl">
           <h2 className="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-xs">Customize Your Booking</h2>
-          <p className="font-body-md text-body-md text-on-surface-variant">Choose the service and any required materials. The company will assign a technician after you submit.</p>
+          <p className="font-body-md text-body-md text-on-surface-variant">Choose the service and any required materials for <span className="font-bold text-primary">{companyName}</span>.</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-lg">
-          {/* LEFT COLUMN: Technicians */}
+          {/* LEFT COLUMN */}
           <div className="lg:col-span-8 space-y-lg">
             {/* Service Selection Card */}
             <section className="bg-surface-container-lowest rounded-xl p-lg shadow-[0_4px_16px_0_rgba(11,29,45,0.08)] border border-outline-variant">
@@ -136,17 +154,18 @@ const saveDraft = () => {
                 <span className="material-symbols-outlined text-on-surface-variant">build</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-md">
-                {['Fleet Full Inspection', 'Express Oil & Filter Change', 'Diagnostic Scan & Repair'].map((s) => {
-                  const prices = { 'Fleet Full Inspection': 120, 'Express Oil & Filter Change': 120, 'Diagnostic Scan & Repair': 150 };
-                  const active = service === s;
+                {(availableServices.length > 0 ? availableServices : [{ name: service, price: servicePrice }]).map((svcObj) => {
+                  const sName = svcObj.name;
+                  const sPrice = Number(svcObj.price) || 120;
+                  const active = service === sName;
                   return (
                     <button
-                      key={s}
-                      onClick={() => { setService(s); setServicePrice(prices[s]); }}
+                      key={sName}
+                      onClick={() => { setService(sName); setServicePrice(sPrice); }}
                       className={`p-md rounded-xl border-2 text-left transition-all ${active ? 'border-primary bg-primary/5' : 'border-outline-variant hover:border-primary/50'}`}
                     >
-                      <span className="font-nav-item text-nav-item text-on-surface block">{s}</span>
-                      <span className="font-label-sm text-label-sm text-primary mt-xs block">${prices[s].toFixed(2)}</span>
+                      <span className="font-nav-item text-nav-item text-on-surface block font-bold">{sName}</span>
+                      <span className="font-label-sm text-label-sm text-primary mt-xs block">${sPrice.toFixed(2)}</span>
                     </button>
                   );
                 })}
@@ -299,8 +318,22 @@ const saveDraft = () => {
               <span className="font-headline-md text-headline-md font-bold text-on-surface">${grandTotal.toFixed(2)}</span>
             </div>
           </div>
-          <div className="flex items-center gap-md w-full md:w-auto">
-            <button onClick={saveDraft} className="flex-1 md:flex-none px-xl py-md rounded-xl border border-outline font-nav-item text-nav-item hover:bg-surface-container transition-colors">Save Draft</button>
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            <button 
+              onClick={() => navigate(`${ROUTES.chat}/${companyId}`)}
+              className="flex-1 md:flex-none px-4 py-3 bg-emerald-600 text-white rounded-xl font-nav-item text-xs font-bold shadow hover:bg-emerald-700 transition-all flex items-center justify-center gap-1"
+            >
+              <span className="material-symbols-outlined text-sm">chat</span>
+              Live Chat
+            </button>
+            <a 
+              href="tel:+923000000000"
+              className="flex-1 md:flex-none px-4 py-3 bg-secondary text-white rounded-xl font-nav-item text-xs font-bold shadow hover:bg-secondary-container transition-all flex items-center justify-center gap-1"
+            >
+              <span className="material-symbols-outlined text-sm">call</span>
+              Call
+            </a>
+            <button onClick={saveDraft} className="flex-1 md:flex-none px-4 py-3 rounded-xl border border-outline font-nav-item text-xs hover:bg-surface-container transition-colors">Save Draft</button>
             <button 
               onClick={() => {
                 navigate(ROUTES.bookingSummary, {
@@ -317,7 +350,7 @@ const saveDraft = () => {
                   }
                 });
               }}
-              className="flex-1 md:flex-none px-xl py-md rounded-xl font-nav-item text-nav-item hover:shadow-lg transition-all scale-100 active:scale-95 bg-primary text-on-primary"
+              className="flex-1 md:flex-none px-6 py-3 rounded-xl font-nav-item text-xs font-bold hover:shadow-lg transition-all bg-primary text-on-primary"
             >
               Submit Request
             </button>

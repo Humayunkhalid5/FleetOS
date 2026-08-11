@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Company = require('../models/Company');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
@@ -18,14 +19,16 @@ const toPublicUser = (user) => ({
   address: user.address,
   role: user.role,
   plan: user.plan,
-  avatar: user.avatar,
+  avatar: user.avatar || '',
+  companyName: user.companyName || user.name,
+  companyId: user.companyId || user._id,
 });
 
 // @desc   Register a new user
 // @route  POST /api/auth/register
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, phone, address, role } = req.body;
+    const { name, email, password, phone, address, role, companyName, description, city, logo } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Please provide name, email and password' });
@@ -36,7 +39,42 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'An account with that email already exists' });
     }
 
-    const user = await User.create({ name, email, password, phone, address, role: role || 'customer' });
+    const isCompany = role === 'company' || Boolean(companyName);
+    const targetCompanyName = companyName || name;
+    const companySlug = targetCompanyName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+    const userData = {
+      name,
+      email,
+      password,
+      phone: phone || '',
+      address: address || '',
+      role: isCompany ? 'company' : (role || 'customer'),
+      companyName: isCompany ? targetCompanyName : '',
+      companyId: isCompany ? companySlug : '',
+      avatar: logo || ''
+    };
+
+    const user = await User.create(userData);
+
+    if (isCompany) {
+      const existingCompany = await Company.findOne({ slug: companySlug });
+      if (!existingCompany) {
+        await Company.create({
+          name: targetCompanyName,
+          slug: companySlug,
+          description: description || '',
+          phone: phone || '',
+          email: email.toLowerCase(),
+          location: address || '',
+          city: city || '',
+          logo: logo || '',
+          verified: true,
+          rating: 0,
+          reviewCount: 0
+        });
+      }
+    }
 
     const token = generateToken(user._id);
     return res.status(201).json({

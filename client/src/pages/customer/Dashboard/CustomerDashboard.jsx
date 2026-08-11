@@ -47,7 +47,7 @@ function CustomerDashboard() {
     fetchOngoing();
   }, [user]);
 
-useEffect(() => {
+  useEffect(() => {
     const fetchCompanies = async () => {
       setCompanyLoading(true);
       try {
@@ -56,12 +56,30 @@ useEffect(() => {
         if (cityFilter !== 'All') query.set('location', cityFilter);
         if (areaFilter !== 'All') query.set('area', areaFilter);
         const response = await api.get(`/companies?${query.toString()}`);
-        setCompanies(response.companies || []);
+        let fetched = response.companies || [];
+
+        let localCompanies = [];
+        try {
+          localCompanies = JSON.parse(localStorage.getItem('fleetos-registered-companies') || '[]');
+        } catch (e) {}
+
+        for (const locComp of localCompanies) {
+          const exists = fetched.some((c) => c.slug === locComp.slug || c._id === locComp._id || c.name === locComp.name);
+          if (!exists) {
+            fetched.unshift(locComp);
+          }
+        }
+
+        setCompanies(fetched);
         if (response.areasByCity && Object.keys(response.areasByCity).length) {
           setAreasByCity(response.areasByCity);
         }
       } catch {
-        setCompanies([]);
+        let localCompanies = [];
+        try {
+          localCompanies = JSON.parse(localStorage.getItem('fleetos-registered-companies') || '[]');
+        } catch (e) {}
+        setCompanies(localCompanies);
       } finally {
         setCompanyLoading(false);
       }
