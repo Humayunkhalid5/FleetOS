@@ -1,12 +1,13 @@
-# FleetOS Refactor TODO
+# FleetOS Fixes TODO
 
 ## Goal
-Fix login-after-signup bug and remove the non-functional phone verification flow.
+Fix login page issues, fix companies display, fix site slowness, and set up MongoDB integration.
 
 ## Tasks
-- [x] 1. `server/src/middleware/authMiddleware.js` — remove invalid `.select('-password')` call on plain object.
-- [x] 2. `client/src/pages/public/Register/Register.jsx` — remove phone verification step; navigate straight to dashboard after signup.
-- [x] 3. `server/src/app.js` — remove verification routes import/usage.
-- [x] 4. `server/src/routes/verificationRoutes.js` — delete file.
-- [x] 5. `server/src/controllers/verificationController.js` — delete file.
-- [x] 6. Restart server and verify signup → dashboard → protected API calls work.
+- [x] 1. `server/src/controllers/companyController.js` — fix broken syntax (unclosed res.json swallowing getCompany).
+- [x] 2. `server/src/server.js` — default to fixed port 5000 when PORT unset.
+- [x] 3. `server/src/config/db.js` — add MongoDB connection timeout for fail-fast.
+- [x] 4. `server/.env.example` — add MONGODB_URI, JWT_SECRET, PORT config.
+- [x] 5. Create `server/.env` with sensible defaults (JWT_SECRET, PORT; MongoDB optional).
+- [x] 6. Update `server/src/data/bootstrap.js` to seed into MongoDB when connected.
+- [ ] 7. Verify server starts and login/companies endpoints work.

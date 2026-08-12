@@ -5,7 +5,9 @@ const bootstrap = require('./data/bootstrap');
 const { initSocket } = require('./socket');
 const http = require('http');
 
-const START_PORT = process.env.PORT ? Number(process.env.PORT) : 0;
+// Default to a fixed port so the Vite dev proxy (localhost:5000) can reach it.
+const DEFAULT_PORT = 5000;
+const START_PORT = process.env.PORT ? Number(process.env.PORT) : DEFAULT_PORT;
 
 const start = async () => {
   try {

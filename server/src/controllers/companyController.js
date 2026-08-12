@@ -19,7 +19,7 @@ exports.getCompanies = async (req, res) => {
       );
     }
 
-    return res.json({
+return res.json({
       companies: filtered,
       cities: Object.keys(seedData.areasByCity || {}),
       areasByCity: seedData.areasByCity || {},
@@ -48,4 +48,4 @@ exports.getCompany = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
+  
