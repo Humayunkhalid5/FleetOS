@@ -10,6 +10,7 @@ router.post('/bookings', createBooking);
 router.get('/bookings', getMyBookings);
 router.get('/bookings/:id', getBooking);
 router.patch('/bookings/:id', updateBooking);
+router.put('/bookings/:id', updateBooking);
 
 module.exports = router;
 

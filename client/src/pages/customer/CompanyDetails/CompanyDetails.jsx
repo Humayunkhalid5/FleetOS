@@ -7,25 +7,54 @@ function CompanyDetails() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [company, setCompany] = useState(null);
+  const [dynamicServices, setDynamicServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchCompany = async () => {
+    const fetchCompanyAndServices = async () => {
       try {
-        const response = await api.get(`/companies/${id}`);
-        setCompany(response.company);
+        let comp = null;
+        try {
+          const response = await api.get(`/companies/${id}`);
+          comp = response.company;
+        } catch (e) {}
+
+        if (!comp) {
+          let localCompanies = [];
+          try {
+            localCompanies = JSON.parse(localStorage.getItem('fleetos-registered-companies') || '[]');
+          } catch (e) {}
+          comp = localCompanies.find((c) => c.slug === id || c._id === id || c.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') === id);
+        }
+
+        if (comp) {
+          setCompany(comp);
+          const compId = comp._id || comp.slug || id;
+          try {
+            const svcRes = await api.get(`/services?companyId=${compId}`);
+            if (svcRes && Array.isArray(svcRes.services) && svcRes.services.length > 0) {
+              setDynamicServices(svcRes.services);
+            } else if (comp.services?.length) {
+              setDynamicServices(comp.services);
+            }
+          } catch (e) {
+            if (comp.services?.length) setDynamicServices(comp.services);
+          }
+        } else {
+          setError('Company details not found');
+        }
       } catch (err) {
         setError(err.message || 'Company not found');
       } finally {
         setLoading(false);
       }
     };
-    fetchCompany();
+    fetchCompanyAndServices();
   }, [id]);
 
   const addToPlan = (service, price) => {
-    navigate(ROUTES.customizeBooking, { state: { companyId: id, companyName: displayName, service, price } });
+    navigate(ROUTES.customizeBooking, { state: { companyId: company?._id || company?.slug || id, companyName: displayName, service, price } });
   };
 
   if (loading) {
@@ -43,15 +72,15 @@ function CompanyDetails() {
     );
   }
 
-  const displayName = company.name || 'SwiftFleet Solutions';
-  const rating = company.rating || 4.8;
+  const displayName = company.name || 'Company Portal';
+  const rating = Number(company.rating) || 0;
   const reviewCount = company.reviewCount || 0;
-  const heroImage = company.heroImage || 'https://lh3.googleusercontent.com/aida-public/AB6AXuBJeE45UL8UKuT4uGWd_lq3pK7QrZpG2J0KfyRilPUzEtjE0ywgMikI3S-pfNgsj7iuyifnGWB96e_KmWs_31IWMLC5eS2Ek3CoWOlYkA9UjXVd-A3NEQJb6kVP6DPnzS467WC65sWffsTkbka4VQeH0GCArJKfDNTug_ExYgKbmWdasqD1LJ3cbGnkJDATYMYGCB4FR-F8eLBmWG4gfjNzc7jZobG_NVPHlY0rPSbMQ0XVGzYW87Xwpw';
-  const logo = company.logo || 'https://lh3.googleusercontent.com/aida-public/AB6AXuAjMDOQd3UrvrebrUcxX624kDq0FEAmqmVNdcG58u-9v18fx30yrnUAG8G4Ov5a7aitulaNFUI8OpyyA7dbK0LpatGOA9H1iDNhj154uoZ0ZRQ98hatThYWFI1V61HpwQrivZRYx3UUK2rXbDnWxgYmvcG82itzN6G3SaXdfnGqNHcAgZ__eJ-kYo7O9nabbf6BZODCYe6pnAKz1PNSBu_39u3u10eAP7e184NtsWVttuZU3DxVFpebjA';
-  const services = company.services || [];
+  const heroImage = company.heroImage || '';
+  const logo = company.logo || '';
+  const services = dynamicServices;
   const technicians = company.technicians || [];
-  const contactNumber = company.phone || '+92 300 0000000';
-  const contactHref = `tel:${contactNumber.replace(/\s+/g, '')}`;
+  const contactNumber = company.phone || '';
+  const contactHref = contactNumber ? `tel:${contactNumber.replace(/\s+/g, '')}` : '#';
 
   return (
     <div className="text-on-surface">
@@ -89,27 +118,39 @@ function CompanyDetails() {
       <main className="pt-16 pb-32 max-w-7xl mx-auto">
         {/* Hero Section */}
         <section className="relative w-full h-[400px] md:h-[500px] overflow-hidden">
-          <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: `url('${heroImage}')` }}>
+          <div className={`w-full h-full bg-cover bg-center ${!heroImage ? 'bg-gradient-to-r from-slate-900 via-primary to-slate-800' : ''}`} style={heroImage ? { backgroundImage: `url('${heroImage}')` } : {}}>
           </div>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
 
           <div className="absolute bottom-lg left-container-margin right-container-margin text-white">
             <div className="flex items-end gap-md">
-              <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl bg-white p-sm shadow-lg overflow-hidden flex-shrink-0 border-4 border-white/20">
-                <img className="w-full h-full object-contain" alt="Company Logo" src={logo} />
+              <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl bg-white p-sm shadow-lg overflow-hidden flex-shrink-0 border-4 border-white/20 flex items-center justify-center">
+                {logo ? (
+                  <img className="w-full h-full object-contain" alt="Company Logo" src={logo} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-primary text-white font-bold text-3xl md:text-4xl uppercase rounded-lg">
+                    {displayName.charAt(0)}
+                  </div>
+                )}
               </div>
               <div className="mb-sm">
                 <h1 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg leading-tight">{displayName}</h1>
                 <div className="flex items-center gap-sm mt-xs">
-                  <div className="flex text-yellow-400">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <span key={star} className="material-symbols-outlined" style={{ fontVariationSettings: star <= Math.round(rating) ? "'FILL' 1" : "'FILL' 0.5" }}>
-                        {star <= Math.round(rating) ? 'star' : 'star_half'}
-                      </span>
-                    ))}
-                  </div>
-                  <span className="font-body-md text-body-md font-semibold">{rating.toFixed(1)}</span>
-                  <span className="font-body-md text-body-md opacity-80">({reviewCount.toLocaleString()} Reviews)</span>
+                  {rating > 0 ? (
+                    <>
+                      <div className="flex text-yellow-400">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <span key={star} className="material-symbols-outlined text-sm" style={{ fontVariationSettings: star <= Math.round(rating) ? "'FILL' 1" : "'FILL' 0" }}>
+                            star
+                          </span>
+                        ))}
+                      </div>
+                      <span className="font-body-md text-body-md font-semibold">{rating.toFixed(1)}</span>
+                      <span className="font-body-md text-body-md opacity-80">({reviewCount.toLocaleString()} Reviews)</span>
+                    </>
+                  ) : (
+                    <span className="text-xs bg-white/20 px-2 py-0.5 rounded font-semibold text-slate-200">No Ratings Yet</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -240,13 +281,24 @@ function CompanyDetails() {
           <p className="font-label-sm text-label-sm text-on-surface-variant uppercase">Estimated Total</p>
           <p className="font-headline-md text-headline-md text-primary font-bold">$0.00</p>
         </div>
-        <div className="flex gap-md w-full md:w-auto">
-          <button onClick={() => services[0] && addToPlan(services[0].name, services[0].price)} className="flex-1 md:flex-none px-xl py-3 border border-outline rounded-xl font-nav-item text-nav-item text-on-surface hover:bg-surface-container-low transition-all">
-            Add To Plan
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
+          <button 
+            onClick={() => navigate(`${ROUTES.chat}/${id}`)}
+            className="flex-1 md:flex-none px-4 py-3 bg-emerald-600 text-white rounded-xl font-nav-item text-nav-item font-bold shadow hover:bg-emerald-700 transition-all flex items-center justify-center gap-1"
+          >
+            <span className="material-symbols-outlined text-sm">chat</span>
+            Live Chat
           </button>
+          <a 
+            href={contactHref}
+            className="flex-1 md:flex-none px-4 py-3 bg-secondary text-white rounded-xl font-nav-item text-nav-item font-bold shadow hover:bg-secondary-container transition-all flex items-center justify-center gap-1"
+          >
+            <span className="material-symbols-outlined text-sm">call</span>
+            Call Dealer
+          </a>
           <button
             onClick={() => navigate(ROUTES.customizeBooking, { state: { companyId: id, companyName: displayName } })}
-            className="flex-[2] md:flex-none px-xl py-3 bg-primary text-white rounded-xl font-nav-item text-nav-item font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all"
+            className="flex-[2] md:flex-none px-6 py-3 bg-primary text-white rounded-xl font-nav-item text-nav-item font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all"
           >
             Submit Service Request
           </button>

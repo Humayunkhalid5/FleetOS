@@ -6,7 +6,7 @@ import { fileURLToPath, URL } from 'node:url'
 export default defineConfig({
   plugins: [react()],
   build: {
-    rolldownOptions: {
+    rollupOptions: {
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {

@@ -18,7 +18,11 @@ function Login() {
     const nextUser = await login(email, password);
     setSubmitting(false);
     if (nextUser) {
-      navigate(ROUTES.dashboard);
+      if (nextUser.role === 'company') {
+        navigate(ROUTES.companyDashboard);
+      } else {
+        navigate(ROUTES.dashboard);
+      }
     }
   };
 
@@ -29,7 +33,11 @@ function Login() {
     const nextUser = await login('alex@fleetos.com', 'demo1234');
     setSocialLoading('');
     if (nextUser) {
-      navigate(ROUTES.dashboard);
+      if (nextUser.role === 'company') {
+        navigate(ROUTES.companyDashboard);
+      } else {
+        navigate(ROUTES.dashboard);
+      }
     }
   };
 

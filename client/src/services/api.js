@@ -6,8 +6,25 @@ const getToken = () => localStorage.getItem('fleetos-token');
 
 const buildUrl = (endpoint) => (endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`);
 
+const cache = new Map();
+const CACHE_TTL_MS = 3000;
+
 const request = async (endpoint, options = {}) => {
   const token = getToken();
+
+  // Cache lookup for GET requests unless options.noCache is set
+  const method = options.method || 'GET';
+  const url = buildUrl(endpoint);
+  const cacheKey = `${method}:${url}:${token || 'anon'}`;
+
+  if (method === 'GET' && !options.noCache) {
+    const cached = cache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return cached.data;
+    }
+  } else if (method !== 'GET') {
+    cache.clear();
+  }
 
   const headers = {
     'Content-Type': 'application/json',
@@ -15,7 +32,7 @@ const request = async (endpoint, options = {}) => {
     ...(options.headers || {}),
   };
 
-  const response = await fetch(buildUrl(endpoint), {
+  const response = await fetch(url, {
     ...options,
     headers,
   });
@@ -29,6 +46,10 @@ const request = async (endpoint, options = {}) => {
 
   if (!response.ok) {
     throw new Error(data.message || 'Request failed');
+  }
+
+  if (method === 'GET' && !options.noCache) {
+    cache.set(cacheKey, { timestamp: Date.now(), data });
   }
 
   return data;

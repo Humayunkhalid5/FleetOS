@@ -7,7 +7,10 @@ const bookingRoutes = require('./routes/bookingRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const trackingRoutes = require('./routes/trackingRoutes');
 const chatRoutes = require('./routes/chatRoutes');
-const assignmentRoutes = require('./routes/assignmentRoutes');
+const inventoryRoutes = require('./routes/inventoryRoutes');
+const serviceRoutes = require('./routes/serviceRoutes');
+const technicianRoutes = require('./routes/technicianRoutes');
+const customerRoutes = require('./routes/customerRoutes');
 
 const app = express();
 
@@ -26,6 +29,10 @@ app.use('/api', reviewRoutes);
 app.use('/api', trackingRoutes);
 app.use('/api', chatRoutes);
 app.use('/api', assignmentRoutes);
+app.use('/api', inventoryRoutes);
+app.use('/api', serviceRoutes);
+app.use('/api', technicianRoutes);
+app.use('/api', customerRoutes);
 
 // 404 handler
 app.use((req, res) => {

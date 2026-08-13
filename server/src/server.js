@@ -1,13 +1,19 @@
 require('dotenv').config();
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'fleetos_dev_secret_key_2026_super_secure';
 const app = require('./app');
 const connectDB = require('./config/db');
 const bootstrap = require('./data/bootstrap');
 const { initSocket } = require('./socket');
 const http = require('http');
 
+<<<<<<< HEAD
 // Default to a fixed port so the Vite dev proxy (localhost:5000) can reach it.
 const DEFAULT_PORT = 5000;
 const START_PORT = process.env.PORT ? Number(process.env.PORT) : DEFAULT_PORT;
+=======
+const START_PORT = process.env.PORT ? Number(process.env.PORT) : 5000;
+
+>>>>>>> origin/aisha
 
 const start = async () => {
   try {

@@ -43,57 +43,65 @@ location: { type: String, default: '' },
 
 const CompanyModel = mongoose.models.Company || mongoose.model('Company', companySchema);
 
+const isMongoConnected = () => mongoose.connection.readyState === 1;
+
 const Company = {
   find(query = {}) {
     return new CompanyQuery(async ({ sortField }) => {
-      try {
-        let results = await CompanyModel.find(query);
-        if (sortField) {
-          const dir = sortField.startsWith('-') ? -1 : 1;
-          const key = sortField.replace(/^-/, '');
-          results = results.slice().sort((a, b) => (a[key] - b[key]) * dir);
-        }
-        return results;
-      } catch {
-        return db.find('companies', query);
+      if (isMongoConnected()) {
+        try {
+          let results = await CompanyModel.find(query);
+          if (sortField) {
+            const dir = sortField.startsWith('-') ? -1 : 1;
+            const key = sortField.replace(/^-/, '');
+            results = results.slice().sort((a, b) => (a[key] - b[key]) * dir);
+          }
+          return results;
+        } catch (err) {}
       }
+      return db.find('companies', query);
     });
   },
 
   async findById(id) {
-    try {
-      return await CompanyModel.findById(id);
-    } catch {
-      return db.findById('companies', id);
+    if (isMongoConnected()) {
+      try {
+        return await CompanyModel.findById(id);
+      } catch (err) {}
     }
+    return db.findById('companies', id);
   },
 
   async findOne(query = {}) {
-    try {
-      return await CompanyModel.findOne(query);
-    } catch {
-      return db.findOne('companies', query);
+    if (isMongoConnected()) {
+      try {
+        return await CompanyModel.findOne(query);
+      } catch (err) {}
     }
+    return db.findOne('companies', query);
   },
 
   async create(data) {
-    try {
-      return await CompanyModel.create(data);
-    } catch {
-      return db.create('companies', data);
+    if (isMongoConnected()) {
+      try {
+        return await CompanyModel.create(data);
+      } catch (err) {}
     }
+    return db.create('companies', data);
   },
 
   async findByIdAndUpdate(id, update) {
-    try {
-      return await CompanyModel.findByIdAndUpdate(id, update, { new: true });
-    } catch {
-      const record = db.findById('companies', id);
-      if (!record) return null;
-      const merged = { ...record, ...update };
-      return db.save('companies', merged);
+    if (isMongoConnected()) {
+      try {
+        return await CompanyModel.findByIdAndUpdate(id, update, { new: true });
+      } catch (err) {}
     }
+    const record = db.findById('companies', id);
+    if (!record) return null;
+    const merged = { ...record, ...update };
+    return db.save('companies', merged);
   },
 };
 
 module.exports = Company;
+
