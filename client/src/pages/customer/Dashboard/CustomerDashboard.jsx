@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
-import { ROUTES, companyRoute, SIDEBAR_LINKS, SIDEBAR_FOOTER_LINKS, BOTTOM_NAV, CATEGORIES } from '../../../constants';
+import { ROUTES, companyRoute, BOTTOM_NAV, CATEGORIES } from '../../../constants';
+import Sidebar from '../../../components/Sidebar/Sidebar';
 import api from '../../../services/api';
 
 // Fallback data used if the API omits areasByCity
@@ -14,6 +15,7 @@ const FALLBACK_AREAS = {
 
 function CustomerDashboard() {
   const navigate = useNavigate();
+  const routerLocation = useLocation();
   const { user, loading, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [ongoingBooking, setOngoingBooking] = useState(null);
@@ -45,7 +47,7 @@ function CustomerDashboard() {
     fetchOngoing();
   }, [user]);
 
-useEffect(() => {
+  useEffect(() => {
     const fetchCompanies = async () => {
       setCompanyLoading(true);
       try {
@@ -54,12 +56,30 @@ useEffect(() => {
         if (cityFilter !== 'All') query.set('location', cityFilter);
         if (areaFilter !== 'All') query.set('area', areaFilter);
         const response = await api.get(`/companies?${query.toString()}`);
-        setCompanies(response.companies || []);
+        let fetched = response.companies || [];
+
+        let localCompanies = [];
+        try {
+          localCompanies = JSON.parse(localStorage.getItem('fleetos-registered-companies') || '[]');
+        } catch (e) {}
+
+        for (const locComp of localCompanies) {
+          const exists = fetched.some((c) => c.slug === locComp.slug || c._id === locComp._id || c.name === locComp.name);
+          if (!exists) {
+            fetched.unshift(locComp);
+          }
+        }
+
+        setCompanies(fetched);
         if (response.areasByCity && Object.keys(response.areasByCity).length) {
           setAreasByCity(response.areasByCity);
         }
       } catch {
-        setCompanies([]);
+        let localCompanies = [];
+        try {
+          localCompanies = JSON.parse(localStorage.getItem('fleetos-registered-companies') || '[]');
+        } catch (e) {}
+        setCompanies(localCompanies);
       } finally {
         setCompanyLoading(false);
       }
@@ -109,8 +129,10 @@ const toggleMenu = () => setMenuOpen(!menuOpen);
           <h1 className="font-headline-md text-headline-md font-bold text-primary">FleetOS</h1>
         </div>
         <div className="flex items-center gap-md">
-          <button onClick={() => goTo(ROUTES.bookings)} className="p-2 hover:bg-surface-container-low rounded-full transition-colors">
+          <button onClick={() => goTo(ROUTES.notifications)} className="p-2 hover:bg-surface-container-low rounded-full transition-colors relative">
             <span className="material-symbols-outlined text-on-surface-variant">notifications</span>
+            {/* Unread badge */}
+            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary" />
           </button>
           <div
             className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-fixed shadow-sm cursor-pointer"
@@ -198,7 +220,7 @@ const toggleMenu = () => setMenuOpen(!menuOpen);
           <div className="relative z-10 flex flex-col justify-center h-full p-lg text-on-primary-container">
             <span className="font-label-sm uppercase tracking-wider mb-xs">Limited Offer</span>
             <h2 className="font-headline-lg-mobile text-headline-lg-mobile font-bold mb-md max-w-[280px]">20% off your first plumbing service</h2>
-            <button onClick={() => goTo(ROUTES.customizeBooking)} className="w-fit px-lg py-sm bg-surface-container-lowest text-primary font-bold rounded-lg shadow-md hover:scale-105 transition-transform active:scale-95">
+          <button onClick={() => goTo(ROUTES.companies)} className="w-fit px-lg py-sm bg-surface-container-lowest text-primary font-bold rounded-lg shadow-md hover:scale-105 transition-transform active:scale-95">
               Claim Now
             </button>
           </div>
@@ -378,75 +400,34 @@ const toggleMenu = () => setMenuOpen(!menuOpen);
         </section>
       </main>
 
-      {/* NavigationDrawer (Sidebar) */}
-      <div 
-        className={`fixed inset-0 z-[60] bg-on-background/40 backdrop-blur-sm transition-opacity duration-300 ${menuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
-        onClick={toggleMenu}
-      >
-        <aside 
-          className={`h-full w-80 bg-surface shadow-2xl rounded-r-xl transition-transform duration-300 overflow-y-auto ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}
-          onClick={e => e.stopPropagation()}
-        >
-          <div className="flex flex-col h-full py-lg">
-            {/* Profile Header */}
-            <div className="px-lg pb-xl border-b border-surface-container-low mb-lg">
-              <div className="w-16 h-16 rounded-full overflow-hidden mb-md shadow-md border-2 border-primary-fixed">
-                <img className="w-full h-full object-cover" alt={displayUser.name} src={displayUser.avatar} />
-              </div>
-              <h3 className="font-headline-md text-headline-md text-on-surface">{displayUser.name.split(' ')[0]} {displayUser.name.split(' ')[1] || ''}</h3>
-              <p className="text-body-md text-on-surface-variant">{displayUser.role}</p>
-              <span className="inline-block mt-xs px-2 py-0.5 bg-primary-container text-on-primary-container text-[10px] font-bold rounded uppercase tracking-wider">{displayUser.plan}</span>
-            </div>
-
-            {/* Nav Links */}
-            <nav className="flex-1 space-y-1">
-              {SIDEBAR_LINKS.map((link, i) => (
-                <a
-                  key={link.label}
-                  href={link.to}
-                  onClick={(e) => { e.preventDefault(); goTo(link.to); }}
-                  className={`flex items-center gap-md py-3 px-lg mx-2 rounded-lg transition-colors ${i === 0 ? 'bg-primary-container text-on-primary-container font-bold' : 'text-on-surface-variant hover:bg-surface-container-low'}`}
-                >
-                  <span className="material-symbols-outlined">{link.icon}</span>
-                  <span className="font-nav-item text-nav-item">{link.label}</span>
-                </a>
-              ))}
-
-              <div className="my-xl border-t border-surface-container-low"></div>
-
-              {SIDEBAR_FOOTER_LINKS.map(link => (
-                <a
-                  key={link.label}
-                  href={link.to}
-                  onClick={(e) => { e.preventDefault(); goTo(link.to); }}
-                  className="flex items-center gap-md py-3 px-lg text-on-surface-variant hover:bg-surface-container-low mx-2 rounded-lg transition-colors"
-                >
-                  <span className="material-symbols-outlined">{link.icon}</span>
-                  <span className="font-nav-item text-nav-item">{link.label}</span>
-                </a>
-              ))}
-              <button onClick={logout} className="w-full flex items-center gap-md py-3 px-lg text-error hover:bg-error-container/20 mx-2 rounded-lg transition-colors">
-                <span className="material-symbols-outlined">logout</span>
-                <span className="font-nav-item text-nav-item">Logout</span>
-              </button>
-            </nav>
-          </div>
-        </aside>
-      </div>
+      {/* NavigationDrawer — rendered via Sidebar component */}
+      <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
 
       {/* BottomNavBar (Mobile Only) */}
       <nav className="fixed bottom-0 w-full z-50 flex justify-around items-center px-container-margin py-sm bg-surface shadow-[0_-4px_16px_0_rgba(11,29,45,0.12)] rounded-t-xl md:hidden">
-        {BOTTOM_NAV.map((item, i) => (
-          <a
-            key={item.label}
-            href={item.to}
-            onClick={(e) => { e.preventDefault(); goTo(item.to); }}
-            className={`flex flex-col items-center justify-center px-4 py-1 transition-all duration-150 ${i === 0 ? 'bg-secondary-container text-on-secondary-container rounded-xl scale-95 active:scale-90' : 'text-on-secondary-fixed-variant hover:bg-surface-container-high'}`}
-          >
-            <span className="material-symbols-outlined" style={i === 0 ? { fontVariationSettings: "'FILL' 1" } : undefined}>{item.icon}</span>
-            <span className="font-nav-item text-[10px] mt-0.5">{item.label}</span>
-          </a>
-        ))}
+        {BOTTOM_NAV.map((item) => {
+          const active = routerLocation.pathname === item.to;
+          return (
+            <a
+              key={item.label}
+              href={item.to}
+              onClick={(e) => { e.preventDefault(); goTo(item.to); }}
+              className={`flex flex-col items-center justify-center px-4 py-1 transition-all duration-150 ${
+                active
+                  ? 'bg-secondary-container text-on-secondary-container rounded-xl scale-95'
+                  : 'text-on-secondary-fixed-variant hover:bg-surface-container-high'
+              }`}
+            >
+              <span
+                className="material-symbols-outlined"
+                style={active ? { fontVariationSettings: "'FILL' 1" } : undefined}
+              >
+                {item.icon}
+              </span>
+              <span className="font-nav-item text-[10px] mt-0.5">{item.label}</span>
+            </a>
+          );
+        })}
       </nav>
 
       {/* Contextual FAB */}

@@ -154,19 +154,33 @@ function Profile() {
     }
   };
 
-  const changePassword = async () => {
-    const current = window.prompt('Enter your current password:');
-    if (!current) return;
-    const next = window.prompt('Enter a new password (8+ chars):');
-    if (!next || next.length < 8) {
-      alert('New password must be at least 8 characters.');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pwdForm, setPwdForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [pwdStatus, setPwdStatus] = useState({ error: '', success: '', submitting: false });
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPwdStatus({ error: '', success: '', submitting: true });
+
+    if (pwdForm.newPassword.length < 8) {
+      setPwdStatus({ error: 'New password must be at least 8 characters long.', success: '', submitting: false });
       return;
     }
+    if (pwdForm.newPassword !== pwdForm.confirmPassword) {
+      setPwdStatus({ error: 'New passwords do not match.', success: '', submitting: false });
+      return;
+    }
+
     try {
-      const response = await api.post('/auth/change-password', { currentPassword: current, newPassword: next });
-      alert(response.message || 'Password changed successfully!');
+      const response = await api.post('/auth/change-password', {
+        currentPassword: pwdForm.currentPassword,
+        newPassword: pwdForm.newPassword
+      });
+      setPwdStatus({ error: '', success: response.message || 'Password changed successfully!', submitting: false });
+      setPwdForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => setShowPasswordModal(false), 2000);
     } catch (err) {
-      alert(err.message || 'Failed to change password.');
+      setPwdStatus({ error: err.message || 'Failed to change password.', success: '', submitting: false });
     }
   };
 
@@ -286,7 +300,7 @@ function Profile() {
                   Edit Profile
                 </button>
                 <button
-                  onClick={changePassword}
+                  onClick={() => setShowPasswordModal(true)}
                   className="flex-1 py-3 bg-surface-container-high text-on-surface-variant font-bold rounded-xl hover:bg-surface-container-highest transition-colors"
                 >
                   Change Password
@@ -339,29 +353,9 @@ function Profile() {
           )}
         </section>
 
-        {/* Menu */}
-        <section className="bg-surface-container-lowest rounded-xl shadow-elevation-1 border border-surface-container-low overflow-hidden">
-          {menuItems.map((item, i) => (
-            <button
-              key={item.label}
-              onClick={() => navigate(item.to)}
-              className={`w-full flex items-center gap-md p-lg text-left hover:bg-surface-container-low transition-colors ${i > 0 ? 'border-t border-surface-container' : ''}`}
-            >
-              <span className="material-symbols-outlined text-primary">{item.icon}</span>
-              <span className="flex-1 font-nav-item text-nav-item text-on-surface">{item.label}</span>
-              <span className="material-symbols-outlined text-on-surface-variant text-sm">chevron_right</span>
-            </button>
-          ))}
-        </section>
 
-        {/* Logout */}
-        <button
-          onClick={logout}
-          className="w-full py-3 bg-error-container text-on-error-container font-bold rounded-xl hover:brightness-95 transition-all flex items-center justify-center gap-sm"
-        >
-          <span className="material-symbols-outlined">logout</span>
-          Logout
-        </button>
+
+
       </main>
 
       {/* BottomNavBar (Mobile Only) */}
@@ -383,6 +377,90 @@ function Profile() {
           <span className="font-nav-item text-[10px] mt-0.5">Profile</span>
         </a>
       </nav>
+
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-[80] bg-on-background/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="font-bold text-base text-on-surface">Change Password</h3>
+              <button 
+                onClick={() => setShowPasswordModal(false)}
+                className="p-1 rounded-full hover:bg-surface-container-low transition-colors"
+              >
+                <span className="material-symbols-outlined text-on-surface-variant text-base">close</span>
+              </button>
+            </div>
+
+            {pwdStatus.error && (
+              <div className="p-3 bg-error-container text-on-error-container text-xs rounded-lg flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">error</span>
+                <span>{pwdStatus.error}</span>
+              </div>
+            )}
+
+            {pwdStatus.success && (
+              <div className="p-3 bg-emerald-100 text-emerald-800 text-xs rounded-lg flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">check_circle</span>
+                <span>{pwdStatus.success}</span>
+              </div>
+            )}
+
+            <form onSubmit={handlePasswordSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-on-surface font-semibold mb-1">Current Password</label>
+                <input 
+                  type="password"
+                  required
+                  className="w-full px-3 py-2 border border-outline-variant rounded-lg outline-none focus:border-primary"
+                  value={pwdForm.currentPassword}
+                  onChange={(e) => setPwdForm({ ...pwdForm, currentPassword: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-on-surface font-semibold mb-1">New Password (8+ characters)</label>
+                <input 
+                  type="password"
+                  required
+                  className="w-full px-3 py-2 border border-outline-variant rounded-lg outline-none focus:border-primary"
+                  value={pwdForm.newPassword}
+                  onChange={(e) => setPwdForm({ ...pwdForm, newPassword: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-on-surface font-semibold mb-1">Confirm New Password</label>
+                <input 
+                  type="password"
+                  required
+                  className="w-full px-3 py-2 border border-outline-variant rounded-lg outline-none focus:border-primary"
+                  value={pwdForm.confirmPassword}
+                  onChange={(e) => setPwdForm({ ...pwdForm, confirmPassword: e.target.value })}
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t mt-4">
+                <button 
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="px-4 py-2 border rounded-lg text-on-surface-variant font-semibold hover:bg-surface-container-low"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={pwdStatus.submitting}
+                  className="px-4 py-2 bg-primary text-on-primary font-semibold rounded-lg hover:bg-primary-container disabled:opacity-60 flex items-center gap-2"
+                >
+                  {pwdStatus.submitting && <span className="material-symbols-outlined text-xs animate-spin">progress_activity</span>}
+                  {pwdStatus.submitting ? 'Updating...' : 'Update Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

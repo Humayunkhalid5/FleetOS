@@ -14,25 +14,37 @@ export const ROUTES = {
   profile: '/customer/profile',
   bookings: '/customer/bookings',
   reviews: '/customer/reviews',
+  payments: '/customer/payments',
+  notifications: '/customer/notifications',
   customizeBooking: '/customer/customize-booking',
   bookingSummary: '/customer/booking-summary',
   liveTracking: '/customer/live-tracking',
   serviceReview: '/customer/service-review',
   chat: '/customer/chat',
   companies: '/customer/companies',
+  companyDashboard: '/company/dashboard',
+  companyRegister: '/company/register',
+  companyInventory: '/company/inventory',
+  companyTechnicians: '/company/technicians',
+  companyServices: '/company/services',
+  companyBookings: '/company/bookings',
+  companyReviews: '/company/reviews',
+  companyCustomers: '/company/customers',
+  companyAnalytics: '/company/analytics',
+  companyChat: '/company/chat',
 };
 
 export const companyRoute = (id = 'swiftfleet') => `/customer/company/${id}`;
 
 // Sidebar navigation links (desktop drawer)
 export const SIDEBAR_LINKS = [
-  { label: 'Dashboard', icon: 'dashboard', to: ROUTES.dashboard },
-  { label: 'Browse Services', icon: 'category', to: ROUTES.customizeBooking },
-  { label: 'Browse Companies', icon: 'business', to: ROUTES.companies },
-  { label: 'My Bookings', icon: 'calendar_today', to: ROUTES.bookings },
-  { label: 'Payments', icon: 'payments', to: ROUTES.bookings },
-  { label: 'Reviews', icon: 'rate_review', to: ROUTES.reviews },
-  { label: 'Notifications', icon: 'notifications', to: ROUTES.bookings },
+  { label: 'Dashboard',       icon: 'dashboard',        to: ROUTES.dashboard },
+  { label: 'Browse Services', icon: 'category',          to: ROUTES.companies },
+  { label: 'Browse Companies',icon: 'business',          to: ROUTES.companies },
+  { label: 'My Bookings',     icon: 'calendar_today',    to: ROUTES.bookings },
+  { label: 'Payments',        icon: 'payments',          to: ROUTES.payments },
+  { label: 'Reviews',         icon: 'rate_review',       to: ROUTES.reviews },
+  { label: 'Notifications',   icon: 'notifications',     to: ROUTES.notifications },
 ];
 
 export const SIDEBAR_FOOTER_LINKS = [
@@ -41,19 +53,21 @@ export const SIDEBAR_FOOTER_LINKS = [
 
 // Mobile bottom navigation
 export const BOTTOM_NAV = [
-  { label: 'Dashboard', icon: 'dashboard', to: ROUTES.dashboard },
-  { label: 'Bookings', icon: 'event_note', to: ROUTES.bookings },
-  { label: 'Search', icon: 'search', to: ROUTES.bookings },
-  { label: 'Profile', icon: 'person', to: ROUTES.profile },
+  { label: 'Dashboard',  icon: 'dashboard',  to: ROUTES.dashboard },
+  { label: 'Bookings',   icon: 'event_note', to: ROUTES.bookings },
+  { label: 'Companies',  icon: 'business',   to: ROUTES.companies },
+  { label: 'Profile',    icon: 'person',     to: ROUTES.profile },
 ];
 
-// Service categories shown on the dashboard
+// Service categories shown on the dashboard and Companies filter
 export const CATEGORIES = [
-  { icon: 'plumbing', label: 'Plumbing' },
-  { icon: 'electrical_services', label: 'Electrical' },
-  { icon: 'cleaning_services', label: 'Cleaning' },
-  { icon: 'hvac', label: 'HVAC' },
-  { icon: 'pest_control', label: 'Pests' },
+  { icon: 'plumbing',             label: 'Plumbing',     value: 'plumbing' },
+  { icon: 'electrical_services',  label: 'Electrical',   value: 'electrical' },
+  { icon: 'cleaning_services',    label: 'Cleaning',     value: 'cleaning' },
+  { icon: 'hvac',                 label: 'HVAC',         value: 'hvac' },
+  { icon: 'pest_control',         label: 'Pests',        value: 'pest_control' },
+  { icon: 'build',                label: 'Mechanical',   value: 'mechanical' },
+  { icon: 'local_shipping',       label: 'Fleet',        value: 'fleet' },
 ];
 
 // Technicians for the booking flow (Customize Booking)
@@ -92,10 +106,10 @@ export const TECHNICIANS = [
 
 // Bookable materials
 export const MATERIALS = [
-  { id: 'faucet', name: 'Standard Faucet', price: 45.0 },
-  { id: 'pipe', name: 'Copper Pipe (10ft)', price: 22.5 },
-  { id: 'valve', name: 'Shut-off Valve', price: 12.0 },
-  { id: 'trap', name: 'P-Trap Kit', price: 18.99 },
+  { id: 'faucet', name: 'Standard Faucet',    price: 45.00 },
+  { id: 'pipe',   name: 'Copper Pipe (10ft)', price: 22.50 },
+  { id: 'valve',  name: 'Shut-off Valve',     price: 12.00 },
+  { id: 'trap',   name: 'P-Trap Kit',         price: 18.99 },
 ];
 
 export const BASE_LABOR = 120.0;

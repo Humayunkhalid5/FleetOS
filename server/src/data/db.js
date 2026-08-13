@@ -5,6 +5,10 @@
 // ---------------------------------------------------------------------------
 
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+
+const STORE_FILE = path.join(__dirname, 'store.json');
 
 // Generate a Mongo-style 24-hex ObjectId string
 const generateId = () => crypto.randomBytes(12).toString('hex');
@@ -33,6 +37,32 @@ const store = {
   reviews: [],
   chatMessages: [],
 };
+
+const loadFromDisk = () => {
+  try {
+    if (fs.existsSync(STORE_FILE)) {
+      const data = JSON.parse(fs.readFileSync(STORE_FILE, 'utf8'));
+      if (Array.isArray(data.users)) store.users = data.users;
+      if (Array.isArray(data.companies)) store.companies = data.companies;
+      if (Array.isArray(data.bookings)) store.bookings = data.bookings;
+      if (Array.isArray(data.reviews)) store.reviews = data.reviews;
+      if (Array.isArray(data.chatMessages)) store.chatMessages = data.chatMessages;
+    }
+  } catch (err) {
+    console.warn('Failed to load store from disk:', err.message);
+  }
+};
+
+const saveToDisk = () => {
+  try {
+    fs.writeFileSync(STORE_FILE, JSON.stringify(store, null, 2), 'utf8');
+  } catch (err) {
+    console.warn('Failed to save store to disk:', err.message);
+  }
+};
+
+// Initial load from disk
+loadFromDisk();
 
 // Generic collection helpers
 const collection = (name) => store[name];
@@ -90,11 +120,21 @@ const create = (name, data) => {
   record.createdAt = record.createdAt || now();
   record.updatedAt = record.updatedAt || now();
   collection(name).push(record);
+  saveToDisk();
   return clone(record);
 };
 
 const insertMany = (name, dataArray) => {
-  return dataArray.map((data) => create(name, data));
+  const inserted = dataArray.map((data) => {
+    const record = clone(data);
+    record._id = record._id || generateId();
+    record.createdAt = record.createdAt || now();
+    record.updatedAt = record.updatedAt || now();
+    collection(name).push(record);
+    return clone(record);
+  });
+  saveToDisk();
+  return inserted;
 };
 
 const deleteMany = (name, query = {}) => {
@@ -103,6 +143,7 @@ const deleteMany = (name, query = {}) => {
   for (let i = arr.length - 1; i >= 0; i--) {
     if (matches(arr[i], query)) arr.splice(i, 1);
   }
+  saveToDisk();
   return before - arr.length;
 };
 
@@ -113,6 +154,7 @@ const save = (name, record) => {
   if (idx === -1) return null;
   record.updatedAt = now();
   collection(name)[idx] = clone(record);
+  saveToDisk();
   return clone(collection(name)[idx]);
 };
 
@@ -121,7 +163,9 @@ const remove = (name, id) => {
   const arr = collection(name);
   const idx = arr.findIndex((r) => r._id === id);
   if (idx === -1) return null;
-  return arr.splice(idx, 1)[0];
+  const deleted = arr.splice(idx, 1)[0];
+  saveToDisk();
+  return deleted;
 };
 
 // Populate a reference field with the full target object (like Mongoose .populate)
@@ -159,6 +203,7 @@ const resetStore = (nextData) => {
     if (nextData.reviews) store.reviews = clone(nextData.reviews);
     if (nextData.chatMessages) store.chatMessages = clone(nextData.chatMessages);
   }
+  saveToDisk();
 };
 
 module.exports = {
