@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ROUTES, MATERIALS, BASE_LABOR } from '../../../constants';
+import { ROUTES, BASE_LABOR } from '../../../constants';
 import api from '../../../services/api';
+
+const currency = new Intl.NumberFormat('en-PK', {
+  style: 'currency',
+  currency: 'PKR',
+  maximumFractionDigits: 0,
+});
 
 function CustomizeBooking() {
   const navigate = useNavigate();
@@ -13,12 +19,24 @@ function CustomizeBooking() {
   const [availableServices, setAvailableServices] = useState([]);
   const [service, setService] = useState(location.state?.service || 'Fleet Maintenance');
   const [servicePrice, setServicePrice] = useState(Number(location.state?.price) || BASE_LABOR);
+  const [serviceLocation, setServiceLocation] = useState({
+    address: '',
+    lat: null,
+    lng: null,
+  });
+  const [locatingAddress, setLocatingAddress] = useState(false);
+  const [locationMode, setLocationMode] = useState('manual');
+  const [gpsLabel, setGpsLabel] = useState('');
+  const [materials, setMaterials] = useState({});
+  const [companyItems, setCompanyItems] = useState([]);
+  const [itemsLoading, setItemsLoading] = useState(false);
+  const [itemsError, setItemsError] = useState('');
 
   useEffect(() => {
     async function loadCompanyServices() {
       if (!companyId) return;
       try {
-        const res = await api.get(`/services?companyId=${companyId}`);
+        const res = await api.get(`/services?companyId=${encodeURIComponent(companyId)}`);
         if (res && Array.isArray(res.services) && res.services.length > 0) {
           setAvailableServices(res.services);
           if (!location.state?.service) {
@@ -26,28 +44,50 @@ function CustomizeBooking() {
             setServicePrice(Number(res.services[0].price) || BASE_LABOR);
           }
         }
-      } catch (err) {}
+      } catch (err) {
+        setAvailableServices([]);
+      }
     }
     loadCompanyServices();
-  }, [companyId, location.state]);
-  const [serviceLocation, setServiceLocation] = useState({
-    address: '',
-    lat: null,
-    lng: null,
-  });
-  const [locatingAddress, setLocatingAddress] = useState(false);
-  const [locationMode, setLocationMode] = useState('manual'); // 'manual' | 'gps'
-  const [gpsLabel, setGpsLabel] = useState('');
+  }, [companyId, location.state?.service]);
 
-  const [materials, setMaterials] = useState(() => {
-    const init = {};
-    MATERIALS.forEach((m) => { init[m.id] = { qty: 0, price: m.price, name: m.name }; });
-    return init;
-  });
+  useEffect(() => {
+    async function loadCompanyInventory() {
+      if (!companyId) return;
+      setItemsLoading(true);
+      setItemsError('');
+      try {
+        const res = await api.get(`/public/inventory?companyId=${encodeURIComponent(companyId)}`, { noCache: true });
+        const items = Array.isArray(res?.inventory) ? res.inventory : [];
+        setCompanyItems(items);
+        setMaterials(items.reduce((acc, item) => {
+          const id = item._id || item.id || item.sku || item.name;
+          acc[id] = {
+            id,
+            sku: item.sku || '',
+            qty: 0,
+            price: Number(item.unitPrice ?? item.price ?? 0),
+            name: item.name,
+            unit: item.unit || 'unit',
+            category: item.category || 'Company item',
+            stock: Number(item.quantity ?? item.qty ?? 0),
+          };
+          return acc;
+        }, {}));
+      } catch (err) {
+        setCompanyItems([]);
+        setMaterials({});
+        setItemsError(err.message || 'Company items could not be loaded.');
+      } finally {
+        setItemsLoading(false);
+      }
+    }
+    loadCompanyInventory();
+  }, [companyId]);
 
-  const baseLabor = BASE_LABOR;
+  const baseLabor = Number(servicePrice) || BASE_LABOR;
 
-const saveDraft = () => {
+  const saveDraft = async () => {
     const draft = {
       materials,
       service,
@@ -55,24 +95,33 @@ const saveDraft = () => {
       serviceLocation,
       savedAt: new Date().toISOString(),
     };
-    localStorage.setItem('fleetos-booking-draft', JSON.stringify(draft));
-    alert('Draft saved! You can continue anytime.');
+    try {
+      await api.put('/auth/booking-draft', draft);
+      alert('Draft saved to your FleetOS account.');
+    } catch (error) {
+      alert(error.message || 'Draft could not be saved.');
+    }
   };
 
   const updateQty = (id, delta) => {
-    setMaterials(prev => ({
-      ...prev,
-      [id]: {
-        ...prev[id],
-        qty: Math.max(0, prev[id].qty + delta)
-      }
-    }));
+    setMaterials((prev) => {
+      const item = prev[id];
+      if (!item) return prev;
+      const nextQty = Math.max(0, item.qty + delta);
+      const cappedQty = item.stock > 0 ? Math.min(nextQty, item.stock) : nextQty;
+      return {
+        ...prev,
+        [id]: {
+          ...item,
+          qty: cappedQty,
+        },
+      };
+    });
   };
 
   const materialsTotal = Object.values(materials).reduce((sum, item) => sum + (item.qty * item.price), 0);
   const grandTotal = baseLabor + materialsTotal;
 
-  // Capture the user's real GPS location
   const useMyLocation = () => {
     if (!('geolocation' in navigator)) {
       alert('Geolocation is not supported by this browser. Please type your address below.');
@@ -83,7 +132,6 @@ const saveDraft = () => {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
-        // Attempt reverse-geocode via OpenStreetMap Nominatim (no API key required)
         let label = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
         try {
           const res = await fetch(
@@ -92,7 +140,7 @@ const saveDraft = () => {
           const data = await res.json();
           if (data?.display_name) label = data.display_name;
         } catch {
-          // fall back to coordinates if reverse geocode fails
+          // Coordinates are still useful when reverse geocoding is unavailable.
         }
         setGpsLabel(label);
         setServiceLocation({ address: label, lat: latitude, lng: longitude });
@@ -120,7 +168,6 @@ const saveDraft = () => {
 
   return (
     <div className="bg-background text-on-surface min-h-screen">
-      {/* TopAppBar */}
       <header className="fixed top-0 w-full z-50 flex justify-between items-center px-lg h-16 bg-surface shadow-sm transition-colors duration-200 ease-in-out">
         <div className="flex items-center gap-md">
           <button onClick={() => navigate(-1)} className="p-sm rounded-full hover:bg-surface-container-low transition-colors duration-200">
@@ -141,13 +188,11 @@ const saveDraft = () => {
       <main className="pt-24 pb-40 px-container-margin max-w-7xl mx-auto">
         <div className="mb-xl">
           <h2 className="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-xs">Customize Your Booking</h2>
-          <p className="font-body-md text-body-md text-on-surface-variant">Choose the service and any required materials for <span className="font-bold text-primary">{companyName}</span>.</p>
+          <p className="font-body-md text-body-md text-on-surface-variant">Choose the service and company-added items for <span className="font-bold text-primary">{companyName}</span>.</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-lg">
-          {/* LEFT COLUMN */}
           <div className="lg:col-span-8 space-y-lg">
-            {/* Service Selection Card */}
             <section className="bg-surface-container-lowest rounded-xl p-lg shadow-[0_4px_16px_0_rgba(11,29,45,0.08)] border border-outline-variant">
               <div className="flex items-center justify-between mb-md">
                 <h3 className="font-headline-md text-headline-md">Service</h3>
@@ -156,7 +201,7 @@ const saveDraft = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-md">
                 {(availableServices.length > 0 ? availableServices : [{ name: service, price: servicePrice }]).map((svcObj) => {
                   const sName = svcObj.name;
-                  const sPrice = Number(svcObj.price) || 120;
+                  const sPrice = Number(svcObj.price) || BASE_LABOR;
                   const active = service === sName;
                   return (
                     <button
@@ -165,19 +210,17 @@ const saveDraft = () => {
                       className={`p-md rounded-xl border-2 text-left transition-all ${active ? 'border-primary bg-primary/5' : 'border-outline-variant hover:border-primary/50'}`}
                     >
                       <span className="font-nav-item text-nav-item text-on-surface block font-bold">{sName}</span>
-                      <span className="font-label-sm text-label-sm text-primary mt-xs block">${sPrice.toFixed(2)}</span>
+                      <span className="font-label-sm text-label-sm text-primary mt-xs block">{currency.format(sPrice)}</span>
                     </button>
                   );
                 })}
               </div>
 
-              {/* Location */}
               <div className="mt-md pt-md border-t border-surface-container">
                 <div className="flex items-center justify-between mb-sm">
                   <h4 className="font-headline-md text-headline-md">Service Location</h4>
                 </div>
 
-                {/* Two-option selector */}
                 <div className="grid grid-cols-2 gap-sm mb-md">
                   <button
                     type="button"
@@ -216,7 +259,6 @@ const saveDraft = () => {
                   </button>
                 </div>
 
-                {/* GPS result pill */}
                 {locationMode === 'gps' && gpsLabel && (
                   <div className="mb-sm flex items-start gap-sm p-sm rounded-xl bg-primary-container text-on-primary-container text-sm">
                     <span className="material-symbols-outlined text-[16px] mt-0.5 shrink-0">location_on</span>
@@ -227,7 +269,6 @@ const saveDraft = () => {
                   </div>
                 )}
 
-                {/* Manual address input — always visible so user can refine */}
                 <div className="relative group">
                   <span className="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">location_on</span>
                   <input
@@ -265,38 +306,79 @@ const saveDraft = () => {
             </section>
           </div>
 
-          {/* RIGHT COLUMN: Materials */}
           <div className="lg:col-span-4">
             <div className="bg-surface-container-lowest rounded-2xl p-lg shadow-[0_4px_16px_0_rgba(11,29,45,0.08)] border border-outline-variant sticky top-24">
               <div className="flex items-center justify-between mb-md">
-                <h3 className="font-headline-md text-headline-md">Required Parts & Items</h3>
+                <div>
+                  <h3 className="font-headline-md text-headline-md">Company Added Items</h3>
+                  <p className="text-xs text-on-surface-variant mt-1">Only inventory added by {companyName} appears here.</p>
+                </div>
                 <span className="material-symbols-outlined text-on-surface-variant">inventory_2</span>
               </div>
-              <div className="p-sm bg-error-container text-on-error-container rounded-lg mb-md flex gap-sm">
+              <div className="p-sm bg-primary-container text-on-primary-container rounded-lg mb-md flex gap-sm">
                 <span className="material-symbols-outlined text-md">info</span>
-                <p className="font-label-sm text-label-sm leading-tight">Choose any items the technician may need so the company can prepare the job.</p>
+                <p className="font-label-sm text-label-sm leading-tight">Select optional items if you want the company to bring them for this service.</p>
               </div>
-              
+
               <div className="space-y-md max-h-[400px] overflow-y-auto pr-2">
-                {Object.keys(materials).map((key) => (
-                  <div key={key} className="flex items-center justify-between py-sm border-b border-surface-container">
-                    <div>
-                      <h5 className="font-nav-item text-nav-item">{materials[key].name}</h5>
-                      <p className="font-label-sm text-label-sm text-on-surface-variant">${materials[key].price.toFixed(2)} / unit</p>
-                    </div>
-                    <div className="flex items-center bg-surface-container rounded-lg px-2">
-                      <button className="p-1 hover:text-primary transition-colors" onClick={() => updateQty(key, -1)}><span className="material-symbols-outlined">remove</span></button>
-                      <span className="w-8 text-center font-bold">{materials[key].qty}</span>
-                      <button className="p-1 hover:text-primary transition-colors" onClick={() => updateQty(key, 1)}><span className="material-symbols-outlined">add</span></button>
-                    </div>
+                {itemsLoading && (
+                  <div className="rounded-xl border border-outline-variant bg-surface-container-low p-md animate-pulse">
+                    <div className="h-4 w-2/3 rounded bg-outline-variant/30 mb-3" />
+                    <div className="h-3 w-1/2 rounded bg-outline-variant/20" />
                   </div>
-                ))}
+                )}
+
+                {!itemsLoading && itemsError && (
+                  <div className="rounded-xl border border-error/20 bg-error-container/40 p-md text-on-error-container">
+                    <div className="flex items-center gap-sm font-bold">
+                      <span className="material-symbols-outlined">warning</span>
+                      Items unavailable
+                    </div>
+                    <p className="mt-xs text-sm">{itemsError}</p>
+                  </div>
+                )}
+
+                {!itemsLoading && !itemsError && companyItems.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-outline-variant bg-surface-container-low p-lg text-center">
+                    <div className="mx-auto mb-sm flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <span className="material-symbols-outlined">inventory_2</span>
+                    </div>
+                    <h4 className="font-nav-item text-nav-item font-bold text-on-surface">No extra items added yet</h4>
+                    <p className="mt-xs text-sm text-on-surface-variant">{companyName} has not published inventory items for client bookings. You can still submit the service request.</p>
+                  </div>
+                )}
+
+                {!itemsLoading && !itemsError && Object.keys(materials).map((key) => {
+                  const item = materials[key];
+                  return (
+                    <div key={key} className="flex items-center justify-between gap-md py-sm border-b border-surface-container">
+                      <div className="min-w-0">
+                        <h5 className="font-nav-item text-nav-item truncate">{item.name}</h5>
+                        <p className="font-label-sm text-label-sm text-on-surface-variant">
+                          {currency.format(item.price)} / {item.unit}
+                        </p>
+                        <p className="text-[11px] text-on-surface-variant mt-1">
+                          {item.category}{item.sku ? ` · ${item.sku}` : ''} · {item.stock} in stock
+                        </p>
+                      </div>
+                      <div className="flex items-center bg-surface-container rounded-lg px-2 shrink-0">
+                        <button type="button" className="p-1 hover:text-primary transition-colors disabled:opacity-40" disabled={item.qty === 0} onClick={() => updateQty(key, -1)}>
+                          <span className="material-symbols-outlined">remove</span>
+                        </button>
+                        <span className="w-8 text-center font-bold">{item.qty}</span>
+                        <button type="button" className="p-1 hover:text-primary transition-colors disabled:opacity-40" disabled={item.stock > 0 && item.qty >= item.stock} onClick={() => updateQty(key, 1)}>
+                          <span className="material-symbols-outlined">add</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="mt-lg pt-md border-t border-surface-container">
                 <div className="flex justify-between items-center mb-xs">
-                  <span className="font-body-md text-body-md">Materials Subtotal</span>
-                  <span className="font-nav-item text-nav-item font-bold">${materialsTotal.toFixed(2)}</span>
+                  <span className="font-body-md text-body-md">Items Subtotal</span>
+                  <span className="font-nav-item text-nav-item font-bold">{currency.format(materialsTotal)}</span>
                 </div>
               </div>
             </div>
@@ -304,7 +386,6 @@ const saveDraft = () => {
         </div>
       </main>
 
-      {/* Bottom Sticky Summary Bar */}
       <footer className="fixed bottom-0 w-full z-50 bg-white/80 backdrop-blur-md border-t border-outline-variant py-md px-container-margin shadow-lg">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-md">
           <div className="flex items-center gap-lg">
@@ -315,18 +396,18 @@ const saveDraft = () => {
             <div className="h-8 w-px bg-outline-variant hidden md:block"></div>
             <div className="flex flex-col">
               <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Estimated Total</span>
-              <span className="font-headline-md text-headline-md font-bold text-on-surface">${grandTotal.toFixed(2)}</span>
+              <span className="font-headline-md text-headline-md font-bold text-on-surface">{currency.format(grandTotal)}</span>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <button 
+            <button
               onClick={() => navigate(`${ROUTES.chat}/${companyId}`)}
               className="flex-1 md:flex-none px-4 py-3 bg-emerald-600 text-white rounded-xl font-nav-item text-xs font-bold shadow hover:bg-emerald-700 transition-all flex items-center justify-center gap-1"
             >
               <span className="material-symbols-outlined text-sm">chat</span>
               Live Chat
             </button>
-            <a 
+            <a
               href="tel:+923000000000"
               className="flex-1 md:flex-none px-4 py-3 bg-secondary text-white rounded-xl font-nav-item text-xs font-bold shadow hover:bg-secondary-container transition-all flex items-center justify-center gap-1"
             >
@@ -334,7 +415,7 @@ const saveDraft = () => {
               Call
             </a>
             <button onClick={saveDraft} className="flex-1 md:flex-none px-4 py-3 rounded-xl border border-outline font-nav-item text-xs hover:bg-surface-container transition-colors">Save Draft</button>
-            <button 
+            <button
               onClick={() => {
                 navigate(ROUTES.bookingSummary, {
                   state: {

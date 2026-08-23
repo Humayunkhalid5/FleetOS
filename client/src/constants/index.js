@@ -10,7 +10,7 @@ export const ROUTES = {
   register: '/register',
   about: '/about',
   contact: '/contact',
-  dashboard: '/customer/dashboard',
+  dashboard: '/',
   profile: '/customer/profile',
   bookings: '/customer/bookings',
   reviews: '/customer/reviews',
@@ -32,13 +32,14 @@ export const ROUTES = {
   companyCustomers: '/company/customers',
   companyAnalytics: '/company/analytics',
   companyChat: '/company/chat',
+  companyDetails: '/company/details',
 };
 
 export const companyRoute = (id = 'swiftfleet') => `/customer/company/${id}`;
 
 // Sidebar navigation links (desktop drawer)
 export const SIDEBAR_LINKS = [
-  { label: 'Dashboard',       icon: 'dashboard',        to: ROUTES.dashboard },
+  { label: 'Home',            icon: 'home',             to: ROUTES.home },
   { label: 'Browse Services', icon: 'category',          to: ROUTES.companies },
   { label: 'Browse Companies',icon: 'business',          to: ROUTES.companies },
   { label: 'My Bookings',     icon: 'calendar_today',    to: ROUTES.bookings },
@@ -53,7 +54,7 @@ export const SIDEBAR_FOOTER_LINKS = [
 
 // Mobile bottom navigation
 export const BOTTOM_NAV = [
-  { label: 'Dashboard',  icon: 'dashboard',  to: ROUTES.dashboard },
+  { label: 'Home',       icon: 'home',       to: ROUTES.home },
   { label: 'Bookings',   icon: 'event_note', to: ROUTES.bookings },
   { label: 'Companies',  icon: 'business',   to: ROUTES.companies },
   { label: 'Profile',    icon: 'person',     to: ROUTES.profile },
@@ -106,56 +107,11 @@ export const TECHNICIANS = [
 
 // Bookable materials
 export const MATERIALS = [
-  { id: 'faucet', name: 'Standard Faucet',    price: 45.00 },
-  { id: 'pipe',   name: 'Copper Pipe (10ft)', price: 22.50 },
-  { id: 'valve',  name: 'Shut-off Valve',     price: 12.00 },
-  { id: 'trap',   name: 'P-Trap Kit',         price: 18.99 },
+  { id: 'faucet', name: 'Premium Oil Filter', price: 1800 },
+  { id: 'pipe',   name: 'Engine Oil (4L)',     price: 6200 },
+  { id: 'valve',  name: 'Brake Fluid',         price: 1400 },
+  { id: 'trap',   name: 'Air Filter',          price: 2300 },
 ];
 
-export const BASE_LABOR = 120.0;
+export const BASE_LABOR = 4500;
 
-// Demo data for the Bookings page
-export const DEMO_BOOKINGS = [
-  {
-    id: '#FOS-88219',
-    service: 'HVAC Maintenance',
-    icon: 'engineering',
-    date: 'Oct 24, 2:00 PM',
-    status: 'In Progress',
-    statusClass: 'bg-tertiary-container text-on-tertiary-container',
-    tech: 'Marcus',
-    techAvatar:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuAXseizkm1YjckE5n5VxMg5CggM5tWpEmFJb6Nh_K_YkNVo40p1Yevl-WlnGuO8GzMdJdrZp8kdZQb3ZDcSxuiV_2ErTyIeVqyaBZK-nPif46TJoCq9h4YdIwBUC1OjbIolw7sUTycfKf2D-oq4uWEU-n3Qx9eOOnhne-zMLa8az8kS0otxEJrSek7ktvcO59SSzqHzjWUd-fz9XEi8CWxSgfLV1vViyFHYFZv0pnbOlb8gtEzax7skMQ',
-  },
-  {
-    id: '#FOS-88102',
-    service: 'Engine Diagnostics',
-    icon: 'build',
-    date: 'Oct 19, 9:30 AM',
-    status: 'Completed',
-    statusClass: 'bg-secondary-container text-on-secondary-container',
-    tech: 'Elena',
-    techAvatar:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuDnCiWvnkOKQReJfbwVPnaN6tu7s5397gTYSVBPMyiX6toCf8p5wo3eRuZ2QIc2TqcZrm-1vI7JyRT7oqpSWXpAdRECBDCnRGuLQM6zGzCDYi5wegUEzJG2p7E7E7jfdx9hSCUUoveU458OaY-di3G4frMSjmTJwjSznLPYXVl_zY_nMTuD0q3drMrje1gMak8VTFXTBe687naWHZTIHqBAHuyZqtzAN7B6ZysOa9vPYFnRqmNuHtlY1A',
-  },
-];
-
-// Demo data for the Reviews page
-export const DEMO_REVIEWS = [
-  {
-    id: 1,
-    service: 'Mobile Oil Change',
-    tech: 'Marcus Vance',
-    rating: 5,
-    date: 'Oct 12, 2023',
-    comment: 'Fast, clean and professional. Highly recommend.',
-  },
-  {
-    id: 2,
-    service: 'AC Maintenance',
-    tech: 'Marcus Chen',
-    rating: 4,
-    date: 'Sep 28, 2023',
-    comment: 'Great service, arrived on time and fixed the issue.',
-  },
-];

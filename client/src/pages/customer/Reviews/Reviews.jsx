@@ -71,11 +71,11 @@ function Reviews() {
             <div className="flex items-center justify-between mb-md">
               <div className="flex items-center gap-md">
                 <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary-fixed">
-                  <img className="w-full h-full object-cover" alt={review.technician} src={getTechAvatar(review.technician)} />
+                  <img className="w-full h-full object-cover" alt={review.company?.name || 'Company'} src={getTechAvatar(review.company?.name)} />
                 </div>
                 <div>
-                  <h4 className="font-body-lg text-body-lg font-bold text-on-surface">{review.technician}</h4>
-                  <p className="font-label-sm text-label-sm text-on-surface-variant">{review.service} • {formatDate(review.createdAt)}</p>
+                  <h4 className="font-body-lg text-body-lg font-bold text-on-surface">{review.company?.name}</h4>
+                  <p className="font-label-sm text-label-sm text-on-surface-variant">{review.booking?.serviceSnapshot?.name} • {formatDate(review.createdAt)}</p>
                 </div>
               </div>
               <div className="flex text-yellow-400">

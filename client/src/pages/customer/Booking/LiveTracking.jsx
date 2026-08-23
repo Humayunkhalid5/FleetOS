@@ -1,4 +1,4 @@
- import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import L from 'leaflet';
 import { io } from 'socket.io-client';
@@ -6,54 +6,67 @@ import { ROUTES } from '../../../constants';
 import api from '../../../services/api';
 import 'leaflet/dist/leaflet.css';
 
-// Default Bay Area coordinates as fallback
-const DEFAULT_ORIGIN = { lat: 37.7749, lng: -122.4194, label: 'FleetOS Dispatch Center' };
-const DEFAULT_DESTINATION = { lat: 37.7894, lng: -122.3946, label: '882 Modern Way, Tech Park, San Francisco, CA 94103' };
+const PAKISTAN_CENTER = { lat: 30.3753, lng: 69.3451, label: 'Pakistan' };
+const CITY_COORDS = [
+  ['karachi', 24.8607, 67.0011], ['lahore', 31.5204, 74.3587], ['islamabad', 33.6844, 73.0479],
+  ['rawalpindi', 33.5651, 73.0169], ['faisalabad', 31.4504, 73.1350], ['multan', 30.1575, 71.5249],
+  ['peshawar', 34.0151, 71.5249], ['quetta', 30.1798, 66.9750], ['sialkot', 32.4945, 74.5229],
+].map(([key, lat, lng]) => ({ key, lat, lng }));
 
-// Fix Leaflet default icon paths (bundler issue)
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+const isValidPoint = (point) => point && Number.isFinite(Number(point.lat)) && Number.isFinite(Number(point.lng));
+const toPoint = (point, fallback = null) => isValidPoint(point) ? { ...point, lat: Number(point.lat), lng: Number(point.lng) } : fallback;
+const coordsFromText = (value) => {
+  const label = String(value || '').trim();
+  const match = CITY_COORDS.find((city) => label.toLowerCase().includes(city.key));
+  return match ? { lat: match.lat, lng: match.lng, label } : null;
+};
+const offsetCoords = (point, label = 'Technician dispatch point') => ({
+  lat: Number((Number(point?.lat || PAKISTAN_CENTER.lat) + 0.035).toFixed(6)),
+  lng: Number((Number(point?.lng || PAKISTAN_CENTER.lng) - 0.035).toFixed(6)),
+  label,
 });
 
-// Custom divIcon for the technician (animated truck)
-const createTechIcon = () =>
+const createTrackingIcon = (type, icon) =>
   L.divIcon({
-    className: 'tech-marker',
+    className: `fleet-tracking-pin fleet-tracking-pin--${type}`,
     html: `
-      <div class="relative">
-        <div class="absolute -inset-2 rounded-full bg-primary/30 animate-ping"></div>
-        <div class="absolute -inset-5 rounded-full bg-primary/15"></div>
-        <div class="w-12 h-12 rounded-full bg-white shadow-xl border-2 border-primary flex items-center justify-center relative">
-          <span class="material-symbols-outlined text-primary" style="font-size:26px;font-variationSettings:'FILL' 1">local_shipping</span>
-        </div>
-      </div>
+      <span class="fleet-tracking-pin__pulse"></span>
+      <span class="fleet-tracking-pin__body">
+        <span class="material-symbols-outlined">${icon}</span>
+      </span>
     `,
     iconSize: [48, 48],
     iconAnchor: [24, 24],
   });
 
-// Custom divIcon for the user's real location (pulsing accent dot)
-const createUserIcon = () =>
-  L.divIcon({
-    className: 'user-marker',
-    html: `
-      <div class="relative">
-        <div class="absolute -inset-2 rounded-full bg-tertiary/30 animate-ping"></div>
-        <div class="w-9 h-9 rounded-full bg-white shadow-lg border-2 border-tertiary flex items-center justify-center relative">
-          <span class="material-symbols-outlined text-tertiary" style="font-size:20px;font-variationSettings:'FILL' 1">my_location</span>
-        </div>
-      </div>
-    `,
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
-  });
-
+const createTechIcon = () => createTrackingIcon('tech', 'local_shipping');
+const createUserIcon = () => createTrackingIcon('user', 'my_location');
+const createDestinationIcon = () => createTrackingIcon('destination', 'home_work');
+const createOriginDot = () => L.divIcon({ className: 'origin-marker', html: '<span class="fleet-tracking-dot"></span>', iconSize: [16, 16], iconAnchor: [8, 8] });
 const STAGE_ORDER = ['assigned', 'on-the-way', 'arrived', 'working', 'completed'];
 const STAGE_LABELS = { assigned: 'Assigned', 'on-the-way': 'On the Way', arrived: 'Arrived', working: 'Working', completed: 'Completed' };
 const STAGE_ICONS = { assigned: 'assignment', 'on-the-way': 'near_me', arrived: 'location_on', working: 'construction', completed: 'task_alt' };
+const stageForStatus = (status) => ({
+  Assigned: 'assigned',
+  'En Route': 'on-the-way',
+  Arrived: 'arrived',
+  'In Progress': 'working',
+  Completed: 'completed',
+  Paid: 'completed',
+}[status] || 'assigned');
+
+const normalizeTracking = (payload, status, technician) => {
+  const destination = toPoint(payload?.destination) || coordsFromText(payload?.location) || PAKISTAN_CENTER;
+  const currentPosition = toPoint({ lat: payload?.lat, lng: payload?.lng }) || toPoint(payload?.origin) || offsetCoords(destination);
+  return {
+    ...payload,
+    status,
+    technician,
+    origin: toPoint(payload?.origin) || currentPosition,
+    destination,
+    currentPosition,
+  };
+};
 
 // Haversine distance in km
 const haversineKm = (a, b) => {
@@ -70,12 +83,11 @@ function LiveTracking() {
   const navigate = useNavigate();
   const location = useLocation();
   const bookingId = location.state?.bookingId || null;
-  const [selectedTech, setSelectedTech] = useState(location.state?.selectedTech || 'Marcus Chen');
+  const [selectedTech, setSelectedTech] = useState(location.state?.selectedTech || 'Assigned technician');
 
   // Map state
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
-  const [mapReady, setMapReady] = useState(false);
 
   // Tracking state
   const [tracking, setTracking] = useState(null);
@@ -84,7 +96,7 @@ function LiveTracking() {
   const [geoError, setGeoError] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [eta, setEta] = useState(12);
+  const [eta, setEta] = useState(0);
   const [stage, setStage] = useState('assigned');
   const [sheetOpen, setSheetOpen] = useState(false); // mobile bottom-sheet expanded state
 
@@ -111,30 +123,32 @@ function LiveTracking() {
   // Located description for UI
   const serviceLocationLabel = tracking?.destination?.label || tracking?.location || 'Service Location';
 
+// Move the technician marker smoothly
+  const moveTechMarker = useCallback((pos) => {
+    if (!mapRef.current || !techMarkerRef.current) return;
+    techMarkerRef.current.setLatLng([Number(pos.lat), Number(pos.lng)]);
+  }, []);
+
   // ------------- 1. Fetch booking tracking data -------------
   const fetchTracking = useCallback(async (id) => {
     if (!id) {
       setLoading(false);
-      setError('');
+      setError('Choose a booking from Booking History to view its authorized tracking feed.');
       return;
     }
     try {
       const response = await api.get(`/bookings/${id}/tracking`);
-      const data = response.booking || response;
-      setTracking(data);
-      setSelectedTech(data.technician || selectedTech);
-      setEta(data.tracking?.etaMinutes ?? 12);
-      setStage(data.tracking?.stage || 'assigned');
-      if (data.currentPosition) {
-        setUserPos((prev) => prev || { lat: data.currentPosition.lat, lng: data.currentPosition.lng });
-      }
+      const data = response.tracking;
+      setTracking(normalizeTracking(data, data.status, data.technician));
+      setSelectedTech(data.technician?.name || 'Assigned technician');
+      setEta(data.etaMinutes ?? 0);
+      setStage(stageForStatus(data.status));
       setError('');
     } catch (err) {
-      setError(err.message || 'Failed to load tracking data. Running in demo mode.');
+      setError(err.message || 'Failed to load the persisted tracking data.');
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -154,7 +168,7 @@ function LiveTracking() {
         setGeoError('');
         setLocating(false);
       },
-      (err) => {
+      () => {
         setGeoError('Unable to access your location. Showing approximate location.');
         setLocating(false);
       },
@@ -162,128 +176,127 @@ function LiveTracking() {
     );
   }, []);
 
-  // ------------- 3. Initialize Leaflet map -------------
+  // ------------- 3. Initialize Leaflet map once -------------
   useEffect(() => {
-    if (mapRef.current || !mapContainerRef.current) return;
+    if (mapRef.current || !mapContainerRef.current) return undefined;
 
-    // Use userPos dynamically if available to ensure map reflects real client location
-    const baseLat = userPos?.lat || 31.5204;
-    const baseLng = userPos?.lng || 74.3587;
-
-    const dynamicOrigin = { lat: baseLat - 0.015, lng: baseLng - 0.012, label: 'FleetOS Service Center' };
-    const dynamicDestination = { lat: baseLat, lng: baseLng, label: 'Your Current Location' };
-
-    const origin = tracking?.origin || dynamicOrigin;
-    const destination = tracking?.destination || dynamicDestination;
-    const currentPosition = tracking?.currentPosition || origin;
-
-    const hasRoute = true;
-    const center = userPos || currentPosition;
-
+    const firstPoint = PAKISTAN_CENTER;
     const map = L.map(mapContainerRef.current, {
       zoomControl: false,
       attributionControl: true,
-    }).setView([center.lat, center.lng], 13);
+    }).setView([firstPoint.lat, firstPoint.lng], 5);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
+      detectRetina: true,
+      crossOrigin: true,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
 
-    const routeLatLngs = [
-      [origin.lat, origin.lng],
-      [destination.lat, destination.lng],
-    ];
-
-    // Route polyline between origin and destination
-    if (hasRoute) {
-      routePolylineRef.current = L.polyline(routeLatLngs, {
-        color: '#3F51B5',
-        weight: 4,
-        opacity: 0.55,
-        dashArray: '8 8',
-      }).addTo(map);
-    }
-
-    // Origin marker
-    L.marker([origin.lat, origin.lng], {
-      icon: L.divIcon({
-        className: 'origin-marker',
-        html: `<div class="relative"><div class="w-4 h-4 rounded-full bg-primary border-2 border-white shadow-lg"></div><div class="absolute -inset-1.5 rounded-full bg-primary/20"></div></div>`,
-        iconSize: [16, 16],
-        iconAnchor: [8, 8],
-      }),
-    }).addTo(map).bindTooltip(origin.label || 'Dispatch Center', { direction: 'top', offset: [0, -8] });
-
-    // Destination marker
-    L.marker([destination.lat, destination.lng], {
-      icon: L.divIcon({
-        className: 'dest-marker',
-        html: `<div class="relative"><div class="w-10 h-10 rounded-full bg-white shadow-lg border-2 border-tertiary flex items-center justify-center"><span class="material-symbols-outlined text-tertiary" style="font-size:20px;font-variationSettings:'FILL' 1">home_work</span></div><div class="absolute -inset-3 rounded-full bg-tertiary/15"></div></div>`,
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
-      }),
-    }).addTo(map).bindTooltip(destination.label || 'Service Location', { direction: 'top', offset: [0, -8] });
-
-    // Technician marker (animated truck)
-    techMarkerRef.current = L.marker([currentPosition.lat, currentPosition.lng], { icon: createTechIcon() }).addTo(map);
-
-    // Fit bounds to the route (or to the single demo point) — keep the map focused
-    if (hasRoute) {
-      map.fitBounds(L.latLngBounds(routeLatLngs), { padding: [60, 60], maxZoom: 15 });
-    } else {
-      map.setView([center.lat, center.lng], 13);
-    }
-
     mapRef.current = map;
-    setMapReady(true);
 
-    // Fix Leaflet's zero-size bug: invalidate after mount + on window resize.
-    const t = setTimeout(() => map.invalidateSize(), 200);
-    const onResize = () => map.invalidateSize();
-    window.addEventListener('resize', onResize);
+    const invalidate = () => map.invalidateSize({ animate: false });
+    const t = setTimeout(invalidate, 200);
+    const resizeObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(invalidate) : null;
+    resizeObserver?.observe(mapContainerRef.current);
+    window.addEventListener('resize', invalidate);
 
     return () => {
       clearTimeout(t);
-      window.removeEventListener('resize', onResize);
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', invalidate);
       map.remove();
       mapRef.current = null;
       techMarkerRef.current = null;
       userMarkerRef.current = null;
       routePolylineRef.current = null;
-      setMapReady(false);
       mapFitDoneRef.current = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tracking]);
+  }, []);
 
-  // ------------- 4. Place user's real location marker -------------
+  // ------------- 4. Keep markers, route, and bounds synced -------------
   useEffect(() => {
-    if (!userPos || !mapRef.current) return;
     const map = mapRef.current;
-    const latlng = [userPos.lat, userPos.lng];
+    if (!map) return;
 
-    if (!userMarkerRef.current) {
-      userMarkerRef.current = L.marker(latlng, { icon: createUserIcon() }).addTo(map);
-      userMarkerRef.current.bindTooltip('Your Location', { permanent: false });
-    } else {
-      userMarkerRef.current.setLatLng(latlng);
+    const techPoint = tracking?.currentPosition || (tracking?.destination ? offsetCoords(tracking.destination) : null);
+    const destinationPoint = tracking?.destination || userPos || PAKISTAN_CENTER;
+    const routePoints = [];
+
+    if (techPoint) {
+      const latlng = [techPoint.lat, techPoint.lng];
+      if (!techMarkerRef.current) {
+        techMarkerRef.current = L.marker(latlng, { icon: createTechIcon() }).addTo(map).bindTooltip('Technician live location', { direction: 'top', offset: [0, -10] });
+      } else {
+        techMarkerRef.current.setLatLng(latlng);
+      }
+      routePoints.push(latlng);
     }
-  }, [userPos]);
 
+    if (!map.originMarker && tracking?.origin) {
+      map.originMarker = L.marker([tracking.origin.lat, tracking.origin.lng], { icon: createOriginDot() })
+        .addTo(map)
+        .bindTooltip(tracking.origin.label || 'Dispatch point', { direction: 'top', offset: [0, -8] });
+    }
+
+    if (destinationPoint) {
+      const latlng = [destinationPoint.lat, destinationPoint.lng];
+      if (!map.destinationMarker) {
+        map.destinationMarker = L.marker(latlng, { icon: createDestinationIcon() })
+          .addTo(map)
+          .bindTooltip(destinationPoint.label || serviceLocationLabel, { direction: 'top', offset: [0, -10] });
+      } else {
+        map.destinationMarker.setLatLng(latlng);
+        map.destinationMarker.setTooltipContent(destinationPoint.label || serviceLocationLabel);
+      }
+      routePoints.push(latlng);
+    }
+
+    if (userPos) {
+      const latlng = [userPos.lat, userPos.lng];
+      if (!userMarkerRef.current) {
+        userMarkerRef.current = L.marker(latlng, { icon: createUserIcon() }).addTo(map).bindTooltip('Your current GPS location', { direction: 'top', offset: [0, -10] });
+      } else {
+        userMarkerRef.current.setLatLng(latlng);
+      }
+    }
+
+    if (routePoints.length > 1 && haversineKm({ lat: routePoints[0][0], lng: routePoints[0][1] }, { lat: routePoints[1][0], lng: routePoints[1][1] }) > 0.02) {
+      if (!routePolylineRef.current) {
+        routePolylineRef.current = L.polyline(routePoints, {
+          color: '#2563eb',
+          weight: 5,
+          opacity: 0.72,
+          dashArray: '10 10',
+          lineCap: 'round',
+        }).addTo(map);
+      } else {
+        routePolylineRef.current.setLatLngs(routePoints);
+      }
+    }
+
+    const boundsPoints = [...routePoints, ...(userPos ? [[userPos.lat, userPos.lng]] : [])];
+    const fitKey = boundsPoints.map(([lat, lng]) => `${Number(lat).toFixed(4)},${Number(lng).toFixed(4)}`).join('|');
+    if (boundsPoints.length > 1 && mapFitDoneRef.current !== fitKey) {
+      map.fitBounds(L.latLngBounds(boundsPoints), { padding: [70, 70], maxZoom: 15 });
+      mapFitDoneRef.current = fitKey;
+    } else if (boundsPoints.length === 1 && mapFitDoneRef.current !== fitKey) {
+      map.flyTo(boundsPoints[0], 13, { duration: 0.6 });
+      mapFitDoneRef.current = fitKey;
+    }
+  }, [serviceLocationLabel, tracking, userPos]);
   // ------------- 5. Socket.io live tracking -------------
   useEffect(() => {
-    const token = localStorage.getItem('fleetos-token');
     const id = bookingIdRef.current;
-    if (!id || !token) return;
+    if (!id) return;
 
     let socket;
     try {
       socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
-        auth: { token },
+        withCredentials: true,
         transports: ['websocket', 'polling'],
       });
-    } catch (err) {
+    } catch {
       return;
     }
     socketRef.current = socket;
@@ -292,20 +305,21 @@ function LiveTracking() {
 
     socket.on('tracking:snapshot', (data) => {
       if (!data) return;
-      setTracking(data);
-      setSelectedTech((prev) => data.technician || prev);
-      setEta(data.tracking?.etaMinutes ?? eta);
-      setStage(data.tracking?.stage || 'assigned');
-      if (data.currentPosition) moveTechMarker(data.currentPosition);
+      const normalized = normalizeTracking(data.tracking, data.status, data.technician);
+      setTracking(normalized);
+      setSelectedTech((prev) => data.technician?.name || prev);
+      setEta(data.tracking?.etaMinutes ?? 0);
+      setStage(stageForStatus(data.status));
+      if (normalized.currentPosition) moveTechMarker(normalized.currentPosition);
     });
 
     socket.on('tracking:update', (data) => {
       if (!data) return;
-      setTracking(data);
-      setEta(data.tracking?.etaMinutes ?? eta);
-      setStage(data.tracking?.stage || 'assigned');
-      if (data.currentPosition) moveTechMarker(data.currentPosition);
-      if (data.status === 'completed') { /* handled via review flow */ }
+      const normalized = normalizeTracking(data.tracking, data.status, data.technician);
+      setTracking(normalized);
+      setEta(data.tracking?.etaMinutes ?? 0);
+      setStage(stageForStatus(data.status));
+      if (normalized.currentPosition) moveTechMarker(normalized.currentPosition);
     });
 
     socket.on('tracking:error', (err) => {
@@ -320,37 +334,6 @@ function LiveTracking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingId]);
 
-  // Move the technician marker smoothly
-  const moveTechMarker = useCallback((pos) => {
-    if (!mapRef.current || !techMarkerRef.current) return;
-    techMarkerRef.current.setLatLng([Number(pos.lat), Number(pos.lng)]);
-  }, []);
-
-  // Local fallback simulation when backend offline / demo mode
-  useEffect(() => {
-    if (loading) return;
-    if (bookingId && tracking) return;
-
-    let interval;
-    let simPos = tracking?.currentPosition || DEFAULT_ORIGIN;
-    let progress = 0;
-    const dest = tracking?.destination || DEFAULT_DESTINATION;
-
-    const step = () => {
-      progress = Math.min(1, progress + 0.02 + Math.random() * 0.02);
-      const lat = simPos.lat + (dest.lat - simPos.lat) * progress;
-      const lng = simPos.lng + (dest.lng - simPos.lng) * progress;
-      simPos = { lat, lng };
-      moveTechMarker(simPos);
-      setEta(Math.max(1, Math.round((1 - progress) * 12)));
-      setStage(progress > 0.85 ? 'arrived' : 'on-the-way');
-    };
-
-    interval = setInterval(step, 3000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, bookingId, tracking, moveTechMarker]);
-
   const shareBooking = () => {
     const shareData = { title: 'FleetOS Live Tracking', text: `Track your service with ${selectedTech}`, url: window.location.href };
     if (navigator.share) navigator.share(shareData).catch(() => {});
@@ -363,12 +346,12 @@ function LiveTracking() {
     if (!window.confirm('Are you sure you want to cancel this booking?')) return;
     setCancelling(true);
     try {
-      if (bookingId) await api.patch(`/bookings/${bookingId}`, { status: 'cancelled' });
+      if (!bookingId) throw new Error('No booking selected');
+      await api.patch(`/bookings/${bookingId}`, { status: 'cancelled' });
       setError('');
       setTimeout(() => navigate(ROUTES.bookings), 600);
     } catch (err) {
-      setError('Booking cancelled locally. (Backend offline)');
-      setTimeout(() => navigate(ROUTES.bookings), 600);
+      setError(err.message || 'The booking could not be cancelled.');
     } finally {
       setCancelling(false);
     }
@@ -801,4 +784,13 @@ function TechCard({ selectedTech, avatar, vehicleLabel, service, reference, stat
 }
 
 export default LiveTracking;
+
+
+
+
+
+
+
+
+
 

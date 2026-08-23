@@ -6,7 +6,7 @@ import api from '../../../services/api';
 function ServiceReview() {
   const navigate = useNavigate();
   const location = useLocation();
-  const selectedTech = location.state?.selectedTech || 'Marcus Vance';
+  const selectedTech = location.state?.selectedTech?.name || location.state?.selectedTech || 'Assigned technician';
   const bookingId = location.state?.bookingId || null;
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState('');
@@ -18,20 +18,7 @@ function ServiceReview() {
     if (name === 'Jordan Smith') return "https://lh3.googleusercontent.com/aida-public/AB6AXuBdSq9kds-9hvrnwo749V1I2EinNun7_8MX5BIE5-IMKUNAe4eYNSZlRYfJsQoPN6Bhr_Si7Oj9uq3XH8CcF0q8t2BSjIFBI_5A248PGaEjKqs1N1rbNOcqGh-pFfZ5qZmC7dv0k7AJ0lOUJGzjeGN4P8Z_QnnObTriizg6iqp9D11hzs6aSOcdIpfpF8Q04gH3UJwNaz_BNK0OIH9K1hLW_V9CsATPDG8NQAVE-f5Eg0eDZhdoGe4WAg";
     return "https://lh3.googleusercontent.com/aida-public/AB6AXuCXwsweOO86ly3Mjt2oPOTZRYD1NP5mFpi-bynzXFWH7BK3T1YL55KCFFrZrOcUURPtfBegXO4gbwW3z5IQjimD9PJdNPhesJ7hL7KISKXUv2KgwVNlnz3xE0qI3A_5wrkX3sa2pXAqeANZCpoaBO2LDhb6qnmgB5-KmV-pNODRMH9NfpRAtxVFJQVyju9SQjow0qsPDwEUkQxQe7i-Ws5_NWjIGSggzyQu6yGIMjlDQRpIl02wL0Lvqw";
   };
-  const [photos, setPhotos] = useState([]);
-  
   const ratingLabels = ["Poor", "Fair", "Good", "Great", "Excellent!"];
-
-  const handleFileUpload = (e) => {
-    if (e.target.files) {
-      const newPhotos = Array.from(e.target.files).map(file => URL.createObjectURL(file));
-      setPhotos(prev => [...prev, ...newPhotos]);
-    }
-  };
-
-  const removePhoto = (index) => {
-    setPhotos(prev => prev.filter((_, i) => i !== index));
-  };
 
   const handleSubmit = async () => {
     if (rating === 0) {
@@ -122,38 +109,12 @@ function ServiceReview() {
             ></textarea>
           </div>
 
-          {/* Upload Photos Area */}
+          {/* Upload integrations stay disabled until secure object storage and scanning are configured. */}
           <div className="mb-xl">
-            <label className="block font-label-sm text-label-sm text-on-surface-variant mb-xs">Upload Photos (Optional)</label>
-            <div className="group relative w-full border-2 border-dashed border-outline-variant rounded-xl p-xl flex flex-col items-center justify-center bg-surface-container-low hover:bg-surface-container-high hover:border-primary transition-all cursor-pointer">
-              <input 
-                type="file" 
-                multiple 
-                onChange={handleFileUpload}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" 
-              />
-              <div className="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center mb-sm group-hover:scale-110 transition-transform">
-                <span className="material-symbols-outlined">add_a_photo</span>
-              </div>
-              <span className="font-nav-item text-nav-item text-primary font-bold">Add photos of the work</span>
-              <p className="text-xs text-on-surface-variant mt-1">Capture details to help verification</p>
-              
-              {/* Image Previews */}
-              {photos.length > 0 && (
-                <div className="mt-lg flex flex-wrap gap-md justify-center w-full z-10 relative">
-                  {photos.map((src, index) => (
-                    <div key={index} className="w-20 h-20 rounded-lg bg-surface-container-highest flex items-center justify-center overflow-hidden border border-surface-container-high relative group/img">
-                      <img src={src} className="w-full h-full object-cover" alt="Preview" />
-                      <button 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); removePhoto(index); }}
-                        className="absolute top-1 right-1 bg-error text-on-error rounded-full p-0.5 opacity-0 group-hover/img:opacity-100 transition-opacity flex"
-                      >
-                        <span className="material-symbols-outlined text-xs">close</span>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <label className="block font-label-sm text-label-sm text-on-surface-variant mb-xs">Service photos</label>
+            <div className="w-full border-2 border-dashed border-outline-variant rounded-xl p-lg flex items-center gap-md bg-surface-container-low opacity-70">
+              <span className="material-symbols-outlined">image_not_supported</span>
+              <p className="text-xs text-on-surface-variant">Photo uploads require configured object storage and malware scanning and are not enabled locally.</p>
             </div>
           </div>
 
@@ -177,7 +138,7 @@ function ServiceReview() {
               )}
             </button>
             <button 
-              onClick={() => navigate('/customer/dashboard')}
+              onClick={() => navigate('/customer/companies')}
               className="flex-1 bg-surface-container-high text-on-surface-variant font-bold py-md px-xl rounded-xl hover:bg-surface-container-highest transition-all"
             >
               Back to Home

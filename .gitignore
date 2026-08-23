@@ -6,3 +6,4 @@ coverage/
 uploads/
 .vscode/
 .DS_Store
+server/.runtime/

@@ -14,13 +14,7 @@ function CompanyInventory() {
 
   const companyId = user?.companyId || user?._id || 'company-1';
 
-  const [items, setItems] = useState(() => {
-    const saved = localStorage.getItem(`fleetos-inventory-${companyId}`);
-    if (saved) {
-      try { return JSON.parse(saved); } catch {}
-    }
-    return [];
-  });
+  const [items, setItems] = useState([]);
 
   const [newItem, setNewItem] = useState({
     name: '',
@@ -36,8 +30,8 @@ function CompanyInventory() {
     async function loadInventory() {
       try {
         const data = await api.get(`/inventory?companyId=${companyId}`);
-        if (data && Array.isArray(data.items)) {
-          const mapped = data.items.map(i => ({
+        if (data && Array.isArray(data.inventory)) {
+          const mapped = data.inventory.map(i => ({
             id: i.sku || i._id,
             _id: i._id,
             name: i.name,
@@ -49,16 +43,11 @@ function CompanyInventory() {
             unit: i.unit || 'Units'
           }));
           setItems(mapped);
-          localStorage.setItem(`fleetos-inventory-${companyId}`, JSON.stringify(mapped));
         }
       } catch (err) {}
     }
     loadInventory();
   }, [companyId]);
-
-  useEffect(() => {
-    localStorage.setItem(`fleetos-inventory-${companyId}`, JSON.stringify(items));
-  }, [items, companyId]);
 
   const updateQuantity = async (id, delta) => {
     const target = items.find(i => i.id === id || i._id === id);
@@ -81,30 +70,12 @@ function CompanyInventory() {
   const handleAddItem = async (e) => {
     e.preventDefault();
     if (!newItem.name) return;
-    const newSku = `SKU-${Math.floor(1000 + Math.random() * 9000)}`;
-    const created = {
-      id: newSku,
-      name: newItem.name,
-      category: newItem.category,
-      qty: Number(newItem.qty),
-      threshold: Number(newItem.threshold),
-      unitCost: Number(newItem.unitCost),
-      unitPrice: Number(newItem.unitPrice),
-      unit: newItem.unit
-    };
-
     try {
-      const res = await api.post('/inventory', {
-        companyId,
-        sku: newSku,
-        ...newItem
-      });
-      if (res.item?._id) {
-        created._id = res.item._id;
-      }
-    } catch (err) {}
-
-    setItems([created, ...items]);
+      const res = await api.post('/inventory', newItem);
+      const record = res.inventory;
+      const created = { id: record.sku, _id: record._id, name: record.name, category: record.category, qty: record.quantity, threshold: record.reorderLevel, unitCost: record.unitCost, unitPrice: record.unitPrice, unit: record.unit };
+      setItems([created, ...items]);
+    } catch (err) { window.alert(err.message); return; }
     setShowAddModal(false);
     setNewItem({ name: '', category: 'Spare Parts', qty: 10, threshold: 5, unitCost: 0, unitPrice: 0, unit: 'Units' });
   };
@@ -123,59 +94,71 @@ function CompanyInventory() {
   const totalValuation = items.reduce((sum, i) => sum + (i.qty * i.unitCost), 0);
 
   return (
-    <div className="bg-background text-on-background min-h-screen font-sans flex flex-col md:flex-row">
+    <div className="bg-[#f4f7fb] text-slate-800 min-h-screen font-sans flex flex-col md:flex-row">
       {/* Sidebar */}
-      <aside className="hidden md:flex flex-col h-full w-[280px] fixed left-0 top-0 bg-primary-container text-on-primary shadow-md py-6 z-50">
+      <aside className="hidden md:flex flex-col h-full w-[260px] fixed left-0 top-0 bg-white border-r border-slate-100 text-slate-800 shadow-[4px_0_24px_rgba(0,0,0,0.02)] py-6 z-50">
         <div className="px-6 mb-6">
-          <span className="text-xl font-bold text-on-primary">FleetOS</span>
+          <span className="text-xl font-bold text-slate-900">FleetOS</span>
           <div className="flex items-center gap-3 mt-4">
             <div className="w-10 h-10 rounded-full bg-secondary overflow-hidden border border-white/20">
               <img className="w-full h-full object-cover" alt="Avatar" src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDob1EAfuIbOEB4mJ8aEtGMOAqZ2pFY3XlqCk2JkHoW67b-ZOBUc5zFlRYqQ2BZ3DG67ncjfW2OLoo5hg7xuxYuAqd8Dnt5ilPQQXVTUmumtWf50x262r2EhICAmE-N5bwuBjLhajhwN27J-KOxykfXlTI8WYp4DU3gYg4J6dBnKMvJL7SnjiVZ4DXESV3KRM6gWcKX9-Ly_MH0qvOPlsnmmbJxlvGssOUoAAS512hpEREvE9kMnIHJ0g"} />
             </div>
             <div>
-              <p className="text-xs font-bold text-on-primary">{user?.name || 'Fleet Manager'}</p>
-              <p className="text-xs text-on-primary-container opacity-80">{user?.companyName || 'Admin Console'}</p>
+              <p className="text-xs font-bold text-slate-900">{user?.name || 'Fleet Manager'}</p>
+              <p className="text-xs text-slate-500">{user?.companyName || 'Admin Console'}</p>
             </div>
           </div>
         </div>
 
-        <nav className="flex-grow space-y-1 overflow-y-auto">
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyDashboard}>
+        <nav className="flex-grow space-y-1 overflow-y-auto py-2">
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyDashboard}>
             <span className="material-symbols-outlined" data-icon="dashboard">dashboard</span>
             <span className="text-xs font-bold">Dashboard</span>
           </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyBookings}>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyBookings}>
             <span className="material-symbols-outlined" data-icon="calendar_today">calendar_today</span>
             <span className="text-xs font-bold">Bookings</span>
           </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyTechnicians}>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyTechnicians}>
             <span className="material-symbols-outlined" data-icon="badge">badge</span>
             <span className="text-xs font-bold">Technicians</span>
           </Link>
-          <Link className="flex items-center gap-3 bg-secondary-container text-on-secondary-container border-l-4 border-secondary px-6 py-3 transition-all" to={ROUTES.companyInventory}>
+          <Link className="flex items-center gap-3 bg-blue-50 text-blue-700 px-6 py-3 transition-all rounded-2xl mx-4" to={ROUTES.companyInventory}>
             <span className="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
             <span className="text-xs font-bold">Inventory</span>
           </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyServices}>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyServices}>
             <span className="material-symbols-outlined" data-icon="build">build</span>
             <span className="text-xs font-bold">Services</span>
           </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyCustomers}>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyCustomers}>
             <span className="material-symbols-outlined" data-icon="group">group</span>
             <span className="text-xs font-bold">Customers</span>
           </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyChat}>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyChat}>
             <span className="material-symbols-outlined" data-icon="chat">chat</span>
             <span className="text-xs font-bold">Client Messages</span>
           </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyReviews}>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyReviews}>
             <span className="material-symbols-outlined" data-icon="rate_review">rate_review</span>
             <span className="text-xs font-bold">Reviews</span>
+          </Link>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyAnalytics}>
+            <span className="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+            <span className="text-xs font-bold">Analytics</span>
+          </Link>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyDetails}>
+            <span className="material-symbols-outlined" data-icon="domain">domain</span>
+            <span className="text-xs font-bold">Company Details</span>
+          </Link>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companySettings}>
+            <span className="material-symbols-outlined" data-icon="settings">settings</span>
+            <span className="text-xs font-bold">Settings</span>
           </Link>
         </nav>
 
         <div className="px-6 mt-auto pt-4 space-y-1">
-          <button onClick={() => { logout(); navigate(ROUTES.login); }} className="w-full flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all text-left">
+          <button onClick={() => { logout(); navigate(ROUTES.login); }} className="w-full flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4 text-left">
             <span className="material-symbols-outlined" data-icon="logout">logout</span>
             <span className="text-xs font-bold">Logout</span>
           </button>
@@ -183,22 +166,22 @@ function CompanyInventory() {
       </aside>
 
       {/* Main Content */}
-      <main className="md:ml-[280px] flex-grow min-h-screen">
-        <header className="sticky top-0 z-40 flex justify-between items-center w-full px-4 md:px-8 h-16 bg-background border-b border-outline-variant">
-          <h1 className="text-lg font-bold text-primary">Fleet Inventory & Parts</h1>
+      <main className="md:ml-[260px] flex-grow min-h-screen">
+        <header className="sticky top-0 z-40 flex justify-between items-center w-full px-4 md:px-8 h-16 bg-[#f4f7fb]/85 backdrop-blur-xl border-b border-white/60">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Fleet Inventory & Parts</h1>
           <button 
             onClick={() => setShowAddModal(true)}
-            className="px-4 py-2 bg-secondary text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm hover:opacity-90 transition-opacity"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm hover:opacity-90 transition-opacity"
           >
             <span className="material-symbols-outlined text-sm">add</span>
             Add Stock Item
           </button>
         </header>
 
-        <div className="p-4 md:p-8 max-w-[1440px] mx-auto space-y-6">
+        <div className="p-4 md:p-8 max-w-[1600px] mx-auto space-y-6">
           {/* KPI Header Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+            <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex justify-between items-center">
               <div>
                 <p className="text-xs font-semibold text-slate-500">Total SKUs</p>
                 <p className="text-2xl font-bold text-slate-900 mt-1">{items.length}</p>
@@ -208,7 +191,7 @@ function CompanyInventory() {
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+            <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex justify-between items-center">
               <div>
                 <p className="text-xs font-semibold text-slate-500">Low Stock Alert</p>
                 <p className="text-2xl font-bold text-amber-600 mt-1">{lowStockCount}</p>
@@ -218,7 +201,7 @@ function CompanyInventory() {
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+            <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex justify-between items-center">
               <div>
                 <p className="text-xs font-semibold text-slate-500">Out of Stock</p>
                 <p className="text-2xl font-bold text-rose-600 mt-1">{outOfStockCount}</p>
@@ -228,7 +211,7 @@ function CompanyInventory() {
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+            <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex justify-between items-center">
               <div>
                 <p className="text-xs font-semibold text-slate-500">Stock Valuation</p>
                 <p className="text-2xl font-bold text-slate-900 mt-1">${totalValuation.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
@@ -240,12 +223,12 @@ function CompanyInventory() {
           </div>
 
           {/* Filter Bar */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
+          <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col md:flex-row gap-4 justify-between items-center">
             <div className="relative w-full md:w-80">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
               <input 
                 type="text" 
-                className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-secondary" 
+                className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" 
                 placeholder="Search by part name or SKU..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -258,7 +241,7 @@ function CompanyInventory() {
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                    selectedCategory === cat ? 'bg-secondary text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    selectedCategory === cat ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
                   {cat}
@@ -268,7 +251,7 @@ function CompanyInventory() {
           </div>
 
           {/* Inventory Table */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
@@ -354,7 +337,7 @@ function CompanyInventory() {
                           <p className="text-xs text-slate-400">Add parts, fluids, equipment or stock items to populate your company inventory.</p>
                           <button
                             onClick={() => setShowAddModal(true)}
-                            className="px-4 py-2 bg-secondary text-white rounded-lg text-xs font-bold inline-flex items-center gap-2"
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold inline-flex items-center gap-2"
                           >
                             <span className="material-symbols-outlined text-sm">add</span>
                             Add First Inventory Item
@@ -387,7 +370,7 @@ function CompanyInventory() {
                 <input 
                   type="text" 
                   required
-                  className="w-full px-3 py-2 border rounded-lg outline-none focus:border-secondary" 
+                  className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" 
                   placeholder="e.g. Heavy Duty Brake Fluid"
                   value={newItem.name}
                   onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
@@ -398,7 +381,7 @@ function CompanyInventory() {
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">Category</label>
                   <select 
-                    className="w-full px-3 py-2 border rounded-lg outline-none focus:border-secondary bg-white"
+                    className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 bg-white"
                     value={newItem.category}
                     onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
                   >
@@ -411,7 +394,7 @@ function CompanyInventory() {
                   <label className="block text-slate-700 font-semibold mb-1">Unit of Measure</label>
                   <input 
                     type="text" 
-                    className="w-full px-3 py-2 border rounded-lg outline-none focus:border-secondary" 
+                    className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" 
                     placeholder="Units / Liters"
                     value={newItem.unit}
                     onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
@@ -425,7 +408,7 @@ function CompanyInventory() {
                   <input 
                     type="number" 
                     min="0"
-                    className="w-full px-3 py-2 border rounded-lg outline-none focus:border-secondary" 
+                    className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" 
                     value={newItem.qty}
                     onChange={(e) => setNewItem({ ...newItem, qty: e.target.value })}
                   />
@@ -435,7 +418,7 @@ function CompanyInventory() {
                   <input 
                     type="number" 
                     min="1"
-                    className="w-full px-3 py-2 border rounded-lg outline-none focus:border-secondary" 
+                    className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" 
                     value={newItem.threshold}
                     onChange={(e) => setNewItem({ ...newItem, threshold: e.target.value })}
                   />
@@ -448,7 +431,7 @@ function CompanyInventory() {
                   <input 
                     type="number" 
                     step="0.01"
-                    className="w-full px-3 py-2 border rounded-lg outline-none focus:border-secondary" 
+                    className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" 
                     value={newItem.unitCost}
                     onChange={(e) => setNewItem({ ...newItem, unitCost: e.target.value })}
                   />
@@ -458,7 +441,7 @@ function CompanyInventory() {
                   <input 
                     type="number" 
                     step="0.01"
-                    className="w-full px-3 py-2 border rounded-lg outline-none focus:border-secondary" 
+                    className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" 
                     value={newItem.unitPrice}
                     onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
                   />
@@ -475,7 +458,7 @@ function CompanyInventory() {
                 </button>
                 <button 
                   type="submit"
-                  className="px-4 py-2 bg-secondary text-white rounded-lg font-semibold hover:opacity-90"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:opacity-90"
                 >
                   Add Item
                 </button>
@@ -489,3 +472,5 @@ function CompanyInventory() {
 }
 
 export default CompanyInventory;
+
+

@@ -24,7 +24,7 @@ function BookingSummary() {
   const baseLabor = Number(servicePrice) || 120.00;
   const materialsTotal = state.materialsTotal !== undefined ? state.materialsTotal : 63.50;
   const subtotal = baseLabor + materialsTotal;
-  const tax = subtotal * 0.085;
+  const tax = Math.round(subtotal * 0.05);
   const grandTotal = subtotal + tax;
 
   // Filter materials that have qty > 0 to display them
@@ -34,7 +34,8 @@ function BookingSummary() {
   // Until then we display a neutral placeholder (prevents undefined crash).
   const assignedTech = 'Company will assign';
 
-  const [selectedPayment, setSelectedPayment] = useState('card');
+  const [selectedPayment, setSelectedPayment] = useState('cash');
+  const [idempotencyKey] = useState(() => globalThis.crypto?.randomUUID?.() || `${Date.now()}`);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -60,41 +61,24 @@ function BookingSummary() {
       const response = await api.post('/bookings', {
         companyId,
         companyName,
-        service,
-        servicePrice: baseLabor,
-        technician: 'Company will assign',
-        materials: Object.values(materials).filter((m) => m.qty > 0).map((m) => ({ name: m.name, qty: m.qty, price: m.price })),
-        materialsTotal,
-        subtotal,
-        tax,
-        total: grandTotal,
+        serviceName: service,
+        materials: Object.values(materials).filter((m) => m.qty > 0).map((m) => ({ name: m.name, quantity: m.qty, unitPrice: m.price })),
         paymentMethod: selectedPayment,
-        scheduledDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        scheduledTime: '09:30 AM - 11:00 AM',
+        scheduledAt: new Date(Date.now() + 86400000).toISOString(),
         location: serviceLocation.address,
-        problemDetails,
-        destination: {
-          lat: serviceLocation.lat,
-          lng: serviceLocation.lng,
-          label: serviceLocation.address,
-        },
-        origin: {
-          lat: 37.7749,
-          lng: -122.4194,
-          label: 'FleetOS Dispatch Center',
-        },
-        currentPosition: {
-          lat: 37.7749,
-          lng: -122.4194,
-          updatedAt: new Date().toISOString(),
-        },
-        vehicleLabel: 'Fleet Van #012',
+        vehicle: { label: 'Customer vehicle' },
+        idempotencyKey,
       });
       const created = response.booking || {};
+      if (selectedPayment === 'card') {
+        const checkout = await api.post(`/payments/checkout/${created._id || created.id}`, {});
+        window.location.assign(checkout.checkoutUrl);
+        return;
+      }
       goToTracking(created._id || created.id || null);
     } catch (err) {
-      console.warn('Booking creation failed, continuing to tracking screen in demo mode.', err);
-      goToTracking(null);
+      setIsProcessing(false);
+      window.alert(err.message || 'Booking could not be created.');
     }
   };
 
@@ -158,7 +142,7 @@ function BookingSummary() {
                   <p className="font-headline-md text-headline-md text-on-surface">{service}</p>
                   {problemDetails && <p className="mt-2 font-body-md text-body-md text-on-surface-variant">{problemDetails}</p>}
                 </div>
-                <p className="mt-4 font-headline-md text-headline-md text-primary">${baseLabor.toFixed(2)}</p>
+                <p className="mt-4 font-headline-md text-headline-md text-primary">PKR {baseLabor.toLocaleString('en-PK')}</p>
               </div>
               
               {/* Materials Item */}
@@ -170,14 +154,14 @@ function BookingSummary() {
                     {selectedMaterials.length > 0 ? selectedMaterials.map((item, idx) => (
                       <li key={idx} className="flex justify-between font-body-md text-body-md text-on-surface">
                         <span>{item.qty}x {item.name}</span>
-                        <span>${(item.qty * item.price).toFixed(2)}</span>
+                        <span>PKR {(item.qty * item.price).toLocaleString('en-PK')}</span>
                       </li>
                     )) : (
                       <li className="font-body-md text-body-md text-on-surface-variant">No materials selected</li>
                     )}
                   </ul>
                 </div>
-                <p className="mt-4 font-headline-md text-headline-md text-tertiary">${materialsTotal.toFixed(2)}</p>
+                <p className="mt-4 font-headline-md text-headline-md text-tertiary">PKR {materialsTotal.toLocaleString('en-PK')}</p>
               </div>
             </div>
           </section>
@@ -216,64 +200,50 @@ function BookingSummary() {
               <div className="space-y-md border-b border-outline-variant/20 pb-lg mb-lg">
                 <div className="flex justify-between font-body-md text-body-md text-on-surface-variant">
                   <span>Service Subtotal</span>
-                  <span>${baseLabor.toFixed(2)}</span>
+                  <span>PKR {baseLabor.toLocaleString('en-PK')}</span>
                 </div>
                 <div className="flex justify-between font-body-md text-body-md text-on-surface-variant">
                   <span>Materials & Parts</span>
-                  <span>${materialsTotal.toFixed(2)}</span>
+                  <span>PKR {materialsTotal.toLocaleString('en-PK')}</span>
                 </div>
                 <div className="flex justify-between font-body-md text-body-md text-on-surface-variant">
                   <span>Estimated Tax (8.5%)</span>
-                  <span>${tax.toFixed(2)}</span>
+                  <span>PKR {tax.toLocaleString('en-PK')}</span>
                 </div>
               </div>
               <div className="flex justify-between items-center mb-xl">
                 <p className="font-headline-md text-headline-md text-on-surface">Grand Total</p>
-                <p className="text-3xl font-extrabold text-primary">${grandTotal.toFixed(2)}</p>
+                <p className="text-3xl font-extrabold text-primary">PKR {grandTotal.toLocaleString('en-PK')}</p>
               </div>
 
               {/* Payment Methods */}
               <div className="space-y-md">
                 <p className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest">Select Payment Method</p>
                 
-                {/* Credit Card Option */}
                 <label className={`relative flex items-center p-md border-2 rounded-xl cursor-pointer transition-all ${selectedPayment === 'card' ? 'border-primary bg-primary/5' : 'border-outline-variant/20 hover:border-primary/50'}`}>
                   <input type="radio" name="payment" className="hidden" checked={selectedPayment === 'card'} onChange={() => setSelectedPayment('card')} />
                   <div className="flex items-center gap-md w-full">
                     <span className={`material-symbols-outlined ${selectedPayment === 'card' ? 'text-primary' : 'text-on-surface-variant'}`}>credit_card</span>
                     <div className="flex-1">
                       <p className="font-nav-item text-nav-item text-on-surface">Credit / Debit Card</p>
-                      <p className="font-label-sm text-label-sm text-on-surface-variant">Visa ending in 4429</p>
+                      <p className="font-label-sm text-label-sm text-on-surface-variant">Secure checkout hosted by Stripe</p>
                     </div>
                     <div className={`w-5 h-5 rounded-full ${selectedPayment === 'card' ? 'border-4 border-primary bg-white' : 'border-2 border-outline-variant bg-white'}`}></div>
                   </div>
                 </label>
 
-                {/* Digital Wallet */}
-                <label className={`relative flex items-center p-md border-2 rounded-xl cursor-pointer transition-all ${selectedPayment === 'wallet' ? 'border-primary bg-primary/5' : 'border-outline-variant/20 hover:border-primary/50'}`}>
-                  <input type="radio" name="payment" className="hidden" checked={selectedPayment === 'wallet'} onChange={() => setSelectedPayment('wallet')} />
+                <label className={`relative flex items-center p-md border-2 rounded-xl cursor-pointer transition-all ${selectedPayment === 'cash' ? 'border-primary bg-primary/5' : 'border-outline-variant/20 hover:border-primary/50'}`}>
+                  <input type="radio" name="payment" className="hidden" checked={selectedPayment === 'cash'} onChange={() => setSelectedPayment('cash')} />
                   <div className="flex items-center gap-md w-full">
-                    <span className={`material-symbols-outlined ${selectedPayment === 'wallet' ? 'text-primary' : 'text-on-surface-variant'}`}>account_balance_wallet</span>
+                    <span className={`material-symbols-outlined ${selectedPayment === 'cash' ? 'text-primary' : 'text-on-surface-variant'}`}>payments</span>
                     <div className="flex-1">
-                      <p className="font-nav-item text-nav-item text-on-surface">Digital Wallet</p>
-                      <p className="font-label-sm text-label-sm text-on-surface-variant">Apple Pay, Google Pay</p>
+                      <p className="font-nav-item text-nav-item text-on-surface">Cash after service</p>
+                      <p className="font-label-sm text-label-sm text-on-surface-variant">Company records payment after completion</p>
                     </div>
-                    <div className={`w-5 h-5 rounded-full ${selectedPayment === 'wallet' ? 'border-4 border-primary bg-white' : 'border-2 border-outline-variant bg-white'}`}></div>
+                    <div className={`w-5 h-5 rounded-full ${selectedPayment === 'cash' ? 'border-4 border-primary bg-white' : 'border-2 border-outline-variant bg-white'}`}></div>
                   </div>
                 </label>
 
-                {/* Pay After Service */}
-                <label className={`relative flex items-center p-md border-2 rounded-xl cursor-pointer transition-all ${selectedPayment === 'after' ? 'border-primary bg-primary/5' : 'border-outline-variant/20 hover:border-primary/50'}`}>
-                  <input type="radio" name="payment" className="hidden" checked={selectedPayment === 'after'} onChange={() => setSelectedPayment('after')} />
-                  <div className="flex items-center gap-md w-full">
-                    <span className={`material-symbols-outlined ${selectedPayment === 'after' ? 'text-primary' : 'text-on-surface-variant'}`}>history</span>
-                    <div className="flex-1">
-                      <p className="font-nav-item text-nav-item text-on-surface">Pay After Service</p>
-                      <p className="font-label-sm text-label-sm text-on-surface-variant">Invoice upon completion</p>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full ${selectedPayment === 'after' ? 'border-4 border-primary bg-white' : 'border-2 border-outline-variant bg-white'}`}></div>
-                  </div>
-                </label>
               </div>
 
               {/* Confirm Button */}
@@ -287,8 +257,8 @@ function BookingSummary() {
                 {isProcessing && <span className="material-symbols-outlined animate-spin">progress_activity</span>}
                 {isProcessing && 'Processing...'}
                 {isSuccess && <span className="material-symbols-outlined">check_circle</span>}
-                {isSuccess && 'Payment Successful'}
-                {!isProcessing && !isSuccess && `Confirm & Pay $${grandTotal.toFixed(2)}`}
+                {isSuccess && 'Booking confirmed'}
+                {!isProcessing && !isSuccess && `Confirm booking · PKR ${grandTotal.toLocaleString('en-PK')}`}
               </button>
               <p className="mt-md text-center font-label-sm text-label-sm text-on-surface-variant">
                 By clicking confirm, you agree to FleetOS <a className="text-primary underline" href="#" onClick={(e) => { e.preventDefault(); alert('Terms of Service — Please contact support for the full agreement.'); }}>Terms of Service</a>.

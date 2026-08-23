@@ -1,13 +1,9 @@
-const express = require('express');
-const { getTracking, updateTracking } = require('../controllers/trackingController');
-const { protect } = require('../middleware/authMiddleware');
+const router = require('express').Router();
+const controller = require('../controllers/trackingController');
+const { protect, requireRole, requireApprovedCompany } = require('../middleware/authMiddleware');
+const { asyncHandler } = require('../utils/http');
 
-const router = express.Router();
-
-router.use(protect);
-
-router.get('/bookings/:id/tracking', getTracking);
-router.patch('/bookings/:id/tracking', updateTracking);
+router.get('/bookings/:id/tracking', protect, requireRole('customer', 'company'), asyncHandler(controller.getTracking));
+router.patch('/bookings/:id/tracking', protect, requireApprovedCompany, asyncHandler(controller.updateTracking));
 
 module.exports = router;
-

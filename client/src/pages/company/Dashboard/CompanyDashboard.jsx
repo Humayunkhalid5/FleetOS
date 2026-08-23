@@ -1,331 +1,222 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
-import { ROUTES } from '../../../constants';
 import api from '../../../services/api';
+
+const nav = [
+  ['space_dashboard', 'Overview', '/company/dashboard'],
+  ['handyman', 'Dispatch & Bookings', '/company/bookings'],
+  ['badge', 'Technicians', '/company/technicians'],
+  ['inventory_2', 'Inventory', '/company/inventory'],
+  ['car_repair', 'Services', '/company/services'],
+  ['groups', 'Customers', '/company/customers'],
+  ['forum', 'Messages', '/company/chat'],
+  ['star', 'Reviews', '/company/reviews'],
+  ['monitoring', 'Analytics', '/company/analytics'],
+  ['domain', 'Company Details', '/company/details'],
+  ['settings', 'Settings', '/company/settings'],
+];
+
+const money = (value) => `PKR ${Number(value || 0).toLocaleString('en-PK')}`;
+const time = (value) => value ? new Intl.DateTimeFormat('en-PK', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
+
+function downloadCsv(bookings) {
+  const rows = [['Reference', 'Customer', 'Vehicle', 'Service', 'Technician', 'Status', 'Amount'], ...bookings.map((item) => [item.reference, item.customerName, item.vehicle?.label, item.serviceSnapshot?.name, item.technician?.name || 'Unassigned', item.status, item.pricing?.finalTotal])];
+  const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `fleetos-operations-${new Date().toISOString().slice(0, 10)}.csv`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
 
 function CompanyDashboard() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [chartPeriod, setChartPeriod] = useState('Week');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSegmentationModal, setShowSegmentationModal] = useState(false);
+  const [data, setData] = useState(null);
+  const [query, setQuery] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState('');
 
-  const companyId = user?.companyId || user?._id || 'company-1';
+  const load = useCallback(() => {
+    setError('');
+    return api.get('/company/dashboard', { noCache: true }).then(setData).catch((requestError) => setError(requestError.message));
+  }, []);
+  useEffect(() => { load(); }, [load]);
 
-  const [bookings, setBookings] = useState(() => {
-    const saved = localStorage.getItem(`fleetos-bookings-${companyId}`);
-    if (saved) {
-      try { return JSON.parse(saved); } catch {}
-    }
-    return [];
-  });
+  const bookings = data?.bookings || [];
+  const filtered = useMemo(() => bookings.filter((booking) => [booking.reference, booking.customerName, booking.vehicle?.label, booking.serviceSnapshot?.name, booking.technician?.name, booking.status].some((value) => String(value || '').toLowerCase().includes(query.toLowerCase()))), [bookings, query]);
+  const maxRevenue = Math.max(...(data?.revenue || []).map((item) => item.amount), 1);
 
-  useEffect(() => {
-    async function loadDashboardData() {
-      try {
-        const data = await api.get(`/bookings?companyId=${companyId}`);
-        if (data && Array.isArray(data.bookings)) {
-          const mapped = data.bookings.map(b => ({
-            id: b._id ? `#FL-${b._id.slice(-4).toUpperCase()}` : (b.reference || `#FL-${Math.floor(1000 + Math.random()*9000)}`),
-            tech: b.technician || 'Unassigned',
-            service: b.service?.name || b.service || 'General Service',
-            status: (b.status || 'PENDING').toUpperCase(),
-            statusColor: (b.status === 'Completed' || b.status === 'COMPLETED') ? 'bg-tertiary-fixed-dim/20 text-on-tertiary-container' :
-                         (b.status === 'In Progress' || b.status === 'IN PROGRESS') ? 'bg-secondary-container text-on-secondary-container' : 'bg-error-container text-on-error-container',
-            revenue: b.pricing?.finalTotal ? `$${b.pricing.finalTotal.toFixed(2)}` : (b.amount || '$150.00'),
-            rawTotal: b.pricing?.finalTotal || 150
-          }));
-          setBookings(mapped);
-        }
-      } catch (err) {}
-    }
-    loadDashboardData();
-  }, [companyId]);
-
-  const totalBookingsCount = bookings.length;
-  const pendingCount = bookings.filter(b => b.status === 'PENDING').length;
-  const completedCount = bookings.filter(b => b.status === 'COMPLETED').length;
-  const totalRevenueVal = bookings.reduce((sum, b) => sum + (b.rawTotal || 0), 0);
-
-  const activeJobs = bookings.slice(0, 5);
-
-  const handleLogout = () => {
-    logout();
-    navigate(ROUTES.login);
-  };
-
-  const handleExportReport = () => {
-    const csvData = [
-      ['Asset ID', 'Technician', 'Service', 'Status', 'Revenue'],
-      ...activeJobs.map(job => [job.id, job.tech, job.service, job.status, job.revenue])
-    ].map(e => e.join(',')).join('\n');
-
-    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `FleetOS_Company_Report_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const assignFirstAvailable = async (booking) => {
+    const tech = data.technicians.find((item) => item.status === 'Available');
+    if (!tech) return setError('No available technician. Update technician availability first.');
+    setBusy(booking._id);
+    try { await api.post(`/bookings/${booking._id}/assign`, { technicianId: tech._id }); await load(); }
+    catch (requestError) { setError(requestError.message); }
+    finally { setBusy(''); }
   };
 
   return (
-    <div className="bg-background text-on-background min-h-screen font-sans flex flex-col md:flex-row">
-      {/* Navigation Drawer (Desktop) */}
-      <aside className="hidden md:flex flex-col h-full w-[280px] fixed left-0 top-0 bg-primary-container text-on-primary shadow-md py-6 z-50">
-        <div className="px-6 mb-6">
-          <span className="text-xl font-bold text-on-primary">FleetOS</span>
-          <div className="flex items-center gap-3 mt-4">
-            <div className="w-10 h-10 rounded-full bg-secondary overflow-hidden border border-white/20">
-              <img 
-                className="w-full h-full object-cover" 
-                alt="Fleet manager avatar" 
-                src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDob1EAfuIbOEB4mJ8aEtGMOAqZ2pFY3XlqCk2JkHoW67b-ZOBUc5zFlRYqQ2BZ3DG67ncjfW2OLoo5hg7xuxYuAqd8Dnt5ilPQQXVTUmumtWf50x262r2EhICAmE-N5bwuBjLhajhwN27J-KOxykfXlTI8WYp4DU3gYg4J6dBnKMvJL7SnjiVZ4DXESV3KRM6gWcKX9-Ly_MH0qvOPlsnmmbJxlvGssOUoAAS512hpEREvE9kMnIHJ0g"} 
-              />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-on-primary">{user?.name || 'Fleet Manager'}</p>
-              <p className="text-xs text-on-primary-container opacity-80">{user?.companyName || 'Admin Console'}</p>
-            </div>
+    <div className="min-h-screen bg-[#f4f7fb] text-slate-800 font-sans md:flex">
+      <aside className="hidden md:flex fixed inset-y-0 left-0 w-[260px] bg-white border-r border-slate-100 flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+        <div className="h-[80px] px-8 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+            <span className="material-symbols-outlined text-white text-[18px]">domain</span>
           </div>
+          <span className="text-xl font-bold tracking-tight text-slate-900">FleetOS</span>
         </div>
 
-        <nav className="flex-grow space-y-1 overflow-y-auto">
-          <Link className="flex items-center gap-3 bg-secondary-container text-on-secondary-container border-l-4 border-secondary px-6 py-3 transition-all" to={ROUTES.companyDashboard}>
-            <span className="material-symbols-outlined" data-icon="dashboard">dashboard</span>
-            <span className="text-xs font-bold">Dashboard</span>
-          </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyBookings}>
-            <span className="material-symbols-outlined" data-icon="calendar_today">calendar_today</span>
-            <span className="text-xs font-bold">Bookings</span>
-          </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyTechnicians}>
-            <span className="material-symbols-outlined" data-icon="badge">badge</span>
-            <span className="text-xs font-bold">Technicians</span>
-          </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyInventory}>
-            <span className="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
-            <span className="text-xs font-bold">Inventory</span>
-          </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyServices}>
-            <span className="material-symbols-outlined" data-icon="build">build</span>
-            <span className="text-xs font-bold">Services</span>
-          </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyCustomers}>
-            <span className="material-symbols-outlined" data-icon="group">group</span>
-            <span className="text-xs font-bold">Customers</span>
-          </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyChat}>
-            <span className="material-symbols-outlined" data-icon="chat">chat</span>
-            <span className="text-xs font-bold">Client Messages</span>
-          </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyReviews}>
-            <span className="material-symbols-outlined" data-icon="rate_review">rate_review</span>
-            <span className="text-xs font-bold">Reviews</span>
-          </Link>
-        </nav>
+        <div className="px-6 py-4">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-4">Main Menu</p>
+          <nav className="space-y-1">
+            {nav.map(([icon, label, to], index) => {
+              const active = index === 0;
+              return (
+                <Link key={label} to={to} className={`flex items-center gap-3.5 px-4 py-3 rounded-2xl text-[14px] font-semibold transition-all duration-200 ${active ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <span className={`material-symbols-outlined text-[20px] ${active ? 'text-blue-600' : 'text-slate-400'}`} style={active ? { fontVariationSettings: "'FILL' 1" } : {}}>{icon}</span>
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
 
-        <div className="px-6 mt-auto pt-4 space-y-1">
-          <button 
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all text-left"
-          >
-            <span className="material-symbols-outlined" data-icon="logout">logout</span>
-            <span className="text-xs font-bold">Logout</span>
-          </button>
+        <div className="mt-auto p-6">
+          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                {user?.name?.split(' ').map((part) => part[0]).slice(0, 2).join('') || 'CO'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-slate-900 truncate">{user?.name || 'Company user'}</p>
+                <p className="text-[11px] font-semibold text-slate-500 truncate">{data?.company?.name || user?.companyName || 'FleetOS Company'}</p>
+              </div>
+            </div>
+            <button onClick={logout} className="w-full py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-[13px] font-bold hover:bg-slate-100 transition-colors flex justify-center items-center gap-2">
+              <span className="material-symbols-outlined text-[16px]">logout</span> Sign Out
+            </button>
+          </div>
         </div>
       </aside>
 
-      {/* Main Canvas */}
-      <main className="md:ml-[280px] flex-grow min-h-screen transition-all duration-300">
-        {/* Top App Bar */}
-        <header className="sticky top-0 z-40 flex justify-between items-center w-full px-4 md:px-8 h-16 bg-background border-b border-outline-variant">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-bold text-primary">FleetOS Console</h1>
+      <main className="flex-1 md:ml-[260px] min-w-0">
+        <header className="h-[80px] px-8 flex items-center justify-between sticky top-0 z-40 bg-[#f4f7fb]/80 backdrop-blur-xl">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Overview</h1>
+            <p className="text-sm text-slate-500 font-medium">Welcome back, here&apos;s what&apos;s happening today.</p>
           </div>
+
           <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center bg-surface-container px-3 py-1 rounded-full border border-outline-variant">
-              <span className="material-symbols-outlined text-outline text-sm" data-icon="search">search</span>
-              <input 
-                className="bg-transparent border-none focus:ring-0 text-xs w-48 outline-none px-2" 
-                placeholder="Search console..." 
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className="hidden lg:flex items-center gap-2 bg-white border border-slate-200 rounded-full h-11 px-4 w-64 shadow-sm focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+              <span className="material-symbols-outlined text-slate-400 text-lg">search</span>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} className="bg-transparent border-0 outline-none text-sm w-full font-medium placeholder-slate-400" placeholder="Search..." />
             </div>
-            <div 
-              className="w-8 h-8 rounded-full bg-secondary overflow-hidden cursor-pointer"
-              onClick={() => navigate(ROUTES.profile)}
-            >
-              <img 
-                className="w-full h-full object-cover" 
-                alt="Avatar" 
-                src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuAh4GZbR-yLXyOdjNvqZqkKENkOuReoToaxfgNzjlzDyAQVKq9mRbG-0XcDbbgVrGFZoEIHcvovHP8TXsuZnpW9N558jvsdE9af8ILmwtEbrwt7UZt55jcd-jMkyLpsaY4c6gY-HZO-SaG_zZToGgXtO8bwDuGarb4fkx7aE4PWxizhXfToTBCFyYkGU3TWHiUamqDLRb_3uUGZBhS992iB2UxeeprwctF-4fDqRd1cc5ccX_ZPQ2W57g"} 
-              />
-            </div>
+            <button className="w-11 h-11 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm relative">
+              <span className="material-symbols-outlined text-[20px]">notifications</span>
+              <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-red-500 border-2 border-white" />
+            </button>
           </div>
         </header>
 
-        {/* Dashboard Content */}
-        <div className="p-4 md:p-8 max-w-[1440px] mx-auto">
-          {/* Page Header */}
-          <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-secondary/10 text-secondary uppercase tracking-wider">
-                  Verified SaaS Portal
-                </span>
-                <span className="text-xs text-slate-400 font-medium">• Portal Active</span>
-              </div>
-              <h2 className="text-2xl md:text-3xl font-bold text-primary">{user?.companyName || user?.name || 'Company Portal'}</h2>
-              <p className="text-xs md:text-sm text-on-surface-variant font-medium mt-1">Real-time telemetry, technician dispatch, and fleet metrics.</p>
-            </div>
-            <div className="flex gap-2">
-              <button 
-                onClick={handleExportReport}
-                className="flex items-center gap-1 px-4 py-2 bg-secondary text-on-secondary text-xs font-semibold rounded hover:bg-secondary/90 transition-all shadow-sm"
-              >
-                <span className="material-symbols-outlined text-sm" data-icon="download">download</span>
-                Export Report
-              </button>
-            </div>
-          </div>
+        <div className="p-8 max-w-[1600px] mx-auto">
+          {error && <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium flex items-center gap-3"><span className="material-symbols-outlined">error</span> {error}</div>}
 
-          {/* Top Section: Overview Cards (Bento Style) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white/80 backdrop-blur-md border border-slate-200 p-6 rounded-xl flex flex-col justify-between hover:shadow-md transition-shadow">
-              <div>
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-semibold text-on-surface-variant">TOTAL REVENUE</span>
-                  <span className="material-symbols-outlined text-secondary" data-icon="payments">payments</span>
+          {!data ? (
+            <div className="py-32 flex flex-col items-center justify-center gap-4">
+              <div className="w-10 h-10 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+            </div>
+          ) : (
+            <>
+              <section className="grid grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
+                {[
+                  ['account_balance_wallet', 'Revenue', money(data.metrics.recordedRevenue), 'text-emerald-600 bg-emerald-50'],
+                  ['fact_check', 'Total Bookings', data.metrics.totalBookings, 'text-blue-600 bg-blue-50'],
+                  ['local_shipping', 'Pending Jobs', data.metrics.pendingDispatch, 'text-orange-600 bg-orange-50'],
+                  ['task_alt', 'Completed Jobs', data.metrics.completedJobs, 'text-cyan-600 bg-cyan-50'],
+                  ['engineering', 'Available Techs', `${data.metrics.availableTechnicians}/${data.metrics.technicianTotal}`, 'text-purple-600 bg-purple-50'],
+                ].map(([icon, label, value, colorClass]) => (
+                  <div key={label} className="bg-white rounded-3xl p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100 hover:-translate-y-1 transition-transform">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${colorClass}`}>
+                      <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>{icon}</span>
+                    </div>
+                    <p className="text-3xl font-bold text-slate-900 tracking-tight">{value}</p>
+                    <p className="text-sm font-semibold text-slate-500 mt-1">{label}</p>
+                  </div>
+                ))}
+              </section>
+
+              <div className="grid xl:grid-cols-[minmax(0,2.2fr)_minmax(380px,1fr)] gap-8">
+                <div className="space-y-8">
+                  <div className="bg-white rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100 overflow-hidden flex flex-col">
+                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
+                      <h2 className="text-xl font-bold text-slate-900">Recent Bookings</h2>
+                      <div className="flex gap-2">
+                        <button onClick={() => navigate('/company/bookings')} className="px-4 py-2 bg-blue-50 text-blue-700 font-bold rounded-xl text-sm hover:bg-blue-100 transition-colors">View All</button>
+                        <button onClick={() => downloadCsv(bookings)} className="px-4 py-2 bg-slate-50 text-slate-600 font-bold rounded-xl border border-slate-200 text-sm hover:bg-slate-100 transition-colors">Export</button>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-slate-50/50">
+                          <tr>
+                            {['Booking Ref', 'Customer Details', 'Service', 'Status', 'Amount', 'Action'].map((head, index) => (
+                              <th key={head} className={`p-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider ${index === 0 ? 'pl-6' : ''} ${index === 5 ? 'pr-6 text-center' : ''}`}>{head}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {filtered.slice(0, 8).map((booking) => (
+                            <tr key={booking._id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="p-4 pl-6"><span className="font-mono text-sm font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-lg">{booking.reference}</span></td>
+                              <td className="p-4"><p className="font-bold text-slate-900 text-sm">{booking.customerName}</p><p className="text-xs text-slate-500 font-medium mt-0.5">{booking.vehicle?.label || 'No vehicle'} • {time(booking.scheduledAt)}</p></td>
+                              <td className="p-4 text-sm font-medium text-slate-700">{booking.serviceSnapshot?.name}</td>
+                              <td className="p-4"><span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${booking.status === 'Completed' || booking.status === 'Paid' ? 'bg-emerald-50 text-emerald-700' : booking.status === 'Pending' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'}`}>{booking.status}</span></td>
+                              <td className="p-4 text-sm font-bold text-slate-900">{money(booking.pricing?.finalTotal)}</td>
+                              <td className="p-4 pr-6 text-center">
+                                {booking.status === 'Pending' ? <button disabled={busy === booking._id} onClick={() => assignFirstAvailable(booking)} className="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50">Assign Tech</button> : <button onClick={() => navigate('/company/bookings')} className="text-slate-400 hover:text-blue-600 transition-colors"><span className="material-symbols-outlined">more_horiz</span></button>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-3xl font-bold text-primary">${totalRevenueVal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-              </div>
-              <div className="mt-4 flex items-center gap-1">
-                <span className="text-xs text-on-surface-variant">Accumulated sales</span>
-              </div>
-            </div>
 
-            <div className="bg-white/80 backdrop-blur-md border border-slate-200 p-6 rounded-xl flex flex-col justify-between hover:shadow-md transition-shadow">
-              <div>
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-semibold text-on-surface-variant">TOTAL BOOKINGS</span>
-                  <span className="material-symbols-outlined text-secondary" data-icon="event_available">event_available</span>
-                </div>
-                <p className="text-3xl font-bold text-primary">{totalBookingsCount}</p>
-              </div>
-              <div className="mt-4 flex items-center gap-1">
-                <span className="text-xs text-on-surface-variant">Registered jobs</span>
-              </div>
-            </div>
-
-            <div className="bg-white/80 backdrop-blur-md border border-slate-200 p-6 rounded-xl flex flex-col justify-between hover:shadow-md transition-shadow">
-              <div>
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-semibold text-on-surface-variant">PENDING JOBS</span>
-                  <span className="material-symbols-outlined text-amber-500" data-icon="pending_actions">pending_actions</span>
-                </div>
-                <p className="text-3xl font-bold text-primary">{pendingCount}</p>
-              </div>
-              <div className="mt-4 flex items-center gap-1">
-                <span className="text-xs text-on-surface-variant">Awaiting dispatch</span>
-              </div>
-            </div>
-
-            <div className="bg-white/80 backdrop-blur-md border border-slate-200 p-6 rounded-xl flex flex-col justify-between hover:shadow-md transition-shadow">
-              <div>
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-semibold text-on-surface-variant">COMPLETED</span>
-                  <span className="material-symbols-outlined text-emerald-600" data-icon="task_alt">task_alt</span>
-                </div>
-                <p className="text-3xl font-bold text-primary">{completedCount}</p>
-              </div>
-              <div className="mt-4 flex items-center gap-1">
-                <span className="text-xs text-on-surface-variant">Successfully fulfilled</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Navigation & Latest Activity */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Quick Navigation */}
-            <div className="lg:col-span-4 space-y-4">
-              <h3 className="text-lg font-bold text-primary">Quick Actions</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <Link to={ROUTES.companyBookings} className="bg-white border border-slate-200 p-4 rounded-xl hover:shadow-md transition-all flex flex-col items-center text-center gap-2">
-                  <span className="material-symbols-outlined text-secondary text-2xl" data-icon="calendar_today">calendar_today</span>
-                  <span className="text-xs font-bold">Manage Bookings</span>
-                </Link>
-                <Link to={ROUTES.companyInventory} className="bg-white border border-slate-200 p-4 rounded-xl hover:shadow-md transition-all flex flex-col items-center text-center gap-2">
-                  <span className="material-symbols-outlined text-secondary text-2xl" data-icon="inventory_2">inventory_2</span>
-                  <span className="text-xs font-bold">Add Inventory</span>
-                </Link>
-                <Link to={ROUTES.companyTechnicians} className="bg-white border border-slate-200 p-4 rounded-xl hover:shadow-md transition-all flex flex-col items-center text-center gap-2">
-                  <span className="material-symbols-outlined text-secondary text-2xl" data-icon="badge">badge</span>
-                  <span className="text-xs font-bold">Add Staff</span>
-                </Link>
-                <Link to={ROUTES.companyServices} className="bg-white border border-slate-200 p-4 rounded-xl hover:shadow-md transition-all flex flex-col items-center text-center gap-2">
-                  <span className="material-symbols-outlined text-secondary text-2xl" data-icon="build">build</span>
-                  <span className="text-xs font-bold">Add Services</span>
-                </Link>
-              </div>
-            </div>
-
-            {/* Latest Jobs Table */}
-            <div className="lg:col-span-8 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-              <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
-                <h3 className="text-base font-bold text-primary">Recent Active Jobs</h3>
-                <Link className="text-xs font-bold text-secondary hover:underline" to={ROUTES.companyBookings}>View All</Link>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="px-6 py-3 font-semibold text-slate-500 uppercase">Asset / Order ID</th>
-                      <th className="px-6 py-3 font-semibold text-slate-500 uppercase">Technician</th>
-                      <th className="px-6 py-3 font-semibold text-slate-500 uppercase">Service</th>
-                      <th className="px-6 py-3 font-semibold text-slate-500 uppercase">Status</th>
-                      <th className="px-6 py-3 font-semibold text-slate-500 uppercase text-right">Revenue</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {activeJobs.map((job) => (
-                      <tr key={job.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-4 font-mono font-medium">{job.id}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center font-bold text-[10px]">
-                              {job.tech.charAt(0)}
-                            </div>
-                            <span className="font-medium text-slate-800">{job.tech}</span>
+                <div className="space-y-6">
+                  <div className="bg-white rounded-3xl p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100">
+                    <h3 className="font-bold text-lg text-slate-900 mb-6 flex justify-between items-center">Revenue Trend <Link to="/company/analytics" className="text-sm text-blue-600 hover:underline">Details</Link></h3>
+                    <div className="h-48 flex items-end gap-3">
+                      {data.revenue.map((item) => (
+                        <div key={item.month} className="flex-1 flex flex-col items-center gap-2 group">
+                          <div className="w-full bg-blue-100 rounded-t-xl relative overflow-hidden flex items-end" style={{ height: '100%' }}>
+                            <div className="w-full bg-blue-500 rounded-t-xl transition-all duration-500 group-hover:bg-blue-600" style={{ height: `${Math.max(10, item.amount / maxRevenue * 100)}%` }} />
                           </div>
-                        </td>
-                        <td className="px-6 py-4">{job.service}</td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${job.statusColor}`}>
-                            {job.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right font-mono font-semibold text-slate-900">{job.revenue}</td>
-                      </tr>
-                    ))}
+                          <span className="text-xs font-bold text-slate-400 uppercase">{item.month}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-                    {activeJobs.length === 0 && (
-                      <tr>
-                        <td colSpan="5" className="px-6 py-10 text-center text-slate-400">
-                          <p className="text-xs font-semibold text-slate-600">No active jobs in your portal yet.</p>
-                          <p className="text-[11px] text-slate-400 mt-1">Use the quick action buttons above to add services, staff, and bookings.</p>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                  <div className="bg-white rounded-3xl p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100">
+                    <h3 className="font-bold text-lg text-slate-900 mb-4 flex justify-between items-center">Top Technicians <Link to="/company/technicians" className="text-sm text-blue-600 hover:underline">Manage</Link></h3>
+                    <div className="space-y-4">
+                      {data.technicians.slice(0, 4).map((tech) => (
+                        <div key={tech._id} className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-sm">{tech.name.substring(0, 2).toUpperCase()}</div>
+                          <div className="flex-1"><p className="font-bold text-sm text-slate-900">{tech.name}</p><p className="text-xs font-medium text-slate-500">{tech.completedJobs || 0} jobs completed</p></div>
+                          <div className={`w-2.5 h-2.5 rounded-full ${tech.status === 'Available' ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </main>
     </div>
@@ -333,3 +224,4 @@ function CompanyDashboard() {
 }
 
 export default CompanyDashboard;
+

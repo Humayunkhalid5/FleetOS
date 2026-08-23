@@ -1,147 +1,62 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
+const User = require('./models/User');
 const Booking = require('./models/Booking');
-const ChatMessage = require('./models/ChatMessage');
-const { advanceBooking } = require('./services/trackingService');
+const { getJwtSecret } = require('./config/security');
 
 let io;
 
-const initSocket = (httpServer) => {
+function cookieValue(header, name) {
+  const pair = String(header || '').split(';').map((item) => item.trim()).find((item) => item.startsWith(`${name}=`));
+  return pair ? decodeURIComponent(pair.slice(name.length + 1)) : null;
+}
+
+async function canAccessBooking(user, bookingId) {
+  if (user.role === 'customer') return Booking.findOne({ _id: bookingId, customer: user._id }).populate('technician', 'name phone avatar status');
+  if (user.role === 'company') return Booking.findOne({ _id: bookingId, company: user.company }).populate('technician', 'name phone avatar status');
+  return null;
+}
+
+function initSocket(httpServer) {
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:5173',
-      methods: ['GET', 'POST'],
+      origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+      credentials: true,
     },
   });
 
-  // Simple auth middleware for socket connections
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     try {
-      const token = socket.handshake.auth?.token;
-      if (!token) return next(new Error('Not authorized'));
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      socket.userId = decoded.id;
+      const token = cookieValue(socket.request.headers.cookie, 'fleetos_session') || socket.handshake.auth?.token;
+      const payload = jwt.verify(token, getJwtSecret());
+      const user = await User.findById(payload.sub);
+      if (!user || user.status !== 'active' || user.sessionVersion !== payload.sv || user.role === 'super-admin') throw new Error('Invalid session');
+      socket.user = user;
       next();
-    } catch (err) {
-      next(new Error('Not authorized'));
+    } catch (error) {
+      next(new Error('Authentication required'));
     }
   });
 
   io.on('connection', (socket) => {
-    console.log('Socket connected:', socket.id, 'user:', socket.userId);
-
-    // Join a booking room to receive live tracking updates
     socket.on('join-booking', async (bookingId) => {
-      if (!bookingId) return;
-      socket.join(`booking:${bookingId}`);
-      try {
-        const booking = await Booking.findOne({
-          _id: bookingId,
-          user: socket.userId,
-        }).populate('company', 'name slug logo');
-        if (booking) {
-          socket.emit('tracking:snapshot', buildTrackingPayload(booking));
-        }
-      } catch (err) {
-        socket.emit('tracking:error', { message: err.message });
-      }
+      const booking = await canAccessBooking(socket.user, bookingId);
+      if (!booking) return socket.emit('booking:error', { message: 'Booking not found' });
+      socket.join(`booking:${booking._id}`);
+      socket.emit('tracking:snapshot', { bookingId: booking._id, status: booking.status, tracking: booking.tracking, technician: booking.technician });
     });
-
-    socket.on('leave-booking', (bookingId) => {
-      if (bookingId) socket.leave(`booking:${bookingId}`);
-    });
-
-    // ============ LIVE CHAT ============
-    // Join a chat room (keyed by company id or booking id).
-    socket.on('chat:join', async (roomId) => {
-      if (!roomId) return;
-      socket.join(`chat:${roomId}`);
-      // Send existing history for this room
-      try {
-        const messages = await ChatMessage.find({ roomId });
-        socket.emit('chat:history', { messages });
-      } catch (err) {
-        socket.emit('chat:error', { message: err.message });
-      }
-    });
-
-    socket.on('chat:leave', (roomId) => {
-      if (roomId) socket.leave(`chat:${roomId}`);
-    });
-
-    // Send a new chat message; persist it and broadcast to everyone in the room.
-    socket.on('chat:message', async (payload) => {
-      const roomId = payload?.roomId;
-      const text = payload?.text;
-      if (!roomId || !text) return;
-
-      const message = await ChatMessage.create({
-        roomId,
-        sender: socket.userId || 'customer',
-        senderRole: payload?.senderRole || 'customer',
-        recipient: payload?.recipient || '',
-        recipientRole: payload?.recipientRole || 'company',
-        text,
-        createdAt: new Date().toISOString(),
-      });
-
-      io.to(`chat:${roomId}`).emit('chat:message', { message });
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Socket disconnected:', socket.id);
-    });
+    socket.on('leave-booking', (bookingId) => socket.leave(`booking:${bookingId}`));
   });
 
-  // Start the technician movement simulator
-  startSimulator();
-
+  httpServer.on('listening', () => {
+    const app = httpServer.listeners('request')[0];
+    if (app?.set) app.set('io', io);
+  });
   return io;
-};
+}
 
-// Build the payload the client uses to render the map
-const buildTrackingPayload = (booking) => ({
-  _id: booking._id,
-  reference: booking.reference,
-  service: booking.service,
-  technician: booking.technician,
-  vehicleLabel: booking.vehicleLabel,
-  status: booking.status,
-  tracking: booking.tracking,
-  origin: booking.origin,
-  destination: booking.destination,
-  currentPosition: booking.currentPosition,
-  company: booking.company,
-  location: booking.location,
-  scheduledDate: booking.scheduledDate,
-  scheduledTime: booking.scheduledTime,
-});
-
-// Broadcast updated tracking to everyone in a booking room
-const broadcastTracking = (booking) => {
-  if (!io || !booking) return;
-  const room = `booking:${booking._id}`;
-  io.to(room).emit('tracking:update', buildTrackingPayload(booking));
-};
-
-// Simple simulator: every 4s advance all active (in-progress) bookings
-let simulatorInterval = null;
-const startSimulator = () => {
-  if (simulatorInterval) clearInterval(simulatorInterval);
-  simulatorInterval = setInterval(async () => {
-    try {
-      const activeBookings = await Booking.find({
-        status: 'in-progress',
-        'tracking.stage': { $nin: ['completed'] },
-      }).limit(50);
-      for (const booking of activeBookings) {
-        const updated = await advanceBooking(booking);
-        if (updated) broadcastTracking(updated);
-      }
-    } catch (err) {
-      console.error('Simulator error:', err.message);
-    }
-  }, 4000);
-};
+function broadcastTracking(booking) {
+  if (io && booking) io.to(`booking:${booking._id}`).emit('tracking:update', { bookingId: booking._id, status: booking.status, tracking: booking.tracking });
+}
 
 module.exports = { initSocket, broadcastTracking };

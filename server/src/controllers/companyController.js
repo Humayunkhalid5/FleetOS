@@ -1,200 +1,115 @@
+const mongoose = require('mongoose');
 const Company = require('../models/Company');
-const User = require('../models/User');
 const Service = require('../models/Service');
+const User = require('../models/User');
+const Booking = require('../models/Booking');
 const Technician = require('../models/Technician');
-const { filterCompaniesByLocation } = require('../utils/companyFilters');
-const seedData = require('../data/seedData');
+const Inventory = require('../models/Inventory');
+const Payment = require('../models/Payment');
+const City = require('../models/City');
+const { pick } = require('../utils/http');
 
-const extractCity = (address = '') => {
-  if (!address) return '';
-  const parts = address.split(',').map((s) => s.trim());
-  if (parts.length >= 2) {
-    return parts[parts.length - 2] || parts[0];
-  }
-  return parts[0] || '';
-};
+function isClientVisible(company, owner = null) {
+  const ownerStatus = owner?.status || company.ownerStatus || 'active';
+  return company.approvalStatus === 'approved' && ownerStatus !== 'suspended';
+}
 
-// @desc   Get all companies (optionally filter by location/area/city)
-// @route  GET /api/companies
+function publicCompany(company, services = [], owner = null) {
+  const data = company.toJSON ? company.toJSON() : { ...company };
+  delete data.owner;
+  delete data.approvalVersion;
+  delete data.businessLicense;
+  return { ...data, verified: data.approvalStatus === 'approved', ownerStatus: owner?.status || data.ownerStatus || 'active', clientVisible: isClientVisible(data, owner), services };
+}
+
 exports.getCompanies = async (req, res) => {
-  try {
-    const query = req.query.location || '';
-    const area = req.query.area || '';
-    
-    // 1. Fetch companies from Company model
-    let companies = await Company.find().sort('-rating');
-    if (!Array.isArray(companies)) companies = [];
-
-    // 2. Fetch registered company users from User model
-    let companyUsers = [];
-    try {
-      companyUsers = await User.find({ role: 'company' });
-      if (!Array.isArray(companyUsers)) companyUsers = [];
-    } catch (e) {}
-
-    // Combine user-registered companies if not already present in Company collection
-    for (const u of companyUsers) {
-      const uSlug = u.companyId || (u.companyName || u.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const exists = companies.some(
-        (c) => (c._id && c._id.toString() === u._id.toString()) || c.slug === uSlug || (c.name && c.name.toLowerCase() === (u.companyName || u.name || '').toLowerCase())
-      );
-      if (!exists && (u.companyName || u.name)) {
-        companies.push({
-          _id: u._id,
-          name: u.companyName || u.name,
-          slug: uSlug,
-          description: u.description || 'Registered SaaS Fleet & Service Provider',
-          rating: Number(u.rating) || 0,
-          reviewCount: Number(u.reviewCount) || 0,
-          heroImage: u.heroImage || u.avatar || '',
-          logo: u.avatar || '',
-          location: u.address || u.location || '',
-          city: u.city || extractCity(u.address),
-          phone: u.phone || '',
-          email: u.email || '',
-          services: [],
-          technicians: [],
-        });
-      }
+  const query = { approvalStatus: 'approved' };
+  if (req.query.city) query.city = new RegExp(`^${String(req.query.city).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+  if (req.query.search) query.$text = { $search: req.query.search };
+  const limit = Math.min(Number(req.query.limit || 50), 100);
+  const [rawCompanies, cityRows] = await Promise.all([
+    Company.find(query).sort({ rating: -1, name: 1 }).limit(limit).lean(),
+    City.find({}, 'name province').sort({ name: 1 }).lean(),
+  ]);
+  const ownerRows = await User.find({ company: { $in: rawCompanies.map((company) => company._id) }, role: 'company' }, 'company status').lean();
+  const ownerByCompany = ownerRows.reduce((map, owner) => ({ ...map, [String(owner.company)]: owner }), {});
+  const companies = rawCompanies.filter((company) => isClientVisible(company, ownerByCompany[String(company._id)]));
+  const ids = companies.map((company) => company._id);
+  const services = await Service.find({ company: { $in: ids }, status: 'Active' }).lean();
+  const byCompany = services.reduce((map, service) => {
+    const key = String(service.company);
+    if (!map[key]) map[key] = [];
+    map[key].push(service);
+    return map;
+  }, {});
+  const areasByCity = companies.reduce((result, company) => {
+    if (!result[company.city]) result[company.city] = [];
+    for (const area of company.areas || []) {
+      if (!result[company.city].includes(area)) result[company.city].push(area);
     }
-
-    // 3. For each company, populate live dynamic services & technicians
-    const populated = await Promise.all(
-      companies.map(async (c) => {
-        const compObj = c.toObject ? c.toObject() : { ...c };
-        const idsToMatch = [compObj._id ? compObj._id.toString() : null, compObj.slug, compObj.companyId].filter(Boolean);
-
-        let dynamicServices = [];
-        let dynamicTechs = [];
-
-        for (const cid of idsToMatch) {
-          try {
-            const svcs = await Service.find({ companyId: cid });
-            if (Array.isArray(svcs) && svcs.length > 0) {
-              dynamicServices = svcs;
-              break;
-            }
-          } catch (e) {}
-        }
-
-        for (const cid of idsToMatch) {
-          try {
-            const techs = await Technician.find({ companyId: cid });
-            if (Array.isArray(techs) && techs.length > 0) {
-              dynamicTechs = techs;
-              break;
-            }
-          } catch (e) {}
-        }
-
-        return {
-          ...compObj,
-          services: dynamicServices.length > 0 ? dynamicServices : (compObj.services || []),
-          technicians: dynamicTechs.length > 0 ? dynamicTechs : (compObj.technicians || []),
-        };
-      })
-    );
-
-    let filtered = filterCompaniesByLocation(populated, query);
-
-    // Optional narrow-by-area filter
-    if (area) {
-      const normalizedArea = area.trim().toLowerCase();
-      filtered = filtered.filter((company) =>
-        (company.areas || []).some((a) => a.toLowerCase().includes(normalizedArea))
-      );
-    }
-
-return res.json({
-      companies: filtered,
-      cities: Object.keys(seedData.areasByCity || {}),
-      areasByCity: seedData.areasByCity || {},
-    });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+    return result;
+  }, {});
+  return res.json({
+    companies: companies.map((company) => publicCompany(company, byCompany[String(company._id)] || [], ownerByCompany[String(company._id)])),
+    cities: cityRows.map((city) => city.name),
+    cityCatalogue: cityRows,
+    areasByCity,
+  });
 };
 
-// @desc   Get single company by id or slug
-// @route  GET /api/companies/:id
 exports.getCompany = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
-
-    let company = isObjectId
-      ? await Company.findById(id)
-      : await Company.findOne({ slug: id });
-
-    if (!company) {
-      // Check in User collection for role 'company'
-      const userComp = isObjectId
-        ? await User.findById(id)
-        : await User.findOne({ $or: [{ companyId: id }, { companyName: new RegExp(`^${id}$`, 'i') }] });
-
-      if (userComp && userComp.role === 'company') {
-        const uSlug = userComp.companyId || (userComp.companyName || userComp.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        company = {
-          _id: userComp._id,
-          name: userComp.companyName || userComp.name,
-          slug: uSlug,
-          description: userComp.description || 'Registered SaaS Fleet & Service Provider',
-          rating: Number(userComp.rating) || 0,
-          reviewCount: Number(userComp.reviewCount) || 0,
-          heroImage: userComp.heroImage || userComp.avatar || '',
-          logo: userComp.avatar || '',
-          location: userComp.address || userComp.location || '',
-          city: userComp.city || extractCity(userComp.address),
-          phone: userComp.phone || '',
-          email: userComp.email || '',
-          services: [],
-          technicians: [],
-        };
-      }
-    }
-
-    if (!company) {
-      return res.status(404).json({ message: 'Company not found' });
-    }
-
-    const compObj = company.toObject ? company.toObject() : { ...company };
-    const idsToMatch = [compObj._id ? compObj._id.toString() : null, compObj.slug, compObj.companyId, id].filter(Boolean);
-
-    let dynamicServices = [];
-    let dynamicTechs = [];
-
-    for (const cid of idsToMatch) {
-      try {
-        const svcs = await Service.find({ companyId: cid });
-        if (Array.isArray(svcs) && svcs.length > 0) {
-          dynamicServices = svcs;
-          break;
-        }
-      } catch (e) {}
-    }
-
-    for (const cid of idsToMatch) {
-      try {
-        const techs = await Technician.find({ companyId: cid });
-        if (Array.isArray(techs) && techs.length > 0) {
-          dynamicTechs = techs;
-          break;
-        }
-      } catch (e) {}
-    }
-
-    const finalCompany = {
-      ...compObj,
-      services: dynamicServices.length > 0 ? dynamicServices : (compObj.services || []),
-      technicians: dynamicTechs.length > 0 ? dynamicTechs : (compObj.technicians || []),
-    };
-
-    return res.json({ company: finalCompany });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  const identifier = req.params.id;
+  const filter = mongoose.isValidObjectId(identifier) ? { _id: identifier } : { slug: identifier };
+  const company = await Company.findOne({ ...filter, approvalStatus: 'approved' }).lean();
+  if (!company) return res.status(404).json({ message: 'Company not found' });
+  const owner = await User.findOne({ company: company._id, role: 'company' }, 'status').lean();
+  if (!isClientVisible(company, owner)) return res.status(404).json({ message: 'Company not found' });
+  const services = await Service.find({ company: company._id, status: 'Active' }).lean();
+  return res.json({ company: publicCompany(company, services, owner) });
 };
-<<<<<<< HEAD
-  
-=======
->>>>>>> origin/aisha
+
+exports.getCompanyDashboard = async (req, res) => {
+  const company = req.company;
+  const [bookings, technicians, inventory, payments] = await Promise.all([
+    Booking.find({ company: company._id }).populate('technician', 'name status').sort({ createdAt: -1 }).limit(50).lean(),
+    Technician.find({ company: company._id }).sort({ name: 1 }).lean(),
+    Inventory.find({ company: company._id }).sort({ quantity: 1 }).lean(),
+    Payment.find({ company: company._id, status: 'recorded' }).sort({ recordedAt: 1 }).lean(),
+  ]);
+  const activeStatuses = ['Assigned', 'En Route', 'Arrived', 'In Progress'];
+  const revenueByMonth = payments.reduce((result, payment) => {
+    const date = payment.recordedAt || payment.createdAt;
+    const key = new Intl.DateTimeFormat('en', { month: 'short', year: '2-digit' }).format(date);
+    result[key] = (result[key] || 0) + payment.amount;
+    return result;
+  }, {});
+  return res.json({
+    company: publicCompany(company),
+    metrics: {
+      totalBookings: bookings.length,
+      completedJobs: bookings.filter((booking) => ['Completed', 'Paid'].includes(booking.status)).length,
+      activeJobs: bookings.filter((booking) => activeStatuses.includes(booking.status)).length,
+      pendingDispatch: bookings.filter((booking) => booking.status === 'Pending').length,
+      availableTechnicians: technicians.filter((tech) => tech.status === 'Available').length,
+      technicianTotal: technicians.length,
+      lowStock: inventory.filter((item) => item.quantity <= item.reorderLevel).length,
+      recordedRevenue: payments.reduce((sum, payment) => sum + payment.amount, 0),
+    },
+    bookings,
+    technicians,
+    lowStock: inventory.filter((item) => item.quantity <= item.reorderLevel).slice(0, 8),
+    revenue: Object.entries(revenueByMonth).map(([month, amount]) => ({ month, amount })).slice(-6),
+  });
+};
+
+exports.updateCompanySettings = async (req, res) => {
+  const updates = pick(req.body, ['name', 'description', 'phone', 'location', 'city', 'province', 'areas']);
+  if (req.body.logo && req.body.logo !== req.company.logo) {
+    const { validateLogo } = require('../utils/uploads');
+    updates.logo = validateLogo(req.body.logo).data;
+  }
+  Object.assign(req.company, updates);
+  await req.company.save();
+  return res.json({ company: publicCompany(req.company) });
+};
+

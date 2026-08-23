@@ -12,6 +12,7 @@ function CompanyRegister() {
     ownerName: '',
     registrationNumber: '',
     phone: '',
+    city: '',
     address: '',
     email: '',
     password: '',
@@ -19,6 +20,7 @@ function CompanyRegister() {
   });
 
   const [licenseFile, setLicenseFile] = useState(null);
+  const [licenseDataUrl, setLicenseDataUrl] = useState('');
   const [logoFile, setLogoFile] = useState(null);
   const [logoDataUrl, setLogoDataUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -29,9 +31,23 @@ function CompanyRegister() {
     setForm({ ...form, [key]: val });
   };
 
+  const readUpload = (file, maxBytes, onReady) => {
+    if (!file) return;
+    if (file.size > maxBytes) {
+      setFormError(`“${file.name}” exceeds the ${Math.round(maxBytes / 1024 / 1024)} MB limit.`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => onReady(String(reader.result));
+    reader.onerror = () => setFormError(`Could not read “${file.name}”.`);
+    reader.readAsDataURL(file);
+  };
+
   const handleLicenseChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setLicenseFile(e.target.files[0]);
+    const file = e.target.files?.[0];
+    if (file) {
+      setLicenseFile(file);
+      readUpload(file, 5 * 1024 * 1024, setLicenseDataUrl);
     }
   };
 
@@ -39,11 +55,7 @@ function CompanyRegister() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setLogoFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoDataUrl(reader.result);
-      };
-      reader.readAsDataURL(file);
+      readUpload(file, 1.5 * 1024 * 1024, setLogoDataUrl);
     }
   };
 
@@ -55,14 +67,14 @@ function CompanyRegister() {
       setFormError('You must agree to the Terms of Service and Data Protection Agreement.');
       return;
     }
+    if (!logoDataUrl || !licenseDataUrl) {
+      setFormError('Company logo and business license are required for Admin verification.');
+      return;
+    }
 
     setSubmitting(true);
     try {
       const targetName = form.companyName || form.ownerName;
-      const targetSlug = targetName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const addressParts = (form.address || '').split(',');
-      const detectedCity = addressParts.length >= 2 ? addressParts[addressParts.length - 2].trim() : (addressParts[0] || '').trim();
-
       const regPayload = {
         name: targetName,
         email: form.email,
@@ -71,37 +83,13 @@ function CompanyRegister() {
         address: form.address,
         role: 'company',
         companyName: form.companyName || targetName,
-        companyId: targetSlug,
         registrationNumber: form.registrationNumber,
-        city: detectedCity,
+        city: form.city.trim(),
         logo: logoDataUrl,
+        businessLicense: { name: licenseFile.name, data: licenseDataUrl },
       };
 
       const res = await register(regPayload);
-
-      // Save to local storage cache as well
-      try {
-        const stored = JSON.parse(localStorage.getItem('fleetos-registered-companies') || '[]');
-        const exists = stored.some((c) => c.slug === targetSlug || c.name === targetName);
-        if (!exists) {
-          stored.push({
-            _id: res?._id || `comp-${Date.now()}`,
-            name: targetName,
-            slug: targetSlug,
-            description: 'Registered SaaS Fleet & Maintenance Provider',
-            phone: form.phone,
-            email: form.email,
-            location: form.address,
-            city: detectedCity,
-            logo: logoDataUrl,
-            rating: 0,
-            reviewCount: 0,
-            services: [],
-            technicians: []
-          });
-          localStorage.setItem('fleetos-registered-companies', JSON.stringify(stored));
-        }
-      } catch (err) {}
 
       if (res) {
         navigate(ROUTES.companyDashboard);
@@ -247,6 +235,21 @@ function CompanyRegister() {
                   </div>
                 </div>
 
+                <div className="space-y-1">
+                  <label className="block text-on-surface text-xs font-semibold uppercase">Service City</label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">location_city</span>
+                    <input
+                      required
+                      type="text"
+                      className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
+                      placeholder="Lahore"
+                      value={form.city}
+                      onChange={update('city')}
+                    />
+                  </div>
+                </div>
+
                 {/* Full Width Address */}
                 <div className="md:col-span-2 space-y-1">
                   <label className="block text-on-surface text-xs font-semibold uppercase">Business Address</label>
@@ -303,35 +306,46 @@ function CompanyRegister() {
                   <span className="text-on-surface-variant text-xs mt-1">
                     {licenseFile ? licenseFile.name : 'PDF, JPG (Max 5MB)'}
                   </span>
-                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={handleLicenseChange} />
+                  <input required type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={handleLicenseChange} />
                 </label>
 
                 <label className={`p-4 rounded-lg border-2 border-dashed border-outline-variant bg-surface-container flex flex-col items-center justify-center text-center cursor-pointer hover:bg-surface-container-high transition-colors ${logoFile ? 'bg-secondary/10 border-secondary' : ''}`}>
-                  <span className="material-symbols-outlined text-secondary mb-1 text-2xl" data-icon="add_photo_alternate">add_photo_alternate</span>
+                  {logoDataUrl ? <img src={logoDataUrl} alt="Logo preview" className="w-10 h-10 object-contain rounded-lg mb-1 bg-white" /> : <span className="material-symbols-outlined text-secondary mb-1 text-2xl" data-icon="add_photo_alternate">add_photo_alternate</span>}
                   <span className="text-on-surface text-xs font-semibold">Company Logo</span>
                   <span className="text-on-surface-variant text-xs mt-1">
                     {logoFile ? logoFile.name : 'PNG, SVG (1:1 Ratio)'}
                   </span>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+                  <input required type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={handleLogoChange} />
                 </label>
               </div>
 
               {/* CTA Section */}
               <div className="pt-4 border-t border-outline-variant mt-6">
-                <div className="flex items-start gap-3 mb-6">
+                <label
+                  htmlFor="agreeTerms"
+                  onClick={(event) => { event.preventDefault(); setForm((current) => ({ ...current, agreeTerms: !current.agreeTerms })); }}
+                  onKeyDown={(event) => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); setForm((current) => ({ ...current, agreeTerms: !current.agreeTerms })); } }}
+                  tabIndex={0}
+                  role="checkbox"
+                  aria-checked={form.agreeTerms}
+                  className={`flex items-start gap-3 mb-6 rounded-xl p-3 cursor-pointer select-none transition-colors ${form.agreeTerms ? 'bg-secondary/10' : 'hover:bg-surface-container'}`}
+                >
                   <input 
                     type="checkbox"
                     id="agreeTerms"
-                    className="mt-1 rounded border-outline text-secondary focus:ring-secondary"
+                    className="sr-only"
                     checked={form.agreeTerms}
                     onChange={update('agreeTerms')}
+                    readOnly
                   />
-                  <label htmlFor="agreeTerms" className="text-on-surface-variant text-xs">
-                    I acknowledge that the information provided is legally binding. {form.companyName || 'Your Company'} agrees to the <a className="text-secondary underline" href="#" onClick={(e) => e.preventDefault()}>Data Protection Agreement</a> and <a className="text-secondary underline" href="#" onClick={(e) => e.preventDefault()}>Terms of Service</a>.
-                  </label>
-                </div>
-
-                <button 
+                  <span className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${form.agreeTerms ? 'bg-secondary border-secondary text-white' : 'bg-white border-outline text-transparent'}`}>
+                    <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
+                  </span>
+                  <span className="text-on-surface-variant text-xs leading-5">
+                    I acknowledge that the information provided is legally binding. {form.companyName || 'Your Company'} agrees to the <a className="text-secondary underline font-semibold" href="#" onClick={(e) => { e.preventDefault(); e.stopPropagation(); alert('FleetOS Data Protection Agreement — uploaded license, logo, and company details are used only for verification and service discovery.'); }}>Data Protection Agreement</a> and <a className="text-secondary underline font-semibold" href="#" onClick={(e) => { e.preventDefault(); e.stopPropagation(); alert('FleetOS Terms of Service — Companies must provide accurate details, maintain professional conduct, and honor accepted bookings.'); }}>Terms of Service</a>.
+                  </span>
+                </label>
+<button 
                   type="submit" 
                   disabled={submitting}
                   className="w-full bg-secondary text-on-secondary py-3 rounded-lg font-bold text-base shadow-md hover:bg-secondary-container transition-all active:scale-[0.98] flex items-center justify-center gap-2"
@@ -390,3 +404,6 @@ function CompanyRegister() {
 }
 
 export default CompanyRegister;
+
+
+

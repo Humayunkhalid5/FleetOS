@@ -1,114 +1,240 @@
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../constants';
 
+const BrandMark = () => (
+  <span className="client-logo-mark" aria-hidden="true">
+    <span className="material-symbols-outlined">local_shipping</span>
+  </span>
+);
+
 function Home() {
   const navigate = useNavigate();
 
-  const categories = [
-    { icon: 'plumbing', label: 'Plumbing' },
-    { icon: 'electrical_services', label: 'Electrical' },
-    { icon: 'cleaning_services', label: 'Cleaning' },
-    { icon: 'hvac', label: 'HVAC' },
-    { icon: 'pest_control', label: 'Pests' },
+  const serviceCards = [
+    ['directions_car', 'Car Service', 'General service & maintenance'],
+    ['oil_barrel', 'Oil Change', 'Oil & filter replacement'],
+    ['radio_button_checked', 'Brake Service', 'Brake check & replacement'],
+    ['ac_unit', 'AC Service', 'Cooling & AC maintenance'],
+    ['battery_charging_full', 'Battery Service', 'Battery check & replacement'],
+    ['settings', 'Tyre Service', 'Tyre check, rotation & alignment'],
   ];
 
   const features = [
-    { icon: 'bolt', title: 'Fast Booking', desc: 'Book trusted technicians in under a minute.' },
-    { icon: 'radar', title: 'Live Tracking', desc: 'Follow your service vehicle in real time.' },
-    { icon: 'verified_user', title: 'Certified Experts', desc: 'Vetted, background-checked professionals.' },
+    ['verified', 'Verified Companies', 'Only trusted and approved workshops'],
+    ['location_city', 'All Major Cities', 'Service available in 50+ cities across Pakistan'],
+    ['edit_calendar', 'Easy Service Request', 'Choose service, date and time that suits you'],
+    ['engineering', 'Technician ETA', 'Live tracking and estimated arrival time'],
+    ['chat_bubble', 'In-app Chat', 'Chat with workshop or support'],
+    ['payments', 'Secure Payments', 'Pay with cash or card, your choice'],
+    ['map', 'Live Tracking', 'Track technician in real time'],
+    ['history', 'Booking History', 'View all your past bookings'],
+  ];
+
+  const steps = [
+    ['1', 'Choose & Book', 'Select your service, pick a verified company, and choose date & time.', 'fact_check'],
+    ['2', 'We Come to You', 'Technician confirms and arrives at your location on time.', 'mobile_friendly'],
+    ['3', 'Service & Pay', 'Service completed, pay securely, and rate your experience.', 'credit_card'],
+  ];
+
+  const reviews = [
+    ['Muhammad Usman', 'Lahore', 'Super easy to book and the technician arrived on time. Very professional service!'],
+    ['Sana Ahmed', 'Karachi', 'Finally a reliable service app in Pakistan. Transparent pricing and great support.'],
+    ['Hassan Ali', 'Islamabad', 'Excellent experience from booking to service. Highly recommended!'],
+  ];
+
+  const faqs = [
+    'How do I book a service?',
+    'Are the companies verified?',
+    'What payment methods do you accept?',
+    'Do you offer doorstep service?',
+    'Can I reschedule or cancel my booking?',
+    'How can I contact support?',
   ];
 
   return (
-    <div className="bg-background text-on-surface min-h-screen pb-16">
-      {/* TopAppBar */}
-      <header className="fixed top-0 w-full z-50 flex justify-between items-center px-lg h-16 bg-surface shadow-sm transition-colors duration-200 ease-in-out">
-        <div className="flex items-center gap-md">
-          <span className="material-symbols-outlined text-primary text-[32px]">local_shipping</span>
-          <h1 className="font-headline-md text-headline-md font-bold text-primary">FleetOS</h1>
-        </div>
-        <div className="flex items-center gap-sm">
-          <button onClick={() => navigate(ROUTES.login)} className="px-lg py-sm font-nav-item text-nav-item text-on-surface hover:bg-surface-container-low rounded-lg transition-colors">
-            Log In
-          </button>
-          <button onClick={() => navigate(ROUTES.register)} className="px-lg py-sm bg-primary text-on-primary font-nav-item text-nav-item font-bold rounded-lg shadow-md hover:bg-primary-container transition-colors">
-            Sign Up
-          </button>
+    <div className="client-landing min-h-screen text-[#171511]">
+      <header className="client-site-header">
+        <button onClick={() => navigate(ROUTES.home)} className="client-brand" aria-label="FleetOS home">
+          <BrandMark />
+          <span>FleetOS</span>
+        </button>
+        <nav className="client-nav-links" aria-label="Main navigation">
+          <button onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}>How it works</button>
+          <button onClick={() => navigate('/company/register')}>For Companies</button>
+          <button onClick={() => navigate(ROUTES.about)}>About us</button>
+          <button onClick={() => navigate(ROUTES.contact)}>Help</button>
+        </nav>
+        <div className="client-header-actions">
+          <button onClick={() => navigate(ROUTES.login)} className="client-soft-btn">Login</button>
+          <button onClick={() => navigate(ROUTES.companies)} className="client-dark-btn">Find companies</button>
         </div>
       </header>
 
-      <main className="pt-24 px-container-margin max-w-7xl mx-auto space-y-xl">
-        {/* Hero */}
-        <section className="relative overflow-hidden rounded-xl bg-primary-container text-on-primary-container">
-          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-lg p-xl">
-            <div className="max-w-lg">
-              <span className="font-label-sm uppercase tracking-wider mb-sm block">Welcome to FleetOS</span>
-              <h2 className="font-headline-lg text-headline-lg font-bold mb-md">Fleet services, streamlined.</h2>
-              <p className="font-body-lg text-body-lg mb-lg">Book maintenance, track technicians live, and manage your fleet from one dashboard.</p>
-              <div className="flex gap-md">
-                <button onClick={() => navigate(ROUTES.dashboard)} className="px-xl py-md bg-surface-container-lowest text-primary font-bold rounded-lg shadow-md hover:scale-105 transition-transform active:scale-95">
-                  Get Started
-                </button>
-<button onClick={() => navigate(ROUTES.companies)} className="px-xl py-md border border-on-primary-container/30 rounded-lg font-bold hover:bg-on-primary-container/10 transition-colors">
-                  Browse Companies
-                </button>
-              </div>
+      <main>
+        <section className="client-hero-shell">
+          <div className="client-hero-copy">
+            <div className="client-pill"><span className="material-symbols-outlined">stars</span> Pakistan’s trusted vehicle service platform</div>
+            <h1>Professional vehicle service, <br />booked <em>without the hassle</em></h1>
+            <p>Find approved service companies across Pakistan, compare options by city, book the right service, and track every step from request to technician arrival.</p>
+            <div className="client-cta-row">
+              <button onClick={() => navigate(ROUTES.companies)} className="client-dark-btn client-large-btn">Find companies</button>
+              <button onClick={() => navigate(ROUTES.companies)} className="client-outline-btn client-large-btn">Book service</button>
             </div>
-            <div className="hidden md:block w-64 h-64 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[96px]">local_shipping</span>
+            <div className="client-stats-row" aria-label="FleetOS stats">
+              <span><b>1M+</b> Happy customers</span>
+              <span><b>1,500+</b> Verified workshops</span>
+              <span><b>50+</b> Cities in Pakistan</span>
+              <span><b>4.8★</b> Average rating</span>
+            </div>
+          </div>
+
+          <div className="client-hero-visual" aria-label="FleetOS booking preview">
+            <div className="client-float-card card-coral"><span className="material-symbols-outlined">verified_user</span><b>Verified</b><small>Trusted Workshops</small></div>
+            <div className="client-float-card card-lilac"><span className="client-avatar-dot">MR</span><b>Technician ETA</b><small>18 min away</small></div>
+            <div className="client-float-card card-yellow"><span className="material-symbols-outlined">payments</span><b>Secure Payments</b><small>Cash or Card</small></div>
+            <div className="client-float-card card-cream"><span className="material-symbols-outlined">location_on</span><b>Live Tracking</b><small>On the way</small></div>
+            <div className="client-phone-mock">
+              <div className="client-phone-top"><span>9:41</span><span>● ● ●</span></div>
+              <p className="client-phone-muted">Good morning,</p>
+              <h3>Ali Raza 👋</h3>
+              <div className="client-location-chip"><span className="material-symbols-outlined">location_on</span>Lahore, Punjab</div>
+              <div className="client-phone-search">What service do you need?</div>
+              <div className="client-phone-grid">
+                <span>Book a service</span><span>Track vehicle</span><span>Chat company</span>
+              </div>
+              <div className="client-booking-card">
+                <div>
+                  <b>Oil Change</b>
+                  <small>Toyota Corolla • LHR 1234</small>
+                </div>
+                <em>In progress</em>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Categories */}
-        <section className="space-y-md">
-          <div className="flex justify-between items-center">
-            <h3 className="font-headline-md text-headline-md text-on-surface">Browse by Category</h3>
-            <button onClick={() => navigate(ROUTES.dashboard)} className="text-primary font-nav-item hover:underline">View all</button>
+        <section className="client-section client-service-strip">
+          <div className="client-section-head compact">
+            <h2>Popular services</h2>
+            <button onClick={() => navigate(ROUTES.companies)}>View all services <span>→</span></button>
           </div>
-          <div className="flex gap-md overflow-x-auto hide-scrollbar -mx-container-margin px-container-margin pb-2">
-            {categories.map((item) => (
-<button key={item.label} onClick={() => navigate(ROUTES.companies)} className="flex flex-col items-center gap-sm shrink-0 group">
-                <div className="w-16 h-16 rounded-2xl bg-secondary-container flex items-center justify-center group-hover:bg-primary-container transition-colors duration-200">
-                  <span className="material-symbols-outlined text-on-secondary-fixed-variant group-hover:text-on-primary-container">{item.icon}</span>
-                </div>
-                <span className="font-body-md text-body-md text-on-surface-variant group-hover:text-primary group-hover:font-bold">{item.label}</span>
+          <div className="client-service-row">
+            {serviceCards.map(([icon, title, text]) => (
+              <button key={title} onClick={() => navigate(`${ROUTES.companies}?q=${encodeURIComponent(title)}`)} className="client-service-card">
+                <span className="material-symbols-outlined">{icon}</span>
+                <b>{title}</b>
+                <small>{text}</small>
               </button>
             ))}
           </div>
         </section>
 
-        {/* Features */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-md">
-          {features.map((f) => (
-            <div key={f.title} className="bg-surface-container-lowest p-lg rounded-xl shadow-elevation-1 border border-surface-container-low">
-              <div className="w-12 h-12 rounded-xl bg-primary-container text-on-primary-container flex items-center justify-center mb-md">
-                <span className="material-symbols-outlined">{f.icon}</span>
-              </div>
-              <h4 className="font-headline-md text-headline-md text-on-surface mb-xs">{f.title}</h4>
-              <p className="font-body-md text-body-md text-on-surface-variant">{f.desc}</p>
-            </div>
-          ))}
+        <section className="client-trusted-row" aria-label="Trusted brands">
+          <p>Trusted by thousands across Pakistan</p>
+          <div>
+            {['SUZUKI', 'TOYOTA', 'HONDA', 'KIA', 'HYUNDAI', 'MG', 'NISSAN', 'DAIHATSU'].map((brand) => <span key={brand}>{brand}</span>)}
+          </div>
         </section>
 
-        {/* CTA */}
-        <section className="bg-primary text-on-primary p-xl rounded-xl shadow-lg flex flex-col md:flex-row items-center justify-between gap-lg">
+        <section className="client-section client-app-section">
           <div>
-            <h3 className="font-headline-lg-mobile text-headline-lg-mobile font-bold mb-xs">Ready to get started?</h3>
-            <p className="font-body-lg text-body-lg opacity-80">Create your free account and book your first service today.</p>
+            <h2>Everything clients need <br />for <em>vehicle service</em></h2>
+            <p>From booking to payments, track everything in one real-time flow. Transparent, simple, and reliable.</p>
+            <div className="client-store-row">
+              <span>Download on the<br /><b>App Store</b></span>
+              <span>Get it on<br /><b>Google Play</b></span>
+            </div>
           </div>
-          <button onClick={() => navigate(ROUTES.register)} className="px-xl py-md bg-surface-container-lowest text-primary font-bold rounded-lg shadow-md hover:scale-105 transition-transform active:scale-95 shrink-0">
-            Create Account
-          </button>
+          <div className="client-feature-grid">
+            {features.map(([icon, title, text], idx) => (
+              <article key={title} className={`client-mini-feature tone-${idx % 4}`}>
+                <span className="material-symbols-outlined">{icon}</span>
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="client-dark-band">
+          <h2>Why clients choose FleetOS <br /><em>for reliable service</em></h2>
+          <div className="client-dark-features">
+            {[
+              ['workspace_premium', 'Verified & Rated', 'We onboard only verified workshops with real customer reviews.'],
+              ['receipt_long', 'Transparent Pricing', 'See prices before you book. No hidden charges, no surprises.'],
+              ['health_and_safety', 'Quality You Can Trust', 'Genuine parts, professional technicians, and service you can rely on.'],
+              ['support_agent', 'Support That Cares', 'Our support team is always here before, during, and after your service.'],
+            ].map(([icon, title, text]) => (
+              <article key={title}>
+                <span className="material-symbols-outlined">{icon}</span>
+                <div><h3>{title}</h3><p>{text}</p></div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section id="how-it-works" className="client-section client-steps-section">
+          <h2>How booking <em>works</em></h2>
+          <p>Three simple steps to get your vehicle serviced.</p>
+          <div className="client-steps-grid">
+            {steps.map(([num, title, text, icon]) => (
+              <article key={title} className="client-step-card">
+                <span className="client-step-num">{num}</span>
+                <div><h3>{title}</h3><p>{text}</p></div>
+                <span className="material-symbols-outlined">{icon}</span>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="client-section client-reviews-section">
+          <div className="client-section-head">
+            <h2>Loved by drivers across Pakistan</h2>
+            <button onClick={() => navigate(ROUTES.reviews)}>View all reviews <span>→</span></button>
+          </div>
+          <div className="client-review-grid">
+            {reviews.map(([name, city, quote]) => (
+              <article key={name} className="client-review-card">
+                <div className="client-stars">★★★★★ <span>4.9</span></div>
+                <p>{quote}</p>
+                <div><span className="client-avatar-dot">{name.split(' ').map((n) => n[0]).join('')}</span><b>{name}</b><small>{city}</small></div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="client-section client-faq-section">
+          <div className="client-section-head">
+            <h2>Frequently asked <em>questions</em></h2>
+            <button onClick={() => navigate(ROUTES.contact)}>View all <span>→</span></button>
+          </div>
+          <div className="client-faq-grid">
+            {faqs.map((faq) => <button key={faq}>{faq}<span>＋</span></button>)}
+          </div>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="mt-xl border-t border-surface-container px-container-margin py-lg flex flex-col md:flex-row justify-between items-center gap-md text-center">
-        <span className="font-label-sm text-label-sm text-on-surface-variant">© 2023 FleetOS. All rights reserved.</span>
-        <div className="flex gap-lg">
-          <button onClick={() => navigate(ROUTES.about)} className="font-label-sm text-label-sm text-outline hover:text-on-surface transition-colors">About</button>
-          <button onClick={() => navigate(ROUTES.contact)} className="font-label-sm text-label-sm text-outline hover:text-on-surface transition-colors">Contact</button>
-          <button onClick={() => navigate(ROUTES.login)} className="font-label-sm text-label-sm text-outline hover:text-on-surface transition-colors">Login</button>
+      <footer className="client-footer">
+        <div>
+          <button onClick={() => navigate(ROUTES.home)} className="client-brand"><BrandMark /><span>FleetOS</span></button>
+          <p>Pakistan’s most trusted platform for vehicle service booking.</p>
+        </div>
+        <div>
+          <h4>Company</h4>
+          <button onClick={() => navigate(ROUTES.about)}>About us</button>
+          <button onClick={() => navigate('/company/register')}>For Companies</button>
+          <button onClick={() => navigate(ROUTES.contact)}>Contact us</button>
+        </div>
+        <div>
+          <h4>Support</h4>
+          <button onClick={() => navigate(ROUTES.contact)}>Help center</button>
+          <button onClick={() => navigate(ROUTES.bookings)}>My bookings</button>
+          <button onClick={() => navigate(ROUTES.companies)}>Find service</button>
+        </div>
+        <div className="client-footer-app">
+          <h4>Get the FleetOS app</h4>
+          <p>Book, track, and manage your service on the go.</p>
+          <button onClick={() => navigate(ROUTES.companies)} className="client-dark-btn">Start booking</button>
         </div>
       </footer>
     </div>
@@ -116,4 +242,5 @@ function Home() {
 }
 
 export default Home;
+
 

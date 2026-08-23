@@ -26,20 +26,20 @@ function Bookings() {
 
   const statusClass = (status) => {
     const map = {
-      'in-progress': 'bg-tertiary-container text-on-tertiary-container',
-      completed: 'bg-secondary-container text-on-secondary-container',
-      cancelled: 'bg-error-container text-on-error-container',
-      pending: 'bg-surface-variant text-on-surface-variant',
+      'In Progress': 'bg-tertiary-container text-on-tertiary-container',
+      Completed: 'bg-secondary-container text-on-secondary-container',
+      Paid: 'bg-secondary-container text-on-secondary-container',
+      Cancelled: 'bg-error-container text-on-error-container',
+      Pending: 'bg-surface-variant text-on-surface-variant',
     };
     return map[status] || 'bg-surface-variant text-on-surface-variant';
   };
 
   const statusLabel = (status) => {
-    const map = { 'in-progress': 'In Progress', completed: 'Completed', cancelled: 'Cancelled', pending: 'Pending' };
-    return map[status] || status;
+    return status;
   };
 
-  const filterMap = { 'All': 'all', 'In Progress': 'in-progress', 'Completed': 'completed', 'Cancelled': 'cancelled' };
+  const filterMap = { 'All': 'all', 'In Progress': 'In Progress', 'Completed': 'Completed', 'Cancelled': 'Cancelled' };
   const filteredBookings = filter === 'All'
     ? bookings
     : bookings.filter(b => b.status === filterMap[filter]);
@@ -99,19 +99,19 @@ function Bookings() {
                 <span className="material-symbols-outlined text-primary">engineering</span>
               </div>
               <div className="flex-1">
-                <h4 className="font-body-lg text-body-lg font-bold text-on-surface">{booking.service}</h4>
-                <p className="font-body-md text-body-md text-on-surface-variant">{booking.scheduledDate} at {booking.scheduledTime || 'Flexible'}</p>
+                <h4 className="font-body-lg text-body-lg font-bold text-on-surface">{booking.serviceSnapshot?.name}</h4>
+                <p className="font-body-md text-body-md text-on-surface-variant">{new Date(booking.scheduledAt).toLocaleString()}</p>
                 <div className="mt-md flex items-center gap-sm">
                   <div className="w-6 h-6 rounded-full bg-secondary-container flex items-center justify-center">
                     <span className="material-symbols-outlined text-on-secondary-container text-[12px]">person</span>
                   </div>
-                  <span className="text-body-md font-medium text-on-surface">{booking.technician}</span>
+                  <span className="text-body-md font-medium text-on-surface">{booking.technician?.name || 'Company will assign'}</span>
                 </div>
                 <p className="mt-sm text-xs text-outline">Reference: {booking.reference}</p>
               </div>
             </div>
             <div className="mt-lg pt-md border-t border-surface-container-high flex gap-md">
-              {booking.status === 'in-progress' ? (
+              {['Assigned', 'En Route', 'Arrived', 'In Progress'].includes(booking.status) ? (
                 <>
                   <button
                     onClick={() => navigate(ROUTES.liveTracking, { state: { selectedTech: booking.technician, bookingId: booking._id } })}
@@ -119,7 +119,7 @@ function Bookings() {
                   >
                     Track Progress
                   </button>
-                  <button onClick={() => navigate(ROUTES.serviceReview, { state: { selectedTech: booking.technician } })} className="flex-1 py-2 rounded-lg bg-surface-container-low text-on-surface-variant font-medium text-body-md hover:bg-surface-container-high transition-colors">
+                  <button onClick={() => navigate(ROUTES.serviceReview, { state: { selectedTech: booking.technician, bookingId: booking._id } })} className="flex-1 py-2 rounded-lg bg-surface-container-low text-on-surface-variant font-medium text-body-md hover:bg-surface-container-high transition-colors">
                     Leave Review
                   </button>
                 </>
@@ -128,7 +128,7 @@ function Bookings() {
                   <button onClick={() => navigate(ROUTES.customizeBooking)} className="flex-1 py-2 rounded-lg bg-secondary-container text-on-secondary-container font-medium text-body-md hover:bg-surface-container-high transition-colors">
                     Book Again
                   </button>
-                  <button onClick={() => navigate(ROUTES.serviceReview, { state: { selectedTech: booking.technician } })} className="flex-1 py-2 rounded-lg bg-surface-container-low text-on-surface-variant font-medium text-body-md hover:bg-surface-container-high transition-colors">
+                  <button onClick={() => navigate(ROUTES.serviceReview, { state: { selectedTech: booking.technician, bookingId: booking._id } })} className="flex-1 py-2 rounded-lg bg-surface-container-low text-on-surface-variant font-medium text-body-md hover:bg-surface-container-high transition-colors">
                     Leave Review
                   </button>
                 </>

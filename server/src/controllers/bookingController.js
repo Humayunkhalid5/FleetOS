@@ -1,208 +1,162 @@
+const crypto = require('crypto');
+const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const Company = require('../models/Company');
-const User = require('../models/User');
+const Service = require('../models/Service');
+const Technician = require('../models/Technician');
+const Customer = require('../models/Customer');
 
-const pickTechnician = (company, requestedName) => {
-  const pool = company?.technicians || [];
-  if (requestedName && pool.some((t) => t.name === requestedName)) {
-    return requestedName;
-  }
-  const sorted = pool.slice().sort((a, b) => {
-    if (Boolean(a.availableToday) !== Boolean(b.availableToday)) {
-      return Boolean(b.availableToday) ? 1 : -1;
-    }
-    return (b.rating || 0) - (a.rating || 0);
-  });
-  return sorted[0]?.name || pool[0]?.name || 'Company will assign';
+const nextStatus = {
+  Pending: 'Assigned',
+  Assigned: 'En Route',
+  'En Route': 'Arrived',
+  Arrived: 'In Progress',
+  'In Progress': 'Completed',
 };
 
-// @desc   Create a booking
-// @route  POST /api/bookings
+function normalizeStatus(value) {
+  const input = String(value || '').trim().toLowerCase().replace(/[_-]+/g, ' ');
+  return Booking.lifecycle.find((status) => status.toLowerCase() === input) || null;
+}
+
+function accessFilter(req) {
+  if (req.user.role === 'customer') return { customer: req.user._id };
+  if (req.user.role === 'company') return { company: req.user.company?._id || req.user.company };
+  return {};
+}
+
+function parseScheduledAt(body) {
+  if (body.scheduledAt) return new Date(body.scheduledAt);
+  const date = body.scheduledDate || new Date().toISOString().slice(0, 10);
+  const time = body.scheduledTime || '09:00';
+  return new Date(`${date}T${time}:00`);
+}
+
+function bookingLocation(req, company) {
+  const value = req.body.location;
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  if (value && typeof value === 'object') return [value.address, value.area, value.city].filter(Boolean).join(', ');
+  return req.user.address || company.location;
+}
+
+async function resolveCompany(identifier) {
+  if (!identifier) return null;
+  const filter = mongoose.isValidObjectId(identifier) ? { _id: identifier } : { slug: identifier };
+  return Company.findOne({ ...filter, approvalStatus: 'approved' });
+}
+
 exports.createBooking = async (req, res) => {
-  try {
-    const {
-      companyId,
-      technician,
-      service,
-      servicePrice,
-      baseLabor,
-      materials,
-      materialsTotal,
-      scheduledDate,
-      scheduledTime,
-      location,
-      paymentMethod,
-      origin,
-      destination,
-      currentPosition,
-      vehicleLabel,
-      customerName,
-      customerPhone,
-      customerEmail,
-    } = req.body;
-
-    if (!companyId || !service) {
-      return res.status(400).json({ message: 'Please provide company and service' });
-    }
-
-    const isObjectId = /^[0-9a-fA-F]{24}$/.test(companyId);
-    let company = isObjectId
-      ? await Company.findById(companyId)
-      : await Company.findOne({ slug: companyId });
-
-    if (!company) {
-      const userComp = isObjectId
-        ? await User.findById(companyId)
-        : await User.findOne({ $or: [{ companyId }, { companyName: new RegExp(`^${companyId}$`, 'i') }] });
-      
-      if (userComp) {
-        company = {
-          _id: userComp._id,
-          name: userComp.companyName || userComp.name,
-          slug: userComp.companyId || (userComp.companyName || userComp.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-          location: userComp.address || '',
-          technicians: []
-        };
-      }
-    }
-
-    if (!company) {
-      return res.status(404).json({ message: 'Company not found' });
-    }
-
-    const serviceCost = Number(servicePrice || baseLabor || 0);
-    const matTotal = Number(materialsTotal || 0);
-    const subtotal = serviceCost + matTotal;
-    const tax = subtotal * 0.085;
-    const total = subtotal + tax;
-
-    const assignedTechnician = pickTechnician(company, technician);
-    const resolvedCompanySlug = company.slug || (company._id ? company._id.toString() : companyId);
-
-    const booking = await Booking.create({
-      user: req.user?._id,
-      company: company._id,
-      companyId: resolvedCompanySlug,
-      companyName: company.name || 'Service Provider',
-      customerName: customerName || req.user?.name || 'Valued Client',
-      customerPhone: customerPhone || req.user?.phone || '',
-      customerEmail: customerEmail || req.user?.email || '',
-      technician: assignedTechnician,
-      service,
-      servicePrice: serviceCost,
-      materials: materials || [],
-      materialsTotal: matTotal,
-      subtotal,
-      tax,
-      total,
-      scheduledDate: scheduledDate || '',
-      scheduledTime: scheduledTime || '',
-      location: location || company.location || '',
-      paymentMethod: paymentMethod || 'card',
-      origin: origin || {
-        lat: 37.7749,
-        lng: -122.4194,
-        label: 'FleetOS Dispatch Center',
-      },
-      destination: destination || {
-        lat: 37.7894,
-        lng: -122.3946,
-        label: location || 'Service Location',
-      },
-      currentPosition: currentPosition || {
-        lat: (origin && origin.lat) || 37.7749,
-        lng: (origin && origin.lng) || -122.4194,
-        updatedAt: new Date(),
-      },
-      vehicleLabel: vehicleLabel || 'Fleet Van #012',
-      status: 'Pending',
-      tracking: { stage: 'assigned', etaMinutes: 12 },
-    });
-
-    const populated = await Booking.findById(booking._id).populate('company', 'name slug logo');
-    return res.status(201).json({ booking: populated || booking });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
+  const idempotencyKey = req.headers['idempotency-key'] || req.body.idempotencyKey || null;
+  if (idempotencyKey && req.user.role === 'customer') {
+    const existing = await Booking.findOne({ customer: req.user._id, idempotencyKey });
+    if (existing) return res.status(200).json({ booking: existing, idempotentReplay: true });
   }
+
+  const company = req.user.role === 'company'
+    ? await Company.findById(req.user.company?._id || req.user.company)
+    : await resolveCompany(req.body.companyId || req.body.company);
+  if (!company || company.approvalStatus !== 'approved') return res.status(404).json({ message: 'Approved company not found' });
+
+  let service = null;
+  if (req.body.serviceId && mongoose.isValidObjectId(req.body.serviceId)) {
+    service = await Service.findOne({ _id: req.body.serviceId, company: company._id, status: 'Active' });
+  }
+  if (!service && (req.body.serviceName || req.body.service)) {
+    const serviceName = typeof req.body.service === 'object' ? req.body.service.name : req.body.serviceName || req.body.service;
+    service = await Service.findOne({ company: company._id, name: serviceName, status: 'Active' });
+  }
+  if (!service) return res.status(400).json({ message: 'Choose an active service from this company' });
+
+  const scheduledAt = parseScheduledAt(req.body);
+  if (Number.isNaN(scheduledAt.getTime())) return res.status(400).json({ message: 'A valid booking date and time is required' });
+  const materials = Array.isArray(req.body.materials) ? req.body.materials.map((item) => ({
+    name: String(item.name || '').slice(0, 120),
+    quantity: Math.max(Number(item.quantity || 1), 1),
+    unitPrice: Math.max(Number(item.unitPrice || 0), 0),
+  })) : [];
+  const materialsTotal = materials.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  const serviceTotal = service.price;
+  const tax = Math.round((serviceTotal + materialsTotal) * 0.05);
+  const customerName = req.user.role === 'customer' ? req.user.name : req.body.customerName;
+  const customerEmail = req.user.role === 'customer' ? req.user.email : req.body.customerEmail;
+  if (!customerName) return res.status(400).json({ message: 'Customer name is required' });
+
+  const booking = await Booking.create({
+    reference: `FOS-${new Date().getFullYear()}-${crypto.randomInt(100000, 999999)}`,
+    customer: req.user.role === 'customer' ? req.user._id : null,
+    company: company._id,
+    service: service._id,
+    serviceSnapshot: { name: service.name, category: service.category, price: service.price },
+    customerName,
+    customerEmail: customerEmail || '',
+    customerPhone: req.user.role === 'customer' ? req.user.phone : req.body.customerPhone || '',
+    vehicle: req.body.vehicle || { label: req.body.vehicleLabel || '' },
+    materials,
+    pricing: { serviceTotal, materialsTotal, tax, finalTotal: serviceTotal + materialsTotal + tax },
+    scheduledAt,
+    location: bookingLocation(req, company),
+    paymentMethod: ['cash', 'card'].includes(req.body.paymentMethod) ? req.body.paymentMethod : 'cash',
+    paymentStatus: req.body.paymentMethod === 'card' ? 'pending' : 'unpaid',
+    ...(idempotencyKey ? { idempotencyKey } : {}),
+    statusHistory: [{ status: 'Pending', at: new Date(), byRole: req.user.role }],
+  });
+
+  await Customer.findOneAndUpdate(
+    { company: company._id, email: String(customerEmail || '').toLowerCase() },
+    { $set: { name: customerName, phone: req.body.customerPhone || req.user.phone || '' }, $setOnInsert: { customerId: `CUST-${crypto.randomInt(100000, 999999)}` } },
+    { upsert: Boolean(customerEmail), new: true, setDefaultsOnInsert: true }
+  );
+  return res.status(201).json({ booking: await booking.populate(['company', 'service']) });
 };
 
-// @desc   Get logged-in user's or company's bookings
-// @route  GET /api/bookings
 exports.getMyBookings = async (req, res) => {
-  try {
-    const { companyId } = req.query;
-
-    let query = {};
-    if (companyId) {
-      query = {
-        $or: [
-          { companyId: companyId },
-          { company: companyId },
-        ],
-      };
-    } else if (req.user) {
-      if (req.user.role === 'company' && req.user.companyId) {
-        query = {
-          $or: [
-            { companyId: req.user.companyId },
-            { company: req.user._id },
-          ],
-        };
-      } else {
-        query = { user: req.user._id };
-      }
-    }
-
-    let bookings = await Booking.find(query);
-    if (Array.isArray(bookings)) {
-      bookings = bookings.slice().sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-    } else {
-      bookings = [];
-    }
-
-    return res.json({ bookings });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  const bookings = await Booking.find(accessFilter(req))
+    .populate('company', 'name slug logo city phone')
+    .populate('technician', 'name phone status avatar')
+    .sort({ createdAt: -1 })
+    .lean();
+  return res.json({ bookings });
 };
 
-// @desc   Get single booking
-// @route  GET /api/bookings/:id
 exports.getBooking = async (req, res) => {
-  try {
-    const booking = await Booking.findById(req.params.id);
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-    return res.json({ booking });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  const lookup = mongoose.isValidObjectId(req.params.id) ? { _id: req.params.id } : { reference: req.params.id };
+  const booking = await Booking.findOne({ ...lookup, ...accessFilter(req) })
+    .populate('company', 'name slug logo city phone')
+    .populate('technician', 'name phone status avatar currentLocation')
+    .lean();
+  if (!booking) return res.status(404).json({ message: 'Booking not found' });
+  return res.json({ booking });
 };
 
-// @desc   Update booking status/tracking/technician (called by Company or Client)
-// @route  PUT /api/bookings/:id or PATCH /api/bookings/:id
 exports.updateBooking = async (req, res) => {
-  try {
-    const { status, tracking, vehicleLabel, technician, notes } = req.body;
-    let booking = await Booking.findById(req.params.id);
+  const booking = await Booking.findOne({ _id: req.params.id, ...accessFilter(req) });
+  if (!booking) return res.status(404).json({ message: 'Booking not found' });
+  const requestedStatus = normalizeStatus(req.body.status);
 
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
+  if (req.user.role === 'customer') {
+    if (requestedStatus !== 'Cancelled' || !['Pending', 'Assigned'].includes(booking.status)) return res.status(409).json({ message: 'Customers can only cancel pending or assigned bookings' });
+    booking.status = 'Cancelled';
+    booking.cancellationReason = String(req.body.reason || 'Cancelled by customer').slice(0, 500);
+  } else {
+    if (requestedStatus === 'Cancelled') {
+      if (['Paid', 'Cancelled'].includes(booking.status)) return res.status(409).json({ message: 'This booking is already terminal' });
+      if (!String(req.body.reason || '').trim()) return res.status(400).json({ message: 'A cancellation reason is required' });
+      booking.status = 'Cancelled';
+      booking.cancellationReason = String(req.body.reason).slice(0, 500);
+    } else if (requestedStatus) {
+      if (nextStatus[booking.status] !== requestedStatus) return res.status(409).json({ message: `The next valid status is ${nextStatus[booking.status] || 'none'}` });
+      if (requestedStatus === 'Assigned' && !booking.technician) return res.status(409).json({ message: 'Assign an available technician first' });
+      booking.status = requestedStatus;
     }
-
-    const updates = {};
-    if (status !== undefined) updates.status = status;
-    if (technician !== undefined) updates.technician = technician;
-    if (vehicleLabel !== undefined) updates.vehicleLabel = vehicleLabel;
-    if (notes !== undefined) updates.notes = notes;
-    if (tracking) {
-      updates.tracking = { ...(booking.tracking || {}), ...tracking };
-    }
-
-    const updated = await Booking.save({ ...booking, ...updates });
-    return res.json({ booking: updated });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
   }
+
+  if (requestedStatus) booking.statusHistory.push({ status: booking.status, at: new Date(), byRole: req.user.role, note: req.body.note || '' });
+  if (['Completed', 'Cancelled'].includes(booking.status) && booking.technician) {
+    await Technician.updateOne({ _id: booking.technician, company: booking.company }, { status: 'Available' });
+  }
+  await booking.save();
+  return res.json({ booking: await booking.populate('technician', 'name status') });
 };
+
+exports.nextStatus = nextStatus;
+exports.accessFilter = accessFilter;

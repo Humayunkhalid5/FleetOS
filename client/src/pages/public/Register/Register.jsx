@@ -15,13 +15,16 @@ function Register() {
   });
   const [role, setRole] = useState('customer');
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const update = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+  const toggleAcceptedTerms = () => setAcceptedTerms((current) => !current);
 
   const pwd = form.password;
   const checks = {
-    length: pwd.length >= 8,
+    length: pwd.length >= 10,
+    lowercase: /[a-z]/.test(pwd),
     uppercase: /[A-Z]/.test(pwd),
     number: /[0-9]/.test(pwd),
     special: /[!@#$%^&*(),.?":{}|<>]/.test(pwd),
@@ -30,21 +33,20 @@ function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    const nextUser = await register({
-      name: form.fullName,
-      email: form.email,
-      phone: form.phone,
-      address: form.address,
-      password: form.password,
-      role: role,
-    });
-    setSubmitting(false);
-    if (nextUser) {
-      if (role === 'company') {
-        navigate(ROUTES.companyDashboard);
-      } else {
-        navigate(ROUTES.dashboard);
-      }
+    try {
+      const nextUser = await register({
+        name: form.fullName,
+        email: form.email,
+        phone: form.phone,
+        address: form.address,
+        password: form.password,
+        role: 'customer',
+      });
+      if (nextUser) navigate(ROUTES.dashboard);
+    } catch {
+      // The shared auth context renders the API error below.
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -186,7 +188,8 @@ function Register() {
               <div className="bg-surface-container p-md rounded-xl space-y-sm">
                 <p className="font-label-sm text-label-sm text-on-surface-variant">Security Requirements:</p>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-xs">
-                  {reqItem('length', '8+ Characters')}
+                  {reqItem('length', '10+ Characters')}
+                  {reqItem('lowercase', 'One Lowercase')}
                   {reqItem('uppercase', 'One Uppercase')}
                   {reqItem('number', 'One Number')}
                   {reqItem('special', 'Special Character')}
@@ -203,18 +206,33 @@ function Register() {
                   <textarea className="w-full pl-[52px] pr-md py-md bg-surface-container-low border border-outline-variant rounded-xl focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none" id="address" placeholder="123 Logistics Way, Tech Park, CA" required rows="2" value={form.address} onChange={update('address')}></textarea>
                 </div>
               </div>
-
               {/* Terms Checkbox */}
-              <div className="flex items-start gap-md py-sm">
-                <div className="flex items-center h-5">
-                  <input className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary bg-surface-container-lowest" id="terms" required type="checkbox" />
-                </div>
-                <label className="font-body-md text-body-md text-on-surface-variant" htmlFor="terms">
-                  I agree to the <a className="text-primary hover:underline font-semibold" href="#" onClick={(e) => e.preventDefault()}>Terms of Service</a> and <a className="text-primary hover:underline font-semibold" href="#" onClick={(e) => e.preventDefault()}>Privacy Policy</a>.
-                </label>
-              </div>
-
-              {/* Register Button */}
+              <label
+                htmlFor="terms"
+                onClick={(event) => { event.preventDefault(); toggleAcceptedTerms(); }}
+                onKeyDown={(event) => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); toggleAcceptedTerms(); } }}
+                tabIndex={0}
+                role="checkbox"
+                aria-checked={acceptedTerms}
+                className={`flex items-start gap-md py-sm px-sm rounded-xl cursor-pointer select-none transition-colors ${acceptedTerms ? 'bg-primary/5' : 'hover:bg-surface-container-low'}`}
+              >
+                <input
+                  id="terms"
+                  required
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(event) => setAcceptedTerms(event.target.checked)}
+                  readOnly
+                  className="sr-only"
+                />
+                <span className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${acceptedTerms ? 'bg-primary border-primary text-white' : 'bg-white border-outline-variant text-transparent'}`}>
+                  <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
+                </span>
+                <span className="font-body-md text-body-md text-on-surface-variant">
+                  I agree to the <a className="text-primary hover:underline font-semibold" href="#" onClick={(e) => { e.preventDefault(); e.stopPropagation(); alert('FleetOS Terms of Service — By using FleetOS you agree to fair-use scheduling, transparent billing, and professional conduct.'); }}>Terms of Service</a> and <a className="text-primary hover:underline font-semibold" href="#" onClick={(e) => { e.preventDefault(); e.stopPropagation(); alert('FleetOS Privacy Policy — Your data is protected and never sold to third parties.'); }}>Privacy Policy</a>.
+                </span>
+              </label>
+{/* Register Button */}
               <button type="submit" disabled={submitting} className="w-full py-md bg-primary text-on-primary font-headline-md text-headline-md rounded-xl shadow-lg hover:bg-primary-container active:scale-[0.98] transition-all flex items-center justify-center gap-sm">
                 {submitting ? (
                   <>
@@ -244,3 +262,6 @@ function Register() {
 }
 
 export default Register;
+
+
+

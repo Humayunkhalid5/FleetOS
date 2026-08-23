@@ -1,7 +1,8 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet, Link, useLocation } from 'react-router-dom'
 import './App.css'
 import { AppProvider } from './context/AppContext'
+import { useAuth } from './hooks/useAuth'
 
 // Lazy-loaded routes for faster initial load (code splitting)
 const Home = lazy(() => import('./pages/public/Home/Home'))
@@ -12,7 +13,6 @@ const Contact = lazy(() => import('./pages/public/Contact/Contact'))
 const CompanyRegister = lazy(() => import('./pages/public/CompanyRegister/CompanyRegister'))
 
 // Customer pages
-const CustomerDashboard = lazy(() => import('./pages/customer/Dashboard/CustomerDashboard'))
 const CompanyDetails = lazy(() => import('./pages/customer/CompanyDetails/CompanyDetails'))
 const CustomizeBooking = lazy(() => import('./pages/customer/Booking/CustomizeBooking'))
 const BookingSummary = lazy(() => import('./pages/customer/Booking/BookingSummary'))
@@ -36,6 +36,8 @@ const CompanyReviews = lazy(() => import('./pages/company/Reviews/CompanyReviews
 const CompanyCustomers = lazy(() => import('./pages/company/Customers/CompanyCustomers'))
 const CompanyAnalytics = lazy(() => import('./pages/company/Analytics/CompanyAnalytics'))
 const CompanyChat = lazy(() => import('./pages/company/Chat/CompanyChat'))
+const CompanySettings = lazy(() => import('./pages/company/Settings/CompanySettings'))
+const CompanyProfileSettings = lazy(() => import('./pages/company/Details/CompanyDetails'))
 
 function PageLoader() {
   return (
@@ -48,11 +50,43 @@ function PageLoader() {
   )
 }
 
-function App() {
+function RoleGate({ role }) {
+  const { user, loading, logout } = useAuth()
+  if (loading) return <PageLoader />
+  if (!user) return <Navigate to="/login" replace />
+  if (user.role !== role) return <Navigate to={user.role === 'company' ? '/company/dashboard' : '/customer/companies'} replace />
+  if (role === 'company' && user.approvalStatus !== 'approved') {
+    return (
+      <main className="min-h-screen bg-[#f7f9fc] flex items-center justify-center p-6">
+        <section className="max-w-lg bg-white border border-slate-200 rounded-2xl p-8 shadow-sm text-center">
+          <div className="w-14 h-14 mx-auto rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-5">
+            <span className="material-symbols-outlined">hourglass_top</span>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900">Approval in progress</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-600">Your company registration is safely stored in MongoDB. FleetOS operations stay locked until a Super Admin approves the company.</p>
+          <div className="mt-6 rounded-xl bg-slate-50 p-4 text-left text-sm">
+            <p className="font-semibold text-slate-900">{user.companyName}</p>
+            <p className="text-slate-500 mt-1">Status: {user.approvalStatus || 'pending'}</p>
+          </div>
+          <div className="mt-6 flex justify-center gap-3">
+            <button onClick={() => window.location.reload()} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2"><span className="material-symbols-outlined text-sm">refresh</span> Check status</button>
+            <Link to="/" className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold">Public site</Link>
+            <button onClick={logout} className="px-4 py-2 border border-red-200 text-red-600 rounded-lg text-sm font-semibold">Sign out</button>
+          </div>
+        </section>
+      </main>
+    )
+  }
+  return <Outlet />
+}
+
+function RoutedApp() {
+  const location = useLocation()
+  const companySurface = location.pathname.startsWith('/company')
+
   return (
-    <BrowserRouter>
-      <AppProvider>
-        <div className="app-shell">
+    <AppProvider>
+      <div className={`app-shell ${companySurface ? 'company-theme' : 'client-theme'}`}>
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public */}
@@ -63,41 +97,53 @@ function App() {
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
 
-              {/* Customer */}
-              <Route path="/customer/dashboard" element={<CustomerDashboard />} />
-              <Route path="/customer/profile" element={<Profile />} />
-              <Route path="/customer/bookings" element={<Bookings />} />
-              <Route path="/customer/reviews" element={<Reviews />} />
-              <Route path="/customer/payments" element={<Payments />} />
-              <Route path="/customer/notifications" element={<Notifications />} />
-              <Route path="/customer/company/:id" element={<CompanyDetails />} />
-              <Route path="/customer/companies" element={<Companies />} />
-              <Route path="/customer/customize-booking" element={<CustomizeBooking />} />
-              <Route path="/customer/booking-summary" element={<BookingSummary />} />
-              <Route path="/customer/live-tracking" element={<LiveTracking />} />
-              <Route path="/customer/service-review" element={<ServiceReview />} />
-              <Route path="/customer/chat/:companyId?" element={<Chat />} />
+              <Route element={<RoleGate role="customer" />}>
+                <Route path="/customer/dashboard" element={<Navigate to="/customer/companies" replace />} />
+                <Route path="/customer/profile" element={<Profile />} />
+                <Route path="/customer/bookings" element={<Bookings />} />
+                <Route path="/customer/reviews" element={<Reviews />} />
+                <Route path="/customer/payments" element={<Payments />} />
+                <Route path="/customer/notifications" element={<Notifications />} />
+                <Route path="/customer/company/:id" element={<CompanyDetails />} />
+                <Route path="/customer/companies" element={<Companies />} />
+                <Route path="/customer/customize-booking" element={<CustomizeBooking />} />
+                <Route path="/customer/booking-summary" element={<BookingSummary />} />
+                <Route path="/customer/live-tracking" element={<LiveTracking />} />
+                <Route path="/customer/service-review" element={<ServiceReview />} />
+                <Route path="/customer/chat/:companyId?" element={<Chat />} />
+              </Route>
 
-              {/* Company Admin */}
-              <Route path="/company/dashboard" element={<CompanyDashboard />} />
-              <Route path="/company/inventory" element={<CompanyInventory />} />
-              <Route path="/company/technicians" element={<CompanyTechnicians />} />
-              <Route path="/company/services" element={<CompanyServices />} />
-              <Route path="/company/bookings" element={<CompanyBookings />} />
-              <Route path="/company/reviews" element={<CompanyReviews />} />
-              <Route path="/company/customers" element={<CompanyCustomers />} />
-              <Route path="/company/analytics" element={<CompanyAnalytics />} />
-              <Route path="/company/chat" element={<CompanyChat />} />
+              <Route element={<RoleGate role="company" />}>
+                <Route path="/company/dashboard" element={<CompanyDashboard />} />
+                <Route path="/company/inventory" element={<CompanyInventory />} />
+                <Route path="/company/technicians" element={<CompanyTechnicians />} />
+                <Route path="/company/services" element={<CompanyServices />} />
+                <Route path="/company/bookings" element={<CompanyBookings />} />
+                <Route path="/company/reviews" element={<CompanyReviews />} />
+                <Route path="/company/customers" element={<CompanyCustomers />} />
+                <Route path="/company/analytics" element={<CompanyAnalytics />} />
+                <Route path="/company/chat" element={<CompanyChat />} />
+                <Route path="/company/details" element={<CompanyProfileSettings />} />
+                <Route path="/company/settings" element={<CompanySettings />} />
+              </Route>
 
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
-        </div>
-      </AppProvider>
+      </div>
+    </AppProvider>
+  )
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <RoutedApp />
     </BrowserRouter>
   )
 }
 
 export default App
+
 

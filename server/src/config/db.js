@@ -1,34 +1,24 @@
 const mongoose = require('mongoose');
 
-const connectDB = async () => {
-  try {
-    const uri = process.env.MONGODB_URI;
-    if (!uri) {
-      mongoose.set('bufferCommands', false);
-      return { ok: true, message: 'MongoDB URI not set; using in-memory store' };
-    }
+mongoose.set('strictQuery', true);
 
-<<<<<<< HEAD
-    // Fail fast if MongoDB is unreachable (avoids long hangs / slow startup).
-    mongoose.set('bufferCommands', false);
-
-    await Promise.race([
-      mongoose.connect(uri),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('MongoDB connection timed out after 5s')), 5000)
-      ),
-    ]);
-=======
-    await mongoose.connect(uri, { serverSelectionTimeoutMS: 2000 });
->>>>>>> origin/aisha
-    return { ok: true, message: 'MongoDB connected', connection: mongoose.connection };
-  } catch (error) {
-    mongoose.set('bufferCommands', false);
-    console.warn(`MongoDB connection failed, falling back to in-memory store: ${error.message}`);
-    return { ok: false, error };
+async function connectDB() {
+  const configuredUri = String(process.env.MONGODB_URI || '').trim();
+  if (process.env.NODE_ENV === 'production' && !configuredUri) {
+    throw new Error('MONGODB_URI is required in production. Use the MongoDB Atlas connection string from your deployment environment.');
   }
-};
+  const uri = configuredUri || 'mongodb://127.0.0.1:27017/fleetos';
+  if (!/^mongodb(\+srv)?:\/\//.test(uri)) throw new Error('MONGODB_URI must be a valid MongoDB connection string');
+  await mongoose.connect(uri, {
+    serverSelectionTimeoutMS: process.env.NODE_ENV === 'production' ? 15000 : 5000,
+    connectTimeoutMS: 10000,
+    socketTimeoutMS: 45000,
+    maxPoolSize: 20,
+    minPoolSize: process.env.NODE_ENV === 'production' ? 1 : 0,
+    retryWrites: true,
+  });
+  console.log(`MongoDB connected: ${mongoose.connection.name}`);
+  return mongoose.connection;
+}
 
 module.exports = connectDB;
-
-

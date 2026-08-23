@@ -1,74 +1,27 @@
+const crypto = require('crypto');
 const Technician = require('../models/Technician');
+const Booking = require('../models/Booking');
+const { pick } = require('../utils/http');
 
-// @desc   Get technicians for a company
-// @route  GET /api/technicians
-exports.getTechnicians = async (req, res) => {
-  try {
-    const companyId = req.query.companyId || req.user?.companyId || req.user?.id;
-    if (!companyId) {
-      return res.status(400).json({ message: 'Company ID is required' });
-    }
-    const technicians = await Technician.find({ companyId });
-    return res.json({ technicians });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
-};
+exports.getTechnicians = async (req, res) => res.json({ technicians: await Technician.find({ company: req.company._id }).sort({ name: 1 }).lean() });
 
-// @desc   Create technician
-// @route  POST /api/technicians
 exports.createTechnician = async (req, res) => {
-  try {
-    const companyId = req.body.companyId || req.user?.companyId || req.user?.id;
-    const { name, role, phone, email, rating, exp, status, avatar } = req.body;
-
-    if (!companyId || !name) {
-      return res.status(400).json({ message: 'Company ID and technician name are required' });
-    }
-
-    const techId = req.body.techId || `TECH-${Math.floor(100 + Math.random() * 900)}`;
-    const technician = await Technician.create({
-      companyId,
-      techId,
-      name,
-      role: role || 'Specialist',
-      phone: phone || '',
-      email: email || '',
-      rating: rating !== undefined ? Number(rating) : 0,
-      exp: exp || '1 Year Exp.',
-      status: status || 'Available',
-      avatar: avatar || '',
-    });
-
-    return res.status(201).json({ technician });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  const data = pick(req.body, ['name', 'role', 'phone', 'email', 'rating', 'experienceYears', 'status', 'avatar']);
+  const technician = await Technician.create({ ...data, company: req.company._id, techId: `TECH-${crypto.randomInt(100000, 999999)}` });
+  return res.status(201).json({ technician });
 };
 
-// @desc   Update technician
-// @route  PUT /api/technicians/:id
 exports.updateTechnician = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const technician = await Technician.findByIdAndUpdate(id, req.body);
-    if (!technician) {
-      return res.status(404).json({ message: 'Technician not found' });
-    }
-    return res.json({ technician });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  const updates = pick(req.body, ['name', 'role', 'phone', 'email', 'rating', 'experienceYears', 'status', 'avatar']);
+  const technician = await Technician.findOneAndUpdate({ _id: req.params.id, company: req.company._id }, updates, { new: true, runValidators: true });
+  if (!technician) return res.status(404).json({ message: 'Technician not found' });
+  return res.json({ technician });
 };
 
-// @desc   Delete technician
-// @route  DELETE /api/technicians/:id
 exports.deleteTechnician = async (req, res) => {
-  try {
-    const { id } = req.params;
-    await Technician.findByIdAndDelete(id);
-    return res.json({ message: 'Technician deleted' });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  const active = await Booking.exists({ technician: req.params.id, company: req.company._id, status: { $in: ['Assigned', 'En Route', 'Arrived', 'In Progress'] } });
+  if (active) return res.status(409).json({ message: 'Technician cannot be deleted while assigned to an active booking' });
+  const technician = await Technician.findOneAndDelete({ _id: req.params.id, company: req.company._id });
+  if (!technician) return res.status(404).json({ message: 'Technician not found' });
+  return res.status(204).end();
 };

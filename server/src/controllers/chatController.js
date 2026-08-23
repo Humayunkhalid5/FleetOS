@@ -1,83 +1,44 @@
+const Booking = require('../models/Booking');
 const ChatMessage = require('../models/ChatMessage');
 
-// @desc   Get all active chat conversations (for company view)
-// @route  GET /api/chats/conversations
+async function authorizedBooking(req, bookingId) {
+  const filter = req.user.role === 'customer'
+    ? { _id: bookingId, customer: req.user._id }
+    : { _id: bookingId, company: req.user.company?._id || req.user.company };
+  return Booking.findOne(filter);
+}
+
 exports.getConversations = async (req, res) => {
-  try {
-    const { companyId } = req.query;
-    const targetCompanyId = companyId || req.user?.companyId || req.user?._id;
-
-    let query = {};
-    if (targetCompanyId) {
-      query = {
-        $or: [
-          { roomId: targetCompanyId },
-          { recipient: targetCompanyId },
-        ],
-      };
-    }
-
-    const allMessages = await ChatMessage.find(query);
-    const rooms = {};
-    for (const msg of allMessages) {
-      const room = msg.roomId || 'general';
-      if (!rooms[room] || new Date(msg.createdAt) > new Date(rooms[room].lastMessage.createdAt)) {
-        rooms[room] = {
-          roomId: room,
-          clientName: msg.senderName || (msg.senderRole === 'customer' ? msg.sender : 'Client'),
-          lastMessage: msg,
-        };
-      }
-    }
-    return res.json({ conversations: Object.values(rooms) });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  const filter = req.user.role === 'customer' ? { customer: req.user._id } : { company: req.user.company?._id || req.user.company };
+  const bookings = await Booking.find(filter).populate('company', 'name logo').sort({ updatedAt: -1 }).lean();
+  const conversations = await Promise.all(bookings.map(async (booking) => {
+    const lastMessage = await ChatMessage.findOne({ booking: booking._id }).sort({ createdAt: -1 }).lean();
+    return { booking, lastMessage };
+  }));
+  return res.json({ conversations });
 };
 
-// @desc   Get chat messages for a room or company
-// @route  GET /api/chats/:bookingId/messages
 exports.getChatMessages = async (req, res) => {
-  try {
-    const { bookingId } = req.params;
-    const messages = await ChatMessage.find({
-      $or: [
-        { roomId: bookingId },
-        { recipient: bookingId },
-      ],
-    });
-    return res.json({ messages });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  const booking = await authorizedBooking(req, req.params.bookingId);
+  if (!booking) return res.status(404).json({ message: 'Conversation not found' });
+  const messages = await ChatMessage.find({ booking: booking._id }).populate('sender', 'name avatar role').sort({ createdAt: 1 }).lean();
+  return res.json({ booking, messages });
 };
 
-// @desc   Send a chat message
-// @route  POST /api/chats/:bookingId/messages
 exports.sendChatMessage = async (req, res) => {
-  try {
-    const { bookingId } = req.params;
-    const { text, recipient, senderRole, senderName } = req.body;
-    if (!bookingId || !text) {
-      return res.status(400).json({ message: 'bookingId and text are required' });
-    }
-
-    const sRole = senderRole || req.user?.role || 'customer';
-    const sName = senderName || req.user?.name || (sRole === 'company' ? 'Company Manager' : 'Customer');
-
-    const message = await ChatMessage.create({
-      roomId: bookingId,
-      sender: req.user?._id ? req.user._id.toString() : (sRole === 'company' ? 'company' : 'customer'),
-      senderName: sName,
-      senderRole: sRole,
-      recipient: recipient || (sRole === 'company' ? 'customer' : bookingId),
-      recipientRole: sRole === 'company' ? 'customer' : 'company',
-      text,
-      createdAt: new Date().toISOString(),
-    });
-
-    return res.status(201).json({ message });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  const booking = await authorizedBooking(req, req.params.bookingId);
+  if (!booking || !booking.customer) return res.status(404).json({ message: 'Conversation not found' });
+  const text = String(req.body.text || req.body.message || '').trim();
+  if (!text) return res.status(400).json({ message: 'Message cannot be empty' });
+  const message = await ChatMessage.create({
+    booking: booking._id,
+    company: booking.company,
+    customer: booking.customer,
+    sender: req.user._id,
+    senderRole: req.user.role,
+    text,
+  });
+  const io = req.app.get('io');
+  if (io) io.to(`booking:${booking._id}`).emit('chat:message', message);
+  return res.status(201).json({ message });
 };

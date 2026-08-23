@@ -1,72 +1,37 @@
+const crypto = require('crypto');
 const Service = require('../models/Service');
+const Company = require('../models/Company');
+const { pick } = require('../utils/http');
 
-// @desc   Get services for a company
-// @route  GET /api/services
 exports.getServices = async (req, res) => {
-  try {
-    const companyId = req.query.companyId || req.user?.companyId || req.user?.id;
-    if (!companyId) {
-      return res.status(400).json({ message: 'Company ID is required' });
-    }
-    const services = await Service.find({ companyId });
-    return res.json({ services });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
+  if (req.user?.role === 'company' && req.user.company?.approvalStatus !== 'approved') {
+    return res.status(403).json({ message: 'Company approval is required before accessing operations' });
   }
+  let companyId = req.user?.role === 'company' ? req.user.company?._id || req.user.company : req.query.companyId;
+  if (!companyId && req.query.company) companyId = req.query.company;
+  if (!companyId) return res.status(400).json({ message: 'companyId is required' });
+  const company = await Company.findById(companyId).lean();
+  if (!company || (req.user?.role !== 'company' && company.approvalStatus !== 'approved')) return res.status(404).json({ message: 'Company not found' });
+  const query = { company: companyId };
+  if (req.user?.role !== 'company') query.status = 'Active';
+  return res.json({ services: await Service.find(query).sort({ name: 1 }).lean() });
 };
 
-// @desc   Create service
-// @route  POST /api/services
 exports.createService = async (req, res) => {
-  try {
-    const companyId = req.body.companyId || req.user?.companyId || req.user?.id;
-    const { name, category, price, duration, status, description } = req.body;
-
-    if (!companyId || !name) {
-      return res.status(400).json({ message: 'Company ID and service name are required' });
-    }
-
-    const serviceId = req.body.serviceId || `SVC-${Math.floor(200 + Math.random() * 800)}`;
-    const service = await Service.create({
-      companyId,
-      serviceId,
-      name,
-      category: category || 'Mechanical',
-      price: Number(price) || 0,
-      duration: duration || '1 Hour',
-      status: status || 'Active',
-      description: description || '',
-    });
-
-    return res.status(201).json({ service });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  const data = pick(req.body, ['name', 'category', 'price', 'durationMinutes', 'status', 'description']);
+  const service = await Service.create({ ...data, company: req.company._id, serviceId: `SVC-${crypto.randomInt(100000, 999999)}` });
+  return res.status(201).json({ service });
 };
 
-// @desc   Update service
-// @route  PUT /api/services/:id
 exports.updateService = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const service = await Service.findByIdAndUpdate(id, req.body);
-    if (!service) {
-      return res.status(404).json({ message: 'Service not found' });
-    }
-    return res.json({ service });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  const updates = pick(req.body, ['name', 'category', 'price', 'durationMinutes', 'status', 'description']);
+  const service = await Service.findOneAndUpdate({ _id: req.params.id, company: req.company._id }, updates, { new: true, runValidators: true });
+  if (!service) return res.status(404).json({ message: 'Service not found' });
+  return res.json({ service });
 };
 
-// @desc   Delete service
-// @route  DELETE /api/services/:id
 exports.deleteService = async (req, res) => {
-  try {
-    const { id } = req.params;
-    await Service.findByIdAndDelete(id);
-    return res.json({ message: 'Service deleted' });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  const service = await Service.findOneAndDelete({ _id: req.params.id, company: req.company._id });
+  if (!service) return res.status(404).json({ message: 'Service not found' });
+  return res.status(204).end();
 };

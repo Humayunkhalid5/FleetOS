@@ -1,5 +1,12 @@
 {
-  "dependencies": {
-    "react-router-dom": "^7.18.2"
+  "name": "fleetos",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "npm run install:all",
+    "install:all": "npm --prefix server install && npm --prefix client install && npm --prefix admin install",
+    "dev": "node scripts/dev.js",
+    "build": "npm --prefix client run build && npm --prefix admin run build",
+    "test": "npm --prefix server test"
   }
 }

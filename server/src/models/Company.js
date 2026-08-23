@@ -1,107 +1,36 @@
 const mongoose = require('mongoose');
-const db = require('../data/db');
 
-class CompanyQuery {
-  constructor(executor) {
-    this.executor = executor;
-    this.sortField = null;
-  }
-
-  sort(field) {
-    this.sortField = field;
-    return this;
-  }
-
-  then(onFulfilled, onRejected) {
-    const result = this.executor({ sortField: this.sortField });
-    return Promise.resolve(result).then(onFulfilled, onRejected);
-  }
-}
-
-const companySchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true },
-    slug: { type: String, unique: true, sparse: true },
-    description: { type: String, default: '' },
-    rating: { type: Number, default: 0 },
-    reviewCount: { type: Number, default: 0 },
-    heroImage: { type: String, default: '' },
-    logo: { type: String, default: '' },
-location: { type: String, default: '' },
-    city: { type: String, default: '' },
-    country: { type: String, default: 'Pakistan' },
-    areas: [{ type: String }],
-    services: [{ type: Object }],
-    technicians: [{ type: Object }],
-    gallery: [{ type: String }],
-    verified: { type: Boolean, default: true },
-    phone: { type: String, default: '' },
-    email: { type: String, default: '' },
+const companySchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true, maxlength: 140 },
+  slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  description: { type: String, default: '', maxlength: 1200 },
+  registrationNumber: { type: String, default: '', trim: true },
+  email: { type: String, required: true, lowercase: true, trim: true },
+  phone: { type: String, default: '', trim: true },
+  location: { type: String, default: '', trim: true },
+  city: { type: String, required: true, trim: true, index: true },
+  province: { type: String, default: '' },
+  country: { type: String, default: 'Pakistan' },
+  areas: [{ type: String, trim: true }],
+  logo: { type: String, default: '' },
+  businessLicense: {
+    name: { type: String, default: '' },
+    mimeType: { type: String, default: '' },
+    size: { type: Number, default: 0 },
+    data: { type: String, default: '', select: false },
+    uploadedAt: { type: Date, default: null },
   },
-  { timestamps: true }
-);
+  heroImage: { type: String, default: '' },
+  gallery: [{ type: String }],
+  rating: { type: Number, default: 0, min: 0, max: 5 },
+  reviewCount: { type: Number, default: 0, min: 0 },
+  approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected', 'suspended'], default: 'pending', index: true },
+  approvalVersion: { type: Number, default: 1 },
+  approvedAt: { type: Date, default: null },
+}, { timestamps: true });
 
-const CompanyModel = mongoose.models.Company || mongoose.model('Company', companySchema);
+companySchema.virtual('verified').get(function verified() { return this.approvalStatus === 'approved'; });
+companySchema.set('toJSON', { virtuals: true });
 
-const isMongoConnected = () => mongoose.connection.readyState === 1;
-
-const Company = {
-  find(query = {}) {
-    return new CompanyQuery(async ({ sortField }) => {
-      if (isMongoConnected()) {
-        try {
-          let results = await CompanyModel.find(query);
-          if (sortField) {
-            const dir = sortField.startsWith('-') ? -1 : 1;
-            const key = sortField.replace(/^-/, '');
-            results = results.slice().sort((a, b) => (a[key] - b[key]) * dir);
-          }
-          return results;
-        } catch (err) {}
-      }
-      return db.find('companies', query);
-    });
-  },
-
-  async findById(id) {
-    if (isMongoConnected()) {
-      try {
-        return await CompanyModel.findById(id);
-      } catch (err) {}
-    }
-    return db.findById('companies', id);
-  },
-
-  async findOne(query = {}) {
-    if (isMongoConnected()) {
-      try {
-        return await CompanyModel.findOne(query);
-      } catch (err) {}
-    }
-    return db.findOne('companies', query);
-  },
-
-  async create(data) {
-    if (isMongoConnected()) {
-      try {
-        return await CompanyModel.create(data);
-      } catch (err) {}
-    }
-    return db.create('companies', data);
-  },
-
-  async findByIdAndUpdate(id, update) {
-    if (isMongoConnected()) {
-      try {
-        return await CompanyModel.findByIdAndUpdate(id, update, { new: true });
-      } catch (err) {}
-    }
-    const record = db.findById('companies', id);
-    if (!record) return null;
-    const merged = { ...record, ...update };
-    return db.save('companies', merged);
-  },
-};
-
-module.exports = Company;
-
+module.exports = mongoose.models.Company || mongoose.model('Company', companySchema);

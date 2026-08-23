@@ -13,13 +13,7 @@ function CompanyCustomers() {
 
   const companyId = user?.companyId || user?._id || 'company-1';
 
-  const [customers, setCustomers] = useState(() => {
-    const saved = localStorage.getItem(`fleetos-customers-${companyId}`);
-    if (saved) {
-      try { return JSON.parse(saved); } catch {}
-    }
-    return [];
-  });
+  const [customers, setCustomers] = useState([]);
 
   const [newCustomer, setNewCustomer] = useState({
     name: '',
@@ -43,48 +37,25 @@ function CompanyCustomers() {
             phone: c.phone || '',
             address: c.address || '',
             totalJobs: c.totalJobs || 0,
-            totalSpent: c.totalSpent || '$0.00',
-            status: c.status || 'Active Account'
+            totalSpent: `PKR ${Number(c.totalSpent || 0).toLocaleString('en-PK')}`,
+            status: c.status || 'Active'
           }));
           setCustomers(mapped);
-          localStorage.setItem(`fleetos-customers-${companyId}`, JSON.stringify(mapped));
         }
       } catch (err) {}
     }
     loadCustomers();
   }, [companyId]);
 
-  useEffect(() => {
-    localStorage.setItem(`fleetos-customers-${companyId}`, JSON.stringify(customers));
-  }, [customers, companyId]);
-
   const handleAddCustomer = async (e) => {
     e.preventDefault();
     if (!newCustomer.name) return;
-    const newId = `CUST-${Math.floor(100 + Math.random() * 900)}`;
-    const created = {
-      id: newId,
-      name: newCustomer.name,
-      contact: newCustomer.contact || newCustomer.name,
-      email: newCustomer.email,
-      phone: newCustomer.phone,
-      totalJobs: 0,
-      totalSpent: '$0.00',
-      status: 'Active Account'
-    };
-
     try {
-      const res = await api.post('/customers', {
-        companyId,
-        customerId: newId,
-        ...newCustomer
-      });
-      if (res.customer?._id) {
-        created._id = res.customer._id;
-      }
-    } catch (err) {}
-
-    setCustomers([created, ...customers]);
+      const res = await api.post('/customers', newCustomer);
+      const record = res.customer;
+      const created = { id: record.customerId, _id: record._id, name: record.name, contact: record.name, email: record.email || '', phone: record.phone || '', address: record.address || '', totalJobs: 0, totalSpent: 'PKR 0', status: record.status };
+      setCustomers([created, ...customers]);
+    } catch (err) { window.alert(err.message); return; }
     setShowAddModal(false);
     setNewCustomer({ name: '', contact: '', email: '', phone: '', address: '' });
   };
@@ -104,59 +75,71 @@ function CompanyCustomers() {
   );
 
   return (
-    <div className="bg-background text-on-background min-h-screen font-sans flex flex-col md:flex-row">
+    <div className="bg-[#f4f7fb] text-slate-800 min-h-screen font-sans flex flex-col md:flex-row">
       {/* Sidebar */}
-      <aside className="hidden md:flex flex-col h-full w-[280px] fixed left-0 top-0 bg-primary-container text-on-primary shadow-md py-6 z-50">
+      <aside className="hidden md:flex flex-col h-full w-[260px] fixed left-0 top-0 bg-white border-r border-slate-100 text-slate-800 shadow-[4px_0_24px_rgba(0,0,0,0.02)] py-6 z-50">
         <div className="px-6 mb-6">
-          <span className="text-xl font-bold text-on-primary">FleetOS</span>
+          <span className="text-xl font-bold text-slate-900">FleetOS</span>
           <div className="flex items-center gap-3 mt-4">
             <div className="w-10 h-10 rounded-full bg-secondary overflow-hidden border border-white/20">
               <img className="w-full h-full object-cover" alt="Avatar" src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDob1EAfuIbOEB4mJ8aEtGMOAqZ2pFY3XlqCk2JkHoW67b-ZOBUc5zFlRYqQ2BZ3DG67ncjfW2OLoo5hg7xuxYuAqd8Dnt5ilPQQXVTUmumtWf50x262r2EhICAmE-N5bwuBjLhajhwN27J-KOxykfXlTI8WYp4DU3gYg4J6dBnKMvJL7SnjiVZ4DXESV3KRM6gWcKX9-Ly_MH0qvOPlsnmmbJxlvGssOUoAAS512hpEREvE9kMnIHJ0g"} />
             </div>
             <div>
-              <p className="text-xs font-bold text-on-primary">{user?.name || 'Fleet Manager'}</p>
-              <p className="text-xs text-on-primary-container opacity-80">{user?.companyName || 'Admin Console'}</p>
+              <p className="text-xs font-bold text-slate-900">{user?.name || 'Fleet Manager'}</p>
+              <p className="text-xs text-slate-500">{user?.companyName || 'Admin Console'}</p>
             </div>
           </div>
         </div>
 
-        <nav className="flex-grow space-y-1 overflow-y-auto">
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyDashboard}>
+        <nav className="flex-grow space-y-1 overflow-y-auto py-2">
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyDashboard}>
             <span className="material-symbols-outlined" data-icon="dashboard">dashboard</span>
             <span className="text-xs font-bold">Dashboard</span>
           </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyBookings}>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyBookings}>
             <span className="material-symbols-outlined" data-icon="calendar_today">calendar_today</span>
             <span className="text-xs font-bold">Bookings</span>
           </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyTechnicians}>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyTechnicians}>
             <span className="material-symbols-outlined" data-icon="badge">badge</span>
             <span className="text-xs font-bold">Technicians</span>
           </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyInventory}>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyInventory}>
             <span className="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
             <span className="text-xs font-bold">Inventory</span>
           </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyServices}>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyServices}>
             <span className="material-symbols-outlined" data-icon="build">build</span>
             <span className="text-xs font-bold">Services</span>
           </Link>
-          <Link className="flex items-center gap-3 bg-secondary-container text-on-secondary-container border-l-4 border-secondary px-6 py-3 transition-all" to={ROUTES.companyCustomers}>
+          <Link className="flex items-center gap-3 bg-blue-50 text-blue-700 px-6 py-3 transition-all rounded-2xl mx-4" to={ROUTES.companyCustomers}>
             <span className="material-symbols-outlined" data-icon="group">group</span>
             <span className="text-xs font-bold">Customers</span>
           </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyChat}>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyChat}>
             <span className="material-symbols-outlined" data-icon="chat">chat</span>
             <span className="text-xs font-bold">Client Messages</span>
           </Link>
-          <Link className="flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all" to={ROUTES.companyReviews}>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyReviews}>
             <span className="material-symbols-outlined" data-icon="rate_review">rate_review</span>
             <span className="text-xs font-bold">Reviews</span>
+          </Link>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyAnalytics}>
+            <span className="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+            <span className="text-xs font-bold">Analytics</span>
+          </Link>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyDetails}>
+            <span className="material-symbols-outlined" data-icon="domain">domain</span>
+            <span className="text-xs font-bold">Company Details</span>
+          </Link>
+          <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companySettings}>
+            <span className="material-symbols-outlined" data-icon="settings">settings</span>
+            <span className="text-xs font-bold">Settings</span>
           </Link>
         </nav>
 
         <div className="px-6 mt-auto pt-4 space-y-1">
-          <button onClick={() => { logout(); navigate(ROUTES.login); }} className="w-full flex items-center gap-3 text-on-primary-container px-6 py-3 hover:bg-white/10 transition-all text-left">
+          <button onClick={() => { logout(); navigate(ROUTES.login); }} className="w-full flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4 text-left">
             <span className="material-symbols-outlined" data-icon="logout">logout</span>
             <span className="text-xs font-bold">Logout</span>
           </button>
@@ -164,19 +147,19 @@ function CompanyCustomers() {
       </aside>
 
       {/* Main Content */}
-      <main className="md:ml-[280px] flex-grow min-h-screen">
-        <header className="sticky top-0 z-40 flex justify-between items-center w-full px-4 md:px-8 h-16 bg-background border-b border-outline-variant">
-          <h1 className="text-lg font-bold text-primary">Corporate Customer Directory</h1>
+      <main className="md:ml-[260px] flex-grow min-h-screen">
+        <header className="sticky top-0 z-40 flex justify-between items-center w-full px-4 md:px-8 h-16 bg-[#f4f7fb]/85 backdrop-blur-xl border-b border-white/60">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Corporate Customer Directory</h1>
         </header>
 
-        <div className="p-4 md:p-8 max-w-[1440px] mx-auto space-y-6">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+        <div className="p-4 md:p-8 max-w-[1600px] mx-auto space-y-6">
+          <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex justify-between items-center">
             <div className="relative w-80">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
               <input 
                 type="text" 
                 placeholder="Search customers..." 
-                className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-secondary" 
+                className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" 
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -242,3 +225,5 @@ function CompanyCustomers() {
 }
 
 export default CompanyCustomers;
+
+

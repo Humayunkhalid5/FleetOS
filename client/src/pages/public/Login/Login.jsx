@@ -11,6 +11,7 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [socialLoading, setSocialLoading] = useState('');
+  const [socialError] = useState(() => new URLSearchParams(window.location.search).get('oauth_error') || '');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,24 +22,14 @@ function Login() {
       if (nextUser.role === 'company') {
         navigate(ROUTES.companyDashboard);
       } else {
-        navigate(ROUTES.dashboard);
+        navigate(ROUTES.companies);
       }
     }
   };
 
-  // Demo social login: signs in with the seeded demo account so the buttons
-  // work without a real OAuth provider.
-  const handleSocialLogin = async (provider) => {
+  const handleSocialLogin = (provider) => {
     setSocialLoading(provider);
-    const nextUser = await login('alex@fleetos.com', 'demo1234');
-    setSocialLoading('');
-    if (nextUser) {
-      if (nextUser.role === 'company') {
-        navigate(ROUTES.companyDashboard);
-      } else {
-        navigate(ROUTES.dashboard);
-      }
-    }
+    window.location.assign(`/api/auth/oauth/${provider}`);
   };
 
   return (
@@ -74,7 +65,7 @@ function Login() {
                 </div>
                 <input
                   className="w-full pl-[52px] pr-md py-md bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-body-md text-on-surface placeholder:text-outline/50 placeholder:truncate"
-                  id="email" name="email" placeholder="alex.thompson@fleet.com" required type="email"
+                  id="email" name="email" placeholder="customer@fleetos.local" required type="email"
                   value={email} onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
@@ -84,7 +75,7 @@ function Login() {
             <div className="space-y-sm">
               <div className="flex justify-between items-center">
                 <label className="font-label-sm text-label-sm text-on-secondary-fixed-variant uppercase tracking-wider" htmlFor="password">Password</label>
-                <a className="font-label-sm text-label-sm text-primary hover:underline transition-all cursor-pointer" onClick={(e) => { e.preventDefault(); alert('Password reset link sent! Please check your email.'); }}>Forgot Password?</a>
+                <a className="font-label-sm text-label-sm text-primary hover:underline transition-all cursor-pointer" onClick={(e) => { e.preventDefault(); alert('Password-reset email requires a configured mail provider and is not enabled locally.'); }}>Forgot Password?</a>
               </div>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-[14px] flex items-center pointer-events-none w-6 justify-center">
@@ -101,7 +92,7 @@ function Login() {
               </div>
             </div>
 
-            {error && <p className="font-label-sm text-label-sm text-error">{error}</p>}
+            {(error || socialError) && <p className="font-label-sm text-label-sm text-error">{error || socialError}</p>}
 
             {/* Remember Me Toggle */}
             <div className="flex items-center gap-sm">
@@ -159,18 +150,18 @@ function Login() {
               Google
             </button>
             <button
-              onClick={() => handleSocialLogin('apple')}
-              disabled={socialLoading === 'apple'}
+              onClick={() => handleSocialLogin('linkedin')}
+              disabled={socialLoading === 'linkedin'}
               className="flex items-center justify-center gap-sm py-md border border-outline-variant rounded-xl font-nav-item text-nav-item text-on-surface hover:bg-surface-container-low transition-all active:scale-[0.97] disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {socialLoading === 'apple' ? (
+              {socialLoading === 'linkedin' ? (
                 <span className="material-symbols-outlined animate-spin">progress_activity</span>
               ) : (
-                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                  <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-.5-.22-1.07-.46-2.12-.48-1.02-.02-1.5.21-2.04.47-.83.4-2.12.55-3.23-.48C4.54 18.25 3.36 13.92 5.56 10.12c1.09-1.89 3.05-3.08 5.2-3.12 1.02-.02 2.05.4 2.68.4.63 0 1.94-.52 3.19-.38 1.3.14 2.3.62 3.03 1.6-2.68 1.61-2.2 5.16.48 6.24-.55 1.43-1.28 2.85-2.09 3.42zm-3.02-14.8c-.06-1.57 1.28-3.04 2.8-3.18.15 1.79-1.4 3.23-2.8 3.18z"></path>
+                <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="#0A66C2" d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.34V8.98h3.42v1.57h.05c.47-.9 1.64-1.85 3.37-1.85 3.61 0 4.27 2.37 4.27 5.46v6.29ZM5.32 7.41a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.1 20.45H3.54V8.98H7.1v11.47Z" />
                 </svg>
               )}
-              Apple
+              LinkedIn
             </button>
           </div>
 

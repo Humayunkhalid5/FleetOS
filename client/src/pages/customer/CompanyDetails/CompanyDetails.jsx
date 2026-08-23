@@ -14,19 +14,8 @@ function CompanyDetails() {
   useEffect(() => {
     const fetchCompanyAndServices = async () => {
       try {
-        let comp = null;
-        try {
-          const response = await api.get(`/companies/${id}`);
-          comp = response.company;
-        } catch (e) {}
-
-        if (!comp) {
-          let localCompanies = [];
-          try {
-            localCompanies = JSON.parse(localStorage.getItem('fleetos-registered-companies') || '[]');
-          } catch (e) {}
-          comp = localCompanies.find((c) => c.slug === id || c._id === id || c.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') === id);
-        }
+        const response = await api.get(`/companies/${id}`);
+        const comp = response.company;
 
         if (comp) {
           setCompany(comp);
