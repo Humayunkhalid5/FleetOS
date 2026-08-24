@@ -56,6 +56,7 @@ function CompanyBookings() {
             service: b.serviceSnapshot?.name || b.service?.name || 'Fleet Maintenance',
             date: b.scheduledAt ? new Date(b.scheduledAt).toLocaleString() : new Date(b.createdAt).toLocaleDateString(),
             status: b.status || 'Pending',
+            paymentStatus: b.paymentStatus || 'unpaid',
             tech: b.technician?.name || 'Unassigned',
             amount: `PKR ${Number(b.pricing?.finalTotal || 0).toLocaleString('en-PK')}`,
             address: b.location?.address || b.location || b.address || 'On-site Client Location'
@@ -97,6 +98,21 @@ function CompanyBookings() {
       setCancelTarget(null);
       setCancelReason('');
     } catch (err) { setToast(err.message); }
+  };
+
+  const recordPayment = async (booking) => {
+    if (!booking?._id) return;
+    try {
+      const result = await api.post(`/bookings/${booking._id}/payment`, {});
+      setBookings((items) => items.map((item) => item._id === booking._id ? {
+        ...item,
+        status: result.booking?.status || 'Paid',
+        paymentStatus: result.booking?.paymentStatus || 'paid',
+      } : item));
+      setToast('Payment recorded and saved to MongoDB.');
+    } catch (err) {
+      setToast(err.message || 'Payment could not be recorded.');
+    }
   };
 
   const assignTech = async (id, techName) => {
@@ -149,7 +165,7 @@ function CompanyBookings() {
     setNewBooking({ customer: '', service: '', date: '', amount: '', address: '', tech: 'Unassigned' });
   };
 
-  const statusOptions = ['All', 'Pending', 'In Progress', 'Completed', 'Cancelled'];
+  const statusOptions = ['All', 'Pending', 'Assigned', 'En Route', 'Arrived', 'In Progress', 'Completed', 'Paid', 'Cancelled'];
 
   const filtered = bookings.filter(b => {
     const matchStatus = filterStatus === 'All' || b.status === filterStatus;
@@ -326,7 +342,16 @@ function CompanyBookings() {
                       </button>
                     )}
 
-                    {b.status !== 'Completed' && b.status !== 'Cancelled' && (
+                    {b.status === 'Completed' && b.paymentStatus !== 'paid' && (
+                      <button
+                        onClick={() => recordPayment(b)}
+                        className="px-3 py-1.5 bg-violet-600 text-white rounded text-xs font-semibold hover:opacity-90 transition-opacity"
+                      >
+                        Record Payment
+                      </button>
+                    )}
+
+                    {!['Completed', 'Paid', 'Cancelled'].includes(b.status) && (
                       <button 
                         onClick={() => updateStatus(b.id, 'Cancelled')}
                         className="px-3 py-1.5 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded text-xs font-semibold"

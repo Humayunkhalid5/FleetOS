@@ -24,6 +24,7 @@ function issueSession(res, user, cookieName = 'fleetos_session') {
   const token = jwt.sign({ sub: String(user._id), role: user.role, sv: user.sessionVersion }, getJwtSecret(), { expiresIn: '12h' });
   const secure = process.env.NODE_ENV === 'production';
   res.setHeader('Set-Cookie', `${cookieName}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=43200${secure ? '; Secure' : ''}`);
+  return token;
 }
 
 function clearSession(res, cookieName = 'fleetos_session') {
@@ -141,8 +142,8 @@ exports.register = async (req, res) => {
     }
   }
 
-  issueSession(res, user);
-  return res.status(201).json({ user: publicUser(user) });
+  const token = issueSession(res, user);
+  return res.status(201).json({ token, user: publicUser(user) });
 };
 
 exports.login = async (req, res) => {
@@ -151,8 +152,8 @@ exports.login = async (req, res) => {
   if (user.role === 'super-admin') return res.status(403).json({ message: 'Use the separate Super Admin console to sign in' });
   user.lastLoginAt = new Date();
   await user.save();
-  issueSession(res, user);
-  return res.json({ user: publicUser(user) });
+  const token = issueSession(res, user);
+  return res.json({ token, user: publicUser(user) });
 };
 
 exports.startOAuth = async (req, res) => {
@@ -244,8 +245,8 @@ exports.changePassword = async (req, res) => {
   user.sessionVersion += 1;
   await user.save();
   await user.populate('company');
-  issueSession(res, user);
-  return res.json({ message: 'Password changed successfully' });
+  const token = issueSession(res, user);
+  return res.json({ token, message: 'Password changed successfully' });
 };
 
 exports.getBookingDraft = async (req, res) => {

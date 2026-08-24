@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 const Service = require('../models/Service');
 const Company = require('../models/Company');
 const { pick } = require('../utils/http');
@@ -10,9 +11,12 @@ exports.getServices = async (req, res) => {
   let companyId = req.user?.role === 'company' ? req.user.company?._id || req.user.company : req.query.companyId;
   if (!companyId && req.query.company) companyId = req.query.company;
   if (!companyId) return res.status(400).json({ message: 'companyId is required' });
-  const company = await Company.findById(companyId).lean();
+  const companyFilter = mongoose.isValidObjectId(companyId)
+    ? { _id: companyId }
+    : { slug: String(companyId).trim().toLowerCase() };
+  const company = await Company.findOne(companyFilter).lean();
   if (!company || (req.user?.role !== 'company' && company.approvalStatus !== 'approved')) return res.status(404).json({ message: 'Company not found' });
-  const query = { company: companyId };
+  const query = { company: company._id };
   if (req.user?.role !== 'company') query.status = 'Active';
   return res.json({ services: await Service.find(query).sort({ name: 1 }).lean() });
 };

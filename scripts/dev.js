@@ -22,7 +22,7 @@ function run(prefix, cwd, args) {
   children.push(child);
 }
 
-function waitForApi(attempts = 60) {
+function waitForApi(attempts = 240) {
   return new Promise((resolve, reject) => {
     const check = () => {
       const request = http.get('http://127.0.0.1:5000/api/health', (response) => {
@@ -35,8 +35,8 @@ function waitForApi(attempts = 60) {
     };
     const retry = () => {
       attempts -= 1;
-      if (attempts <= 0) return reject(new Error('FleetOS API did not become ready. Check MongoDB and the server output.'));
-      setTimeout(check, 500);
+      if (attempts <= 0) return reject(new Error('FleetOS API did not become ready within 4 minutes. Check MongoDB and the server output.'));
+      setTimeout(check, 1000);
     };
     check();
   });

@@ -80,7 +80,7 @@ function Companies() {
     state: {
       companyId:   co.slug || co._id,
       companyName: co.name,
-      service:     co.services?.[0]?.name || 'Fleet Full Inspection',
+      service:     co.services?.[0]?.name || 'Preventive Maintenance',
       price:       co.services?.[0]?.price || 0,
     },
   });

@@ -39,8 +39,8 @@ exports.adminLogin = async (req, res) => {
   if (user.role !== 'super-admin') return res.status(403).json({ message: 'Super Admin access required' });
   user.lastLoginAt = new Date();
   await user.save();
-  issueSession(res, user, 'fleetos_admin_session');
-  return res.json({ user: publicUser(user) });
+  const token = issueSession(res, user, 'fleetos_admin_session');
+  return res.json({ token, user: publicUser(user) });
 };
 
 exports.adminLogout = async (req, res) => {
@@ -152,7 +152,21 @@ exports.setUserStatus = async (req, res) => {
 };
 
 exports.listBookings = async (req, res) => res.json({ bookings: await Booking.find().populate('company', 'name').populate('customer', 'name email').sort({ createdAt: -1 }).limit(500).lean() });
-exports.listPayments = async (req, res) => res.json({ payments: await Payment.find().populate('company', 'name').populate('customer', 'name email').populate('booking', 'reference').sort({ createdAt: -1 }).limit(500).lean() });
+exports.listPayments = async (req, res) => {
+  const [payments, companyRevenue] = await Promise.all([
+    Payment.find().populate('company', 'name city').populate('customer', 'name email').populate('booking', 'reference').sort({ createdAt: -1 }).limit(500).lean(),
+    Payment.aggregate([
+      { $match: { status: 'recorded' } },
+      { $group: { _id: '$company', revenue: { $sum: '$amount' }, payments: { $sum: 1 } } },
+      { $sort: { revenue: -1 } },
+      { $limit: 500 },
+      { $lookup: { from: 'companies', localField: '_id', foreignField: '_id', as: 'company' } },
+      { $unwind: '$company' },
+      { $project: { _id: 0, companyId: '$_id', company: { _id: '$company._id', name: '$company.name', city: '$company.city' }, revenue: 1, payments: 1 } },
+    ]),
+  ]);
+  return res.json({ payments, companyRevenue });
+};
 exports.listSupport = async (req, res) => res.json({ requests: await SupportRequest.find().populate('createdBy', 'name email role').sort({ createdAt: -1 }).lean() });
 exports.listAudit = async (req, res) => res.json({ events: await AuditEvent.find().populate('actor', 'name email').sort({ createdAt: -1 }).limit(500).lean() });
 
@@ -194,7 +208,7 @@ exports.updateAdminProfile = async (req, res) => {
   await admin.save();
   req.user = admin;
   await audit(req, 'admin.settings', 'User', admin._id, reason, { emailChanged, passwordChanged: wantsPasswordChange });
-  issueSession(res, admin, 'fleetos_admin_session');
-  return res.json({ user: publicUser(admin) });
+  const token = issueSession(res, admin, 'fleetos_admin_session');
+  return res.json({ token, user: publicUser(admin) });
 };
 

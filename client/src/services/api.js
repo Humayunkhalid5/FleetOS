@@ -1,6 +1,12 @@
 const cache = new Map();
 const CACHE_TTL_MS = 3000;
-const buildUrl = (endpoint) => endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
+const buildUrl = (endpoint) => {
+  const path = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
+  if (!API_BASE_URL) return path;
+  return API_BASE_URL.endsWith('/api') ? `${API_BASE_URL}${path.replace(/^\/api/, '')}` : `${API_BASE_URL}${path}`;
+};
 
 async function request(endpoint, options = {}) {
   const method = options.method || 'GET';
@@ -16,7 +22,11 @@ async function request(endpoint, options = {}) {
   const response = await fetch(url, {
     ...options,
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(localStorage.getItem('fleetos-token') ? { Authorization: `Bearer ${localStorage.getItem('fleetos-token')}` } : {}),
+      ...(options.headers || {}),
+    },
   });
   const data = response.status === 204 ? null : await response.json().catch(() => ({}));
   if (!response.ok) {

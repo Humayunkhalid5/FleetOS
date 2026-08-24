@@ -26,7 +26,7 @@ exports.getCompanies = async (req, res) => {
   const query = { approvalStatus: 'approved' };
   if (req.query.city) query.city = new RegExp(`^${String(req.query.city).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
   if (req.query.search) query.$text = { $search: req.query.search };
-  const limit = Math.min(Number(req.query.limit || 50), 100);
+  const limit = Math.min(Number(req.query.limit || 1200), 1500);
   const [rawCompanies, cityRows] = await Promise.all([
     Company.find(query).sort({ rating: -1, name: 1 }).limit(limit).lean(),
     City.find({}, 'name province').sort({ name: 1 }).lean(),

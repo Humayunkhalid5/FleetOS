@@ -15,16 +15,21 @@ async function setAdminCredentials() {
 
   const connection = await connectDB();
   try {
-    const conflict = await User.exists({ email, role: { $ne: 'super-admin' } });
-    if (conflict) throw new Error('That email already belongs to a non-Admin account');
-
-    let admin = await User.findOne({ role: 'super-admin' }).select('+password');
+    let admin = await User.findOne({ email }).select('+password');
+    if (!admin) admin = await User.findOne({ role: 'super-admin' }).select('+password');
     if (!admin) admin = new User({ name: 'FleetOS Super Admin', role: 'super-admin' });
+    admin.name = admin.name || 'FleetOS Super Admin';
     admin.email = email;
     admin.password = await bcrypt.hash(password, 12);
+    admin.role = 'super-admin';
+    admin.company = undefined;
     admin.status = 'active';
     admin.sessionVersion = Number(admin.sessionVersion || 0) + 1;
     await admin.save();
+    await User.updateMany(
+      { role: 'super-admin', _id: { $ne: admin._id } },
+      { status: 'suspended', $inc: { sessionVersion: 1 } }
+    );
 
     fs.rmSync(path.resolve(__dirname, '../../.runtime/dev-admin-password'), { force: true });
     console.log(`Super Admin credentials stored securely in MongoDB for ${admin.email}.`);

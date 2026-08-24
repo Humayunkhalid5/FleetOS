@@ -9,15 +9,15 @@ function BookingSummary() {
   const state = location.state || {};
   
   const materials = state.materials || {};
-  const companyId = state.companyId || 'swiftfleet';
+  const companyId = state.companyId || 'pak-fleet-mobility';
   const companyName = state.companyName || 'Selected company';
   const problemDetails = state.problemDetails || '';
-  const service = state.service || 'Fleet Full Inspection';
+  const service = state.service || 'Preventive Maintenance';
   const servicePrice = state.servicePrice !== undefined ? state.servicePrice : 120;
   const serviceLocation = state.serviceLocation || {
-    address: '882 Modern Way, Tech Park, San Francisco, CA 94103',
-    lat: 37.7894,
-    lng: -122.3946,
+    address: 'Gulberg III, Lahore, Punjab',
+    lat: 31.5204,
+    lng: 74.3587,
   };
   
   // Calculate dynamic totals or use fallbacks
@@ -40,7 +40,7 @@ function BookingSummary() {
   const [isSuccess, setIsSuccess] = useState(false);
 
   const showHelp = () => {
-    alert('Need help? Contact our support team at support@fleetos.com or call +1 (555) 000-1234.');
+    alert('Need help? Contact our support team at support@fleetos.com or call +92 42 35781234.');
   };
 
   const handleConfirm = async () => {
@@ -84,8 +84,8 @@ function BookingSummary() {
 
   // Helper for dynamic avatars based on tech name
   const getTechAvatar = (name) => {
-    if (name === 'Elena Rodriguez') return "https://lh3.googleusercontent.com/aida-public/AB6AXuDnCiWvnkOKQReJfbwVPnaN6tu7s5397gTYSVBPMyiX6toCf8p5wo3eRuZ2QIc2TqcZrm-1vI7JyRT7oqpSWXpAdRECBDCnRGuLQM6zGzCDYi5wegUEzJG2p7E7E7jfdx9hSCUUoveU458OaY-di3G4frMSjmTJwjSznLPYXVl_zY_nMTuD0q3drMrje1gMak8VTFXTBe687naWHZTIHqBAHuyZqtzAN7B6ZysOa9vPYFnRqmNuHtlY1A";
-    if (name === 'Jordan Smith') return "https://lh3.googleusercontent.com/aida-public/AB6AXuBdSq9kds-9hvrnwo749V1I2EinNun7_8MX5BIE5-IMKUNAe4eYNSZlRYfJsQoPN6Bhr_Si7Oj9uq3XH8CcF0q8t2BSjIFBI_5A248PGaEjKqs1N1rbNOcqGh-pFfZ5qZmC7dv0k7AJ0lOUJGzjeGN4P8Z_QnnObTriizg6iqp9D11hzs6aSOcdIpfpF8Q04gH3UJwNaz_BNK0OIH9K1hLW_V9CsATPDG8NQAVE-f5Eg0eDZhdoGe4WAg";
+    if (name === 'Ayesha Khan') return "https://lh3.googleusercontent.com/aida-public/AB6AXuDnCiWvnkOKQReJfbwVPnaN6tu7s5397gTYSVBPMyiX6toCf8p5wo3eRuZ2QIc2TqcZrm-1vI7JyRT7oqpSWXpAdRECBDCnRGuLQM6zGzCDYi5wegUEzJG2p7E7E7jfdx9hSCUUoveU458OaY-di3G4frMSjmTJwjSznLPYXVl_zY_nMTuD0q3drMrje1gMak8VTFXTBe687naWHZTIHqBAHuyZqtzAN7B6ZysOa9vPYFnRqmNuHtlY1A";
+    if (name === 'Bilal Ahmed') return "https://lh3.googleusercontent.com/aida-public/AB6AXuBdSq9kds-9hvrnwo749V1I2EinNun7_8MX5BIE5-IMKUNAe4eYNSZlRYfJsQoPN6Bhr_Si7Oj9uq3XH8CcF0q8t2BSjIFBI_5A248PGaEjKqs1N1rbNOcqGh-pFfZ5qZmC7dv0k7AJ0lOUJGzjeGN4P8Z_QnnObTriizg6iqp9D11hzs6aSOcdIpfpF8Q04gH3UJwNaz_BNK0OIH9K1hLW_V9CsATPDG8NQAVE-f5Eg0eDZhdoGe4WAg";
     return "https://lh3.googleusercontent.com/aida-public/AB6AXuANElbcBjWXr-TTiov_ngCtxN-PtgyZF2rqH2uz6WBDM-TST0bGcEq53NLZn5qdrbrSGP9LB8ySFBVOzwUcaPL0awUofZXp7x-bvs5ac2FPB7JMyCyZefOKmpsArTgK6a3ruBr267uIBmd5nTijVhfMWRPEzOTmr8_9KzQNpv_9ysJMgZP8vQEHFMGR0xBr1LADKFfHhlFyFedz6T3f2t8se6invdewcWudCaFday7rPmdaTo_udK0Jsw";
   };
 
@@ -175,7 +175,7 @@ function BookingSummary() {
                 </div>
                 <div>
                   <p className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Service Location</p>
-                  <p className="font-body-md text-body-md text-on-surface">882 Modern Way, Tech Park<br/>San Francisco, CA 94103</p>
+                  <p className="font-body-md text-body-md text-on-surface">{serviceLocation.address || 'Gulberg III, Lahore, Punjab'}</p>
                 </div>
               </div>
               <div className="flex items-start gap-md">

@@ -17,7 +17,18 @@ const sections = [
 ];
 
 async function api(path, options = {}) {
-  const response = await fetch(`/api/admin${path}`, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
+  const base = (import.meta.env.VITE_ADMIN_API_URL || import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+  const apiPath = `/api/admin${path}`;
+  const url = base ? (base.endsWith('/api') ? `${base}/admin${path}` : `${base}${apiPath}`) : apiPath;
+  const response = await fetch(url, {
+    credentials: 'include',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(localStorage.getItem('fleetos-admin-token') ? { Authorization: `Bearer ${localStorage.getItem('fleetos-admin-token')}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
   const data = response.status === 204 ? null : await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data?.message || 'Request failed');
   return data;
@@ -35,7 +46,7 @@ function Login({ onLogin }) {
   const [busy, setBusy] = useState(false);
   const submit = async (event) => {
     event.preventDefault(); setBusy(true); setError('');
-    try { const result = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }); onLogin(result.user); }
+    try { const result = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }); if (result.token) localStorage.setItem('fleetos-admin-token', result.token); onLogin(result.user); }
     catch (requestError) { setError(requestError.message); }
     finally { setBusy(false); }
   };
@@ -88,7 +99,7 @@ function App() {
       else { const anchor = document.createElement('a'); anchor.href = result.document.data; anchor.download = result.document.name || `${company.name}-business-license`; anchor.click(); }
     } catch (requestError) { setError(requestError.message); }
   };
-  const logout = async () => { await api('/auth/logout', { method: 'POST', body: '{}' }); setUser(null); };
+  const logout = async () => { await api('/auth/logout', { method: 'POST', body: '{}' }); localStorage.removeItem('fleetos-admin-token'); setUser(null); };
   const download = (kind, rows = []) => {
     if (!rows.length) return;
     const keys = Object.keys(rows[0]).filter((key) => !['__v'].includes(key));
@@ -112,7 +123,7 @@ function App() {
     if (section === 'removal') return <section className="panel"><header><h2>Company portal access</h2><button onClick={() => download('company-access', current.companies || [])}>Export CSV</button></header><Table headers={['Company', 'Owner account', 'Client discovery', 'Portal access', 'Version', 'Action']}>{(current.companies || []).map((company) => <tr key={company._id}><td><b>{company.name}</b><small>{company.city} · {company.email}</small></td><td>{company.owner?.name || '—'}<small>{company.owner?.status || 'unknown'}</small></td><td><Visibility company={company} /></td><td><Status value={company.owner?.status || 'suspended'} /></td><td>v{company.approvalVersion}</td><td>{company.clientVisible ? <button className="danger" onClick={() => requestMutation(`/companies/${company._id}/status`, { status: 'suspended', version: company.approvalVersion }, `Block ${company.name}`)}>Block / remove</button> : <button onClick={() => requestMutation(`/companies/${company._id}/status`, { status: 'approved', version: company.approvalVersion }, `Restore ${company.name}`)}>Restore</button>}</td></tr>)}</Table></section>;
     if (section === 'users') return <section className="panel"><header><h2>Customer and company users</h2><button onClick={() => download('users', current.users || [])}>Export CSV</button></header><Table headers={['User', 'Role', 'Company', 'Status', 'Last login', 'Action']}>{(current.users || []).map((account) => <tr key={account._id}><td><b>{account.name}</b><small>{account.email}</small></td><td>{account.role}</td><td>{account.company?.name || '—'}</td><td><Status value={account.status} /></td><td>{date(account.lastLoginAt)}</td><td><button className={account.status === 'active' ? 'danger' : ''} onClick={() => requestMutation(`/users/${account._id}/status`, { status: account.status === 'active' ? 'suspended' : 'active' }, `${account.status === 'active' ? 'Suspend' : 'Reactivate'} ${account.name}`)}>{account.status === 'active' ? 'Suspend' : 'Reactivate'}</button></td></tr>)}</Table></section>;
     if (section === 'bookings') return <section className="panel"><header><h2>Platform jobs</h2><button onClick={() => download('jobs', current.bookings || [])}>Export CSV</button></header><Table headers={['Reference', 'Company', 'Customer', 'Vehicle', 'Service', 'Status', 'Amount', 'Scheduled']}>{(current.bookings || []).map((booking) => <tr key={booking._id}><td className="mono">{booking.reference}</td><td>{booking.company?.name}</td><td>{booking.customer?.name || booking.customerName}</td><td>{booking.vehicle?.label || '—'}</td><td>{booking.serviceSnapshot?.name}</td><td><Status value={booking.status} /></td><td>{money(booking.pricing?.finalTotal)}</td><td>{date(booking.scheduledAt)}</td></tr>)}</Table></section>;
-    if (section === 'payments') return <section className="panel"><header><h2>Recorded finance ledger</h2><button onClick={() => download('finance', current.payments || [])}>Export CSV</button></header><Table headers={['Payment', 'Booking', 'Company', 'Customer', 'Method', 'Status', 'Amount', 'Recorded']}>{(current.payments || []).map((payment) => <tr key={payment._id}><td className="mono">{payment.reference}</td><td>{payment.booking?.reference}</td><td>{payment.company?.name}</td><td>{payment.customer?.name}</td><td>{payment.method}</td><td><Status value={payment.status} /></td><td>{money(payment.amount)}</td><td>{date(payment.recordedAt)}</td></tr>)}</Table></section>;
+    if (section === 'payments') return <><section className="panel"><header><h2>Revenue by company</h2><button onClick={() => download('company-revenue', current.companyRevenue || [])}>Export CSV</button></header><Table headers={['Company', 'City', 'Recorded payments', 'Revenue']}>{(current.companyRevenue || []).map((row) => <tr key={row.companyId}><td><b>{row.company?.name}</b></td><td>{row.company?.city}</td><td>{row.payments}</td><td>{money(row.revenue)}</td></tr>)}</Table></section><section className="panel"><header><h2>Recorded finance ledger</h2><button onClick={() => download('finance', current.payments || [])}>Export CSV</button></header><Table headers={['Payment', 'Booking', 'Company', 'Customer', 'Method', 'Status', 'Amount', 'Recorded']}>{(current.payments || []).map((payment) => <tr key={payment._id}><td className="mono">{payment.reference}</td><td>{payment.booking?.reference}</td><td>{payment.company?.name}</td><td>{payment.customer?.name}</td><td>{payment.method}</td><td><Status value={payment.status} /></td><td>{money(payment.amount)}</td><td>{date(payment.recordedAt)}</td></tr>)}</Table></section></>;
     if (section === 'support') return <section className="panel"><header><h2>Support requests</h2></header><Table headers={['Subject', 'Submitted by', 'Message', 'Status', 'Created', 'Action']}>{(current.requests || []).map((request) => <tr key={request._id}><td><b>{request.subject}</b></td><td>{request.createdBy?.name}<small>{request.createdBy?.email}</small></td><td className="review-cell">{request.message}</td><td><Status value={request.status} /></td><td>{date(request.createdAt)}</td><td><button onClick={() => requestMutation(`/support/${request._id}/status`, { status: request.status === 'open' ? 'resolved' : 'open' }, `${request.status === 'open' ? 'Resolve' : 'Reopen'} support request`)}>{request.status === 'open' ? 'Resolve' : 'Reopen'}</button></td></tr>)}</Table></section>;
     if (section === 'audit') return <section className="panel"><header><h2>Immutable action history</h2><button onClick={() => download('audit', current.events || [])}>Export CSV</button></header><Table headers={['Time', 'Actor', 'Action', 'Target', 'Reason', 'Request ID']}>{(current.events || []).map((event) => <tr key={event._id}><td>{date(event.createdAt)}</td><td>{event.actor?.name}<small>{event.actor?.email}</small></td><td className="mono">{event.action}</td><td>{event.targetType}</td><td className="review-cell">{event.reason}</td><td className="mono">{event.requestId}</td></tr>)}</Table></section>;
     if (section === 'health') return <div className="health-grid"><section className="panel health"><span className="material-symbols-outlined good">database</span><h2>MongoDB</h2><b>{current.mongo?.state || 'unknown'}</b><small>{current.mongo?.database}</small></section><section className="panel health"><span className="material-symbols-outlined good">api</span><h2>API</h2><b>Operational</b><small>Authenticated and responding</small></section><section className="panel health"><span className="material-symbols-outlined good">lock</span><h2>Security</h2><b>Enforced</b><small>HttpOnly sessions and role isolation</small></section></div>;

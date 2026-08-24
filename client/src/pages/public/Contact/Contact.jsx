@@ -15,9 +15,9 @@ function Contact() {
   };
 
   const infoCards = [
-    { icon: 'call', label: 'Phone', value: '+1 (555) 123-4567' },
+    { icon: 'call', label: 'Phone', value: '+92 42 35781234' },
     { icon: 'mail', label: 'Email', value: 'support@fleetos.com' },
-    { icon: 'location_on', label: 'Office', value: '882 Modern Way, Tech Park, San Francisco, CA' },
+    { icon: 'location_on', label: 'Office', value: 'Gulberg III, Lahore, Punjab, Pakistan' },
   ];
 
   return (

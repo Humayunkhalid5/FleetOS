@@ -32,6 +32,42 @@ const cityGroups = {
   'Gilgit-Baltistan': ['Gilgit', 'Skardu', 'Chilas', 'Aliabad', 'Khaplu', 'Gahkuch', 'Astore', 'Shigar', 'Nagar', 'Hunza', 'Danyor', 'Gultari'],
 };
 
+function slugify(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function phoneForSeed(index) {
+  return `+92 300 ${String(7000000 + index).slice(0, 7)}`;
+}
+
+function generatedCityProviders(cities) {
+  const brands = [
+    ['Rapid Fleet Care', 'Mobile diagnostics, dispatch and preventive maintenance for local fleet operators.'],
+    ['Metro Auto Works', 'Verified workshop services with emergency road support and transparent billing.'],
+    ['Prime Vehicle Response', 'Technician-led vehicle care, parts management and route-side assistance.'],
+    ['Trusted Motors Hub', 'Commercial vehicle inspections, repairs and fleet service scheduling.'],
+  ];
+  return cities.flatMap((city, cityIndex) => brands.map(([brand, description], brandIndex) => {
+    const slug = `${slugify(city.name)}-${slugify(brand)}`;
+    return {
+      name: `${city.name} ${brand}`,
+      slug,
+      city: city.name,
+      province: city.province,
+      location: `${['Central Market', 'Industrial Area', 'Main Road', 'Service District'][brandIndex]}, ${city.name}`,
+      areas: [`${city.name} Central`, `${city.name} Industrial Area`, `${city.name} Main Road`],
+      email: `${slug}@fleetos.local`,
+      ownerEmail: `owner.${slug}@fleetos.local`,
+      phone: phoneForSeed(cityIndex * brands.length + brandIndex),
+      description,
+      rating: Number((4.2 + ((cityIndex + brandIndex) % 7) / 10).toFixed(1)),
+    };
+  }));
+}
+
 async function ensureAdmin() {
   const runtimeDir = path.resolve(__dirname, '../../.runtime');
   const passwordPath = path.join(runtimeDir, 'dev-admin-password');
@@ -58,7 +94,36 @@ async function bootstrap() {
   await Payment.collection.dropIndex('customer_1_idempotencyKey_1').catch((error) => {
     if (error.codeName !== 'IndexNotFound') throw error;
   });
-  await Promise.all([Booking.syncIndexes(), Payment.syncIndexes()]);
+  await Promise.all([
+    Service.collection.dropIndex('companyId_1').catch((error) => {
+      if (error.codeName !== 'IndexNotFound') throw error;
+    }),
+    Service.collection.dropIndex('companyId_1_serviceId_1').catch((error) => {
+      if (error.codeName !== 'IndexNotFound') throw error;
+    }),
+    Technician.collection.dropIndex('companyId_1').catch((error) => {
+      if (error.codeName !== 'IndexNotFound') throw error;
+    }),
+    Technician.collection.dropIndex('companyId_1_techId_1').catch((error) => {
+      if (error.codeName !== 'IndexNotFound') throw error;
+    }),
+    Inventory.collection.dropIndex('companyId_1').catch((error) => {
+      if (error.codeName !== 'IndexNotFound') throw error;
+    }),
+    Inventory.collection.dropIndex('companyId_1_sku_1').catch((error) => {
+      if (error.codeName !== 'IndexNotFound') throw error;
+    }),
+    Review.collection.dropIndex('user_1').catch((error) => {
+      if (error.codeName !== 'IndexNotFound') throw error;
+    }),
+    Review.collection.dropIndex('companyId_1').catch((error) => {
+      if (error.codeName !== 'IndexNotFound') throw error;
+    }),
+    Review.collection.dropIndex('bookingId_1').catch((error) => {
+      if (error.codeName !== 'IndexNotFound') throw error;
+    }),
+  ]);
+  await Promise.all([Booking.syncIndexes(), Payment.syncIndexes(), Service.syncIndexes(), Technician.syncIndexes(), Inventory.syncIndexes(), Review.syncIndexes()]);
 
   if (process.env.NODE_ENV === 'production') {
     const admin = await User.findOne({ role: 'super-admin' }).select('email').lean();
@@ -78,26 +143,54 @@ async function bootstrap() {
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 
+  const cities = Object.entries(cityGroups).flatMap(([province, names]) => names.map((name) => ({ name, province })));
+  await City.bulkWrite(cities.map((city) => ({ updateOne: { filter: city, update: { $setOnInsert: city }, upsert: true } })), { ordered: false });
+
+  const providerMap = new Map();
+  for (const provider of [...providers, ...generatedCityProviders(cities)]) {
+    providerMap.set(provider.slug, provider);
+  }
+
+  const existingApprovedProviders = await Company.countDocuments({
+    slug: { $in: [...providerMap.keys()] },
+    approvalStatus: 'approved',
+  });
+  const canReuseSeed = existingApprovedProviders >= providerMap.size && process.env.FORCE_BOOTSTRAP !== 'true';
+  if (canReuseSeed) {
+    const mainCompany = await Company.findOne({ slug: 'pak-fleet-mobility' });
+    const owner = mainCompany ? await User.findOne({ company: mainCompany._id, role: 'company' }) : null;
+    const booking = mainCompany ? await Booking.findOne({ company: mainCompany._id }).sort({ createdAt: -1 }) : null;
+    console.log(`FleetOS seed ready: ${existingApprovedProviders} providers already present, ${cities.length} Pakistan cities.`);
+    console.log('Customer: customer@fleetos.local / FleetCustomer1!');
+    console.log('Company: company@fleetos.local / FleetCompany1!');
+    return { customer, owner, mainCompany, booking };
+  }
+
   const createdProviders = [];
-  for (const data of providers) {
-    const company = await Company.findOneAndUpdate(
-      { slug: data.slug },
-      { $set: { ...data, approvalStatus: 'approved' }, $setOnInsert: { approvedAt: new Date() } },
+  for (const data of providerMap.values()) {
+    const ownerEmail = data.ownerEmail || (data.slug === 'pak-fleet-mobility' ? 'company@fleetos.local' : `owner.${data.slug}@fleetos.local`);
+    const owner = await User.findOneAndUpdate(
+      { email: ownerEmail },
+      {
+        $set: { role: 'company', status: 'active', phone: data.phone, city: data.city },
+        $setOnInsert: { name: `${data.name} Owner`, email: ownerEmail, password: companyPassword },
+      },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
+    const company = await Company.findOneAndUpdate(
+      { slug: data.slug },
+      { $set: { ...data, owner: owner._id, approvalStatus: 'approved' }, $setOnInsert: { approvedAt: new Date() } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    if (String(owner.company || '') !== String(company._id)) {
+      owner.company = company._id;
+      await owner.save();
+    }
     createdProviders.push(company);
   }
   const mainCompany = createdProviders[0];
 
-  const owner = await User.findOneAndUpdate(
-    { email: 'company@fleetos.local' },
-    { $set: { company: mainCompany._id }, $setOnInsert: { name: 'Ali Murtaza', email: 'company@fleetos.local', password: companyPassword, role: 'company', phone: '+92 300 7654321', city: 'Lahore' } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
-  if (!mainCompany.owner) {
-    mainCompany.owner = owner._id;
-    await mainCompany.save();
-  }
+  const owner = await User.findOne({ company: mainCompany._id, role: 'company' });
 
   const serviceBlueprints = [
     ['Preventive Maintenance', 'Maintenance', 18500, 120],
@@ -117,24 +210,28 @@ async function bootstrap() {
     }
   }
 
-  const techNames = ['Imran Ali', 'Faisal Khan', 'Usman Raza', 'Sajid Khan', 'Nadeem Akhtar', 'Danish Shah'];
-  for (let index = 0; index < techNames.length; index += 1) {
-    await Technician.updateOne(
-      { company: mainCompany._id, techId: `TECH-${index + 1}` },
-      { $setOnInsert: { company: mainCompany._id, techId: `TECH-${index + 1}`, name: techNames[index], role: index % 2 ? 'Mechanical Technician' : 'Fleet Specialist', rating: 4.5 + (index % 4) / 10, experienceYears: 3 + index, status: index < 2 ? 'On Job' : 'Available', phone: `+92 300 55500${index}` } },
-      { upsert: true }
-    );
+  const techNames = ['Imran Ali', 'Faisal Khan', 'Usman Raza'];
+  for (const company of createdProviders) {
+    for (let index = 0; index < techNames.length; index += 1) {
+      await Technician.updateOne(
+        { company: company._id, techId: `TECH-${index + 1}` },
+        { $setOnInsert: { company: company._id, techId: `TECH-${index + 1}`, name: techNames[index], role: index % 2 ? 'Mechanical Technician' : 'Fleet Specialist', rating: 4.5 + (index % 4) / 10, experienceYears: 3 + index, status: index === 0 && String(company._id) === String(mainCompany._id) ? 'On Job' : 'Available', phone: `+92 300 55500${index}` } },
+        { upsert: true }
+      );
+    }
   }
 
   const inventoryBlueprints = [
-    ['BRK-001', 'Brake Pads (Set)', 'Brakes', 6, 20, 4200],
-    ['FLT-001', 'Oil Filter (Hino)', 'Filters', 8, 25, 1200],
-    ['AIR-001', 'Air Filter (Isuzu)', 'Filters', 5, 20, 1800],
-    ['CLT-001', 'Clutch Kit (Toyota)', 'Clutch', 3, 15, 18500],
-    ['BAT-001', 'Battery 12V 100Ah', 'Electrical', 4, 10, 24000],
+    ['MNT-001', 'Fleet Engine Oil 15W-40', 'Maintenance', 16, 6, 5200],
+    ['MNT-002', 'Oil Filter Kit', 'Maintenance', 20, 8, 1450],
+    ['MEC-001', 'Brake Pads Set', 'Mechanical', 14, 6, 4200],
+    ['CLM-001', 'AC Refrigerant Refill', 'Climate', 12, 5, 3100],
+    ['DGN-001', 'Diagnostic Scan Report', 'Diagnostics', 50, 10, 900],
   ];
-  for (const [sku, name, category, quantity, reorderLevel, unitCost] of inventoryBlueprints) {
-    await Inventory.updateOne({ company: mainCompany._id, sku }, { $setOnInsert: { company: mainCompany._id, sku, name, category, quantity, reorderLevel, unitCost, unitPrice: Math.round(unitCost * 1.25), warehouse: 'Lahore Main' } }, { upsert: true });
+  for (const company of createdProviders) {
+    for (const [sku, name, category, quantity, reorderLevel, unitCost] of inventoryBlueprints) {
+      await Inventory.updateOne({ company: company._id, sku }, { $setOnInsert: { company: company._id, sku, name, category, quantity, reorderLevel, unitCost, unitPrice: Math.round(unitCost * 1.25), warehouse: `${company.city} Main` } }, { upsert: true });
+    }
   }
 
   await Customer.updateOne(
@@ -167,8 +264,57 @@ async function bootstrap() {
     { upsert: true }
   );
 
-  const cities = Object.entries(cityGroups).flatMap(([province, names]) => names.map((name) => ({ name, province })));
-  await City.bulkWrite(cities.map((city) => ({ updateOne: { filter: city, update: { $setOnInsert: city }, upsert: true } })), { ordered: false });
+  for (const company of createdProviders) {
+    const digest = crypto.createHash('sha1').update(String(company._id)).digest('hex').slice(0, 10).toUpperCase();
+    const revenueService = await Service.findOne({ company: company._id, serviceId: 'SVC-2' });
+    const revenueTechnician = await Technician.findOne({ company: company._id, techId: 'TECH-2' });
+    if (!revenueService) continue;
+    await Customer.updateOne(
+      { company: company._id, customerId: `CUST-${digest}` },
+      { $setOnInsert: { company: company._id, user: customer._id, customerId: `CUST-${digest}`, name: customer.name, email: customer.email, phone: customer.phone, address: `${company.city} service address`, totalJobs: 1, totalSpent: revenueService.price } },
+      { upsert: true }
+    );
+    const seededPaidBooking = await Booking.findOneAndUpdate(
+      { reference: `FOS-SEED-${digest}` },
+      {
+        $setOnInsert: {
+          reference: `FOS-SEED-${digest}`,
+          customer: customer._id,
+          company: company._id,
+          service: revenueService._id,
+          technician: revenueTechnician?._id || null,
+          serviceSnapshot: { name: revenueService.name, category: revenueService.category, price: revenueService.price },
+          customerName: customer.name,
+          customerEmail: customer.email,
+          customerPhone: customer.phone,
+          vehicle: { label: `${company.city} fleet vehicle`, registration: `${digest.slice(0, 3)}-${digest.slice(3, 7)}` },
+          pricing: { serviceTotal: revenueService.price, materialsTotal: 2500, tax: Math.round((revenueService.price + 2500) * 0.05), finalTotal: revenueService.price + 2500 + Math.round((revenueService.price + 2500) * 0.05) },
+          status: 'Paid',
+          paymentStatus: 'paid',
+          statusHistory: [
+            { status: 'Pending', at: new Date(Date.now() - 72 * 3600000), byRole: 'customer' },
+            { status: 'Assigned', at: new Date(Date.now() - 70 * 3600000), byRole: 'company' },
+            { status: 'Completed', at: new Date(Date.now() - 50 * 3600000), byRole: 'company' },
+            { status: 'Paid', at: new Date(Date.now() - 49 * 3600000), byRole: 'company', note: 'Seeded recorded payment' },
+          ],
+          scheduledAt: new Date(Date.now() - 52 * 3600000),
+          location: `${company.location || company.city}`,
+          paymentMethod: Number.parseInt(digest.slice(-1), 16) % 2 ? 'cash' : 'invoice',
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    await Payment.updateOne(
+      { booking: seededPaidBooking._id },
+      { $setOnInsert: { reference: `PAY-SEED-${digest}`, booking: seededPaidBooking._id, customer: customer._id, company: company._id, amount: seededPaidBooking.pricing.finalTotal, method: seededPaidBooking.paymentMethod, status: 'recorded', recordedAt: new Date(Date.now() - 49 * 3600000) } },
+      { upsert: true }
+    );
+    await Review.updateOne(
+      { booking: seededPaidBooking._id },
+      { $setOnInsert: { customer: customer._id, company: company._id, booking: seededPaidBooking._id, rating: 4 + (Number.parseInt(digest.slice(-1), 16) % 2), comment: `${company.name} completed the service with clear updates and reliable dispatch.` } },
+      { upsert: true }
+    );
+  }
 
   console.log(`FleetOS seed ready: ${createdProviders.length} providers, ${cities.length} Pakistan cities.`);
   console.log('Customer: customer@fleetos.local / FleetCustomer1!');

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const mongoose = require('mongoose');
 const Inventory = require('../models/Inventory');
 const Company = require('../models/Company');
+const Service = require('../models/Service');
 const User = require('../models/User');
 const { pick } = require('../utils/http');
 
@@ -18,7 +19,17 @@ exports.getPublicInventory = async (req, res) => {
     if (owner?.status === 'suspended') return res.status(404).json({ message: 'Approved company not found' });
   }
 
-  const inventory = await Inventory.find({ company: company._id, quantity: { $gt: 0 } })
+  const inventoryFilter = { company: company._id, quantity: { $gt: 0 } };
+  const serviceKey = req.query.serviceId || req.query.serviceName || req.query.service;
+  if (serviceKey) {
+    const serviceFilter = mongoose.isValidObjectId(serviceKey)
+      ? { _id: serviceKey }
+      : { name: new RegExp(`^${String(serviceKey).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') };
+    const service = await Service.findOne({ ...serviceFilter, company: company._id, status: 'Active' }).select('category').lean();
+    if (service?.category) inventoryFilter.category = service.category;
+  }
+
+  const inventory = await Inventory.find(inventoryFilter)
     .select('sku name category quantity unitPrice unit')
     .sort({ category: 1, name: 1 })
     .lean();

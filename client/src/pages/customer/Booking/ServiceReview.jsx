@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES } from '../../../constants';
 import api from '../../../services/api';
@@ -11,11 +11,19 @@ function ServiceReview() {
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [booking, setBooking] = useState(null);
+  const [error, setError] = useState('');
 
+  useEffect(() => {
+    if (!bookingId) return;
+    api.get(`/bookings/${bookingId}`, { noCache: true })
+      .then((result) => setBooking(result.booking || null))
+      .catch((requestError) => setError(requestError.message));
+  }, [bookingId]);
 
   const getTechAvatar = (name) => {
-    if (name === 'Elena Rodriguez') return "https://lh3.googleusercontent.com/aida-public/AB6AXuDnCiWvnkOKQReJfbwVPnaN6tu7s5397gTYSVBPMyiX6toCf8p5wo3eRuZ2QIc2TqcZrm-1vI7JyRT7oqpSWXpAdRECBDCnRGuLQM6zGzCDYi5wegUEzJG2p7E7E7jfdx9hSCUUoveU458OaY-di3G4frMSjmTJwjSznLPYXVl_zY_nMTuD0q3drMrje1gMak8VTFXTBe687naWHZTIHqBAHuyZqtzAN7B6ZysOa9vPYFnRqmNuHtlY1A";
-    if (name === 'Jordan Smith') return "https://lh3.googleusercontent.com/aida-public/AB6AXuBdSq9kds-9hvrnwo749V1I2EinNun7_8MX5BIE5-IMKUNAe4eYNSZlRYfJsQoPN6Bhr_Si7Oj9uq3XH8CcF0q8t2BSjIFBI_5A248PGaEjKqs1N1rbNOcqGh-pFfZ5qZmC7dv0k7AJ0lOUJGzjeGN4P8Z_QnnObTriizg6iqp9D11hzs6aSOcdIpfpF8Q04gH3UJwNaz_BNK0OIH9K1hLW_V9CsATPDG8NQAVE-f5Eg0eDZhdoGe4WAg";
+    if (name === 'Ayesha Khan') return "https://lh3.googleusercontent.com/aida-public/AB6AXuDnCiWvnkOKQReJfbwVPnaN6tu7s5397gTYSVBPMyiX6toCf8p5wo3eRuZ2QIc2TqcZrm-1vI7JyRT7oqpSWXpAdRECBDCnRGuLQM6zGzCDYi5wegUEzJG2p7E7E7jfdx9hSCUUoveU458OaY-di3G4frMSjmTJwjSznLPYXVl_zY_nMTuD0q3drMrje1gMak8VTFXTBe687naWHZTIHqBAHuyZqtzAN7B6ZysOa9vPYFnRqmNuHtlY1A";
+    if (name === 'Bilal Ahmed') return "https://lh3.googleusercontent.com/aida-public/AB6AXuBdSq9kds-9hvrnwo749V1I2EinNun7_8MX5BIE5-IMKUNAe4eYNSZlRYfJsQoPN6Bhr_Si7Oj9uq3XH8CcF0q8t2BSjIFBI_5A248PGaEjKqs1N1rbNOcqGh-pFfZ5qZmC7dv0k7AJ0lOUJGzjeGN4P8Z_QnnObTriizg6iqp9D11hzs6aSOcdIpfpF8Q04gH3UJwNaz_BNK0OIH9K1hLW_V9CsATPDG8NQAVE-f5Eg0eDZhdoGe4WAg";
     return "https://lh3.googleusercontent.com/aida-public/AB6AXuCXwsweOO86ly3Mjt2oPOTZRYD1NP5mFpi-bynzXFWH7BK3T1YL55KCFFrZrOcUURPtfBegXO4gbwW3z5IQjimD9PJdNPhesJ7hL7KISKXUv2KgwVNlnz3xE0qI3A_5wrkX3sa2pXAqeANZCpoaBO2LDhb6qnmgB5-KmV-pNODRMH9NfpRAtxVFJQVyju9SQjow0qsPDwEUkQxQe7i-Ws5_NWjIGSggzyQu6yGIMjlDQRpIl02wL0Lvqw";
   };
   const ratingLabels = ["Poor", "Fair", "Good", "Great", "Excellent!"];
@@ -25,14 +33,22 @@ function ServiceReview() {
       alert('Please select a star rating before submitting.');
       return;
     }
+    if (!bookingId) {
+      alert('No completed booking was selected for this review.');
+      return;
+    }
+    if (!feedback.trim()) {
+      alert('Please add a short written review.');
+      return;
+    }
     setSubmitting(true);
     try {
       await api.post('/reviews', {
         bookingId,
         technician: selectedTech,
-        service: 'Fleet Full Inspection',
+        service: booking?.serviceSnapshot?.name || 'Preventive Maintenance',
         rating,
-        comment: feedback,
+        comment: feedback.trim(),
       });
       alert('Review Submitted Successfully!');
       navigate(ROUTES.dashboard);
@@ -68,6 +84,7 @@ function ServiceReview() {
           </div>
           <h2 className="font-headline-lg text-headline-lg text-primary mb-xs">Service Completed!</h2>
           <p className="text-on-secondary-container font-body-lg text-body-lg">Thank you for choosing FleetOS. Your feedback helps our partners improve.</p>
+          {error && <p className="mt-md text-sm text-error">{error}</p>}
         </div>
 
         {/* Review Card */}
@@ -154,8 +171,8 @@ function ServiceReview() {
             </div>
             <div>
               <p className="font-label-sm text-label-sm text-on-surface-variant uppercase">Service Type</p>
-              <p className="font-headline-md text-headline-md">Mobile Oil Change</p>
-              <p className="text-xs text-outline">Reference: #FOS-88219</p>
+              <p className="font-headline-md text-headline-md">{booking?.serviceSnapshot?.name || 'Completed fleet service'}</p>
+              <p className="text-xs text-outline">Reference: {booking?.reference || 'Selected booking'}</p>
             </div>
           </div>
           <div className="bg-surface-container-low p-md rounded-xl flex items-start gap-md">

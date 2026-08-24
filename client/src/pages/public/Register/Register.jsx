@@ -141,7 +141,7 @@ function Register() {
                   <div className="absolute inset-y-0 left-[14px] flex items-center pointer-events-none w-6 justify-center">
                     <span className="material-symbols-outlined text-outline text-[20px] group-focus-within:text-primary transition-colors">person</span>
                   </div>
-                  <input className="w-full pl-[52px] pr-md py-md bg-surface-container-low border border-outline-variant rounded-xl focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" id="full_name" placeholder="Alex Thompson" required type="text" value={form.fullName} onChange={update('fullName')} />
+                  <input className="w-full pl-[52px] pr-md py-md bg-surface-container-low border border-outline-variant rounded-xl focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" id="full_name" placeholder="Ali Shahzad" required type="text" value={form.fullName} onChange={update('fullName')} />
                 </div>
               </div>
 
@@ -153,7 +153,7 @@ function Register() {
                     <div className="absolute inset-y-0 left-[14px] flex items-center pointer-events-none w-6 justify-center">
                       <span className="material-symbols-outlined text-outline text-[20px] group-focus-within:text-primary transition-colors">mail</span>
                     </div>
-                    <input className="w-full pl-[52px] pr-md py-md bg-surface-container-low border border-outline-variant rounded-xl focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" id="email" placeholder="alex@company.com" required type="email" value={form.email} onChange={update('email')} />
+                    <input className="w-full pl-[52px] pr-md py-md bg-surface-container-low border border-outline-variant rounded-xl focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" id="email" placeholder="ali@fleetos.local" required type="email" value={form.email} onChange={update('email')} />
                   </div>
                 </div>
                 {/* Phone */}
@@ -163,7 +163,7 @@ function Register() {
                     <div className="absolute inset-y-0 left-[14px] flex items-center pointer-events-none w-6 justify-center">
                       <span className="material-symbols-outlined text-outline text-[20px] group-focus-within:text-primary transition-colors">call</span>
                     </div>
-                    <input className="w-full pl-[52px] pr-md py-md bg-surface-container-low border border-outline-variant rounded-xl focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" id="phone" placeholder="+1 (555) 000-0000" required type="tel" value={form.phone} onChange={update('phone')} />
+                    <input className="w-full pl-[52px] pr-md py-md bg-surface-container-low border border-outline-variant rounded-xl focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" id="phone" placeholder="+92 300 1234567" required type="tel" value={form.phone} onChange={update('phone')} />
                   </div>
                 </div>
               </div>

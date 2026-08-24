@@ -10,7 +10,7 @@ function filterFor(req) {
 exports.getTracking = async (req, res) => {
   const booking = await Booking.findOne({ _id: req.params.id, ...filterFor(req) })
     .populate('technician', 'name phone avatar status currentLocation')
-    .populate('company', 'name city location')
+    .populate('company', 'name city location phone')
     .select('reference status tracking technician vehicle company customer location serviceSnapshot updatedAt')
     .lean();
   if (!booking) return res.status(404).json({ message: 'Booking not found' });

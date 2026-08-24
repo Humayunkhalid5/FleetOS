@@ -12,8 +12,9 @@ const currency = new Intl.NumberFormat('en-PK', {
 function CustomizeBooking() {
   const navigate = useNavigate();
   const location = useLocation();
-  const companyId = location.state?.companyId || 'swiftfleet';
+  const companyId = location.state?.companyId || 'pak-fleet-mobility';
   const companyName = location.state?.companyName || 'Selected company';
+  const [companyPhone, setCompanyPhone] = useState(location.state?.companyPhone || '');
   const [problemDetails, setProblemDetails] = useState(location.state?.problemDetails || '');
 
   const [availableServices, setAvailableServices] = useState([]);
@@ -31,6 +32,19 @@ function CustomizeBooking() {
   const [companyItems, setCompanyItems] = useState([]);
   const [itemsLoading, setItemsLoading] = useState(false);
   const [itemsError, setItemsError] = useState('');
+
+  useEffect(() => {
+    async function loadCompanyDetails() {
+      if (!companyId) return;
+      try {
+        const res = await api.get(`/companies/${encodeURIComponent(companyId)}`, { noCache: true });
+        setCompanyPhone(res?.company?.phone || '');
+      } catch {
+        setCompanyPhone('');
+      }
+    }
+    loadCompanyDetails();
+  }, [companyId]);
 
   useEffect(() => {
     async function loadCompanyServices() {
@@ -57,7 +71,7 @@ function CustomizeBooking() {
       setItemsLoading(true);
       setItemsError('');
       try {
-        const res = await api.get(`/public/inventory?companyId=${encodeURIComponent(companyId)}`, { noCache: true });
+        const res = await api.get(`/public/inventory?companyId=${encodeURIComponent(companyId)}&serviceName=${encodeURIComponent(service)}`, { noCache: true });
         const items = Array.isArray(res?.inventory) ? res.inventory : [];
         setCompanyItems(items);
         setMaterials(items.reduce((acc, item) => {
@@ -83,7 +97,7 @@ function CustomizeBooking() {
       }
     }
     loadCompanyInventory();
-  }, [companyId]);
+  }, [companyId, service]);
 
   const baseLabor = Number(servicePrice) || BASE_LABOR;
 
@@ -408,8 +422,14 @@ function CustomizeBooking() {
               Live Chat
             </button>
             <a
-              href="tel:+923000000000"
-              className="flex-1 md:flex-none px-4 py-3 bg-secondary text-white rounded-xl font-nav-item text-xs font-bold shadow hover:bg-secondary-container transition-all flex items-center justify-center gap-1"
+              href={companyPhone ? `tel:${companyPhone.replace(/[^\d+]/g, '')}` : undefined}
+              onClick={(event) => {
+                if (!companyPhone) {
+                  event.preventDefault();
+                  alert('This company has not added a phone number yet. Please use live chat after booking.');
+                }
+              }}
+              className={`flex-1 md:flex-none px-4 py-3 rounded-xl font-nav-item text-xs font-bold shadow transition-all flex items-center justify-center gap-1 ${companyPhone ? 'bg-secondary text-white hover:bg-secondary-container' : 'bg-surface-container-high text-on-surface-variant cursor-not-allowed'}`}
             >
               <span className="material-symbols-outlined text-sm">call</span>
               Call

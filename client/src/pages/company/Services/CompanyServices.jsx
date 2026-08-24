@@ -39,7 +39,7 @@ function CompanyServices() {
           }));
           setServices(mapped);
         }
-      } catch (err) {}
+      } catch (err) { window.alert(err.message); }
     }
     loadServices();
   }, [companyId]);
@@ -63,15 +63,16 @@ function CompanyServices() {
     const nextStatus = target.status === 'Active' ? 'Inactive' : 'Active';
     setServices(services.map(s => (s.id === id || s._id === id ? { ...s, status: nextStatus } : s)));
     if (target._id) {
-      try { await api.put(`/services/${target._id}`, { status: nextStatus }); } catch {}
+      try { await api.put(`/services/${target._id}`, { status: nextStatus }); } catch (err) { window.alert(err.message); setServices(services); }
     }
   };
 
   const removeService = async (id) => {
     const target = services.find(s => s.id === id || s._id === id);
+    if (!window.confirm(`Remove ${target?.name || 'this service'}?`)) return;
     setServices(services.filter(s => s.id !== id && s._id !== id));
     if (target?._id) {
-      try { await api.del(`/services/${target._id}`); } catch {}
+      try { await api.del(`/services/${target._id}`); } catch (err) { window.alert(err.message); setServices(services); }
     }
   };
 

@@ -33,7 +33,7 @@ async function protect(req, res, next) {
 }
 
 async function protectAdmin(req, res, next) {
-  return protectWithCookie(req, res, next, 'fleetos_admin_session', false);
+  return protectWithCookie(req, res, next, 'fleetos_admin_session', true);
 }
 
 async function optionalProtect(req, res, next) {

@@ -58,12 +58,12 @@ function Profile() {
 
   const selectedTech = location.state?.selectedTech || null;
   const profile = user || {
-    name: 'Alex Thompson',
+    name: 'Ali Shahzad',
     role: 'Fleet Manager',
-    email: 'alex.thompson@fleet.com',
-    phone: '+1 (555) 000-0000',
-    address: '101 Market St, San Francisco, CA',
-    plan: 'Premium Member',
+    email: 'ali.shahzad@fleetos.local',
+    phone: '+92 300 1234567',
+    address: 'Johar Town, Lahore, Punjab',
+    plan: 'Fleet Member',
     avatar: DEFAULT_AVATAR,
   };
 
@@ -323,7 +323,7 @@ function Profile() {
                   <select id="p_plan" value={form.plan} onChange={update('plan')} className={inputClass}>
                     <option>Free Member</option>
                     <option>Pro Member</option>
-                    <option>Premium Member</option>
+                    <option>Fleet Member</option>
                     <option>Enterprise</option>
                   </select>
                 </div>

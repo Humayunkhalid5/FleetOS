@@ -55,6 +55,11 @@ const stageForStatus = (status) => ({
   Paid: 'completed',
 }[status] || 'assigned');
 
+const phoneHref = (scheme, value) => {
+  const phone = String(value || '').replace(/[^\d+]/g, '');
+  return phone ? `${scheme}:${phone}` : undefined;
+};
+
 const normalizeTracking = (payload, status, technician) => {
   const destination = toPoint(payload?.destination) || coordsFromText(payload?.location) || PAKISTAN_CENTER;
   const currentPosition = toPoint({ lat: payload?.lat, lng: payload?.lng }) || toPoint(payload?.origin) || offsetCoords(destination);
@@ -357,9 +362,7 @@ function LiveTracking() {
     }
   };
 
-  const contactSupport = () => {
-    alert('Support: call +1 (555) 000-1234 or email support@fleetos.com');
-  };
+  const openBookingChat = () => navigate(ROUTES.chat, { state: { bookingId } });
 
   // Map controls
   const zoomIn = () => mapRef.current?.zoomIn();
@@ -371,13 +374,15 @@ function LiveTracking() {
   };
 
   const getTechAvatar = (name) => {
-    if (name === 'Elena Rodriguez') return "https://lh3.googleusercontent.com/aida-public/AB6AXuDnCiWvnkOKQReJfbwVPnaN6tu7s5397gTYSVBPMyiX6toCf8p5wo3eRuZ2QIc2TqcZrm-1vI7JyRT7oqpSWXpAdRECBDCnRGuLQM6zGzCDYi5wegUEzJG2p7E7E7jfdx9hSCUUoveU458OaY-di3G4frMSjmTJwjSznLPYXVl_zY_nMTuD0q3drMrje1gMak8VTFXTBe687naWHZTIHqBAHuyZqtzAN7B6ZysOa9vPYFnRqmNuHtlY1A";
-    if (name === 'Jordan Smith') return "https://lh3.googleusercontent.com/aida-public/AB6AXuBdSq9kds-9hvrnwo749V1I2EinNun7_8MX5BIE5-IMKUNAe4eYNSZlRYfJsQoPN6Bhr_Si7Oj9uq3XH8CcF0q8t2BSjIFBI_5A248PGaEjKqs1N1rbNOcqGh-pFfZ5qZmC7dv0k7AJ0lOUJGzjeGN4P8Z_QnnObTriizg6iqp9D11hzs6aSOcdIpfpF8Q04gH3UJwNaz_BNK0OIH9K1hLW_V9CsATPDG8NQAVE-f5Eg0eDZhdoGe4WAg";
+    if (name === 'Ayesha Khan') return "https://lh3.googleusercontent.com/aida-public/AB6AXuDnCiWvnkOKQReJfbwVPnaN6tu7s5397gTYSVBPMyiX6toCf8p5wo3eRuZ2QIc2TqcZrm-1vI7JyRT7oqpSWXpAdRECBDCnRGuLQM6zGzCDYi5wegUEzJG2p7E7E7jfdx9hSCUUoveU458OaY-di3G4frMSjmTJwjSznLPYXVl_zY_nMTuD0q3drMrje1gMak8VTFXTBe687naWHZTIHqBAHuyZqtzAN7B6ZysOa9vPYFnRqmNuHtlY1A";
+    if (name === 'Bilal Ahmed') return "https://lh3.googleusercontent.com/aida-public/AB6AXuBdSq9kds-9hvrnwo749V1I2EinNun7_8MX5BIE5-IMKUNAe4eYNSZlRYfJsQoPN6Bhr_Si7Oj9uq3XH8CcF0q8t2BSjIFBI_5A248PGaEjKqs1N1rbNOcqGh-pFfZ5qZmC7dv0k7AJ0lOUJGzjeGN4P8Z_QnnObTriizg6iqp9D11hzs6aSOcdIpfpF8Q04gH3UJwNaz_BNK0OIH9K1hLW_V9CsATPDG8NQAVE-f5Eg0eDZhdoGe4WAg";
     return "https://lh3.googleusercontent.com/aida-public/AB6AXuCYZfr7LM0amt7amV3qWRzvkJ0chN1P5Vl4ak4XWMFLv9cR1dVSKVEJboF-5wik_OaBGzQbe_f9zpEDGNelEXwpkwhRfCDzu2VSrcVbR395XicT3b4RJGvpMzH7XsiTXzbp8fwwVFQA-OcMy3Ox3onCOIgmS8yJsUido-6p-h_pNhdIOAC7ZJCIlrbfYLmHnHtdBJI5wRv0L98ng9SZ93ikcBUnCdIyedi614HkAnkqrcIDLX7mQr8uRg";
   };
 
   const primaryStage = STAGE_LABELS[stage] || 'Assigned';
   const progressPercent = stage === 'completed' ? 100 : progressPct;
+  const contactPhone = tracking?.technician?.phone || tracking?.company?.phone || '';
+  const unavailableContact = () => setError('Contact number is not available yet. It will appear once the company assigns a technician.');
 
   return (
     <div className="live-tracking-root fixed inset-0 bg-background text-on-surface font-body-md">
@@ -535,10 +540,10 @@ function LiveTracking() {
               reference={tracking?.reference || '—'}
               status={tracking?.status || 'in-progress'}
               eta={eta}
-              onCall={() => window.location.href = 'tel:+15550001234'}
-              onSms={() => window.location.href = 'sms:+15550001234'}
+              contactPhone={contactPhone}
+              onMissingContact={unavailableContact}
               onCancel={cancelBooking}
-              onSupport={contactSupport}
+              onChat={openBookingChat}
               cancelling={cancelling}
             />
 
@@ -636,10 +641,10 @@ function LiveTracking() {
                   reference={tracking?.reference || '—'}
                   status={tracking?.status || 'in-progress'}
                   eta={eta}
-                  onCall={() => window.location.href = 'tel:+15550001234'}
-                  onSms={() => window.location.href = 'sms:+15550001234'}
+                  contactPhone={contactPhone}
+                  onMissingContact={unavailableContact}
                   onCancel={cancelBooking}
-                  onSupport={contactSupport}
+                  onChat={openBookingChat}
                   cancelling={cancelling}
                 />
 
@@ -708,14 +713,22 @@ function StageTimeline({ stageIndex, onComplete }) {
         className="mt-3 w-full flex items-center justify-center gap-sm text-primary font-nav-item text-nav-item font-bold py-2 rounded-xl bg-primary/5 hover:bg-primary/10 transition-colors border border-primary/20"
       >
         <span className="material-symbols-outlined text-sm">rate_review</span>
-        Mark Completed (Demo)
+        Review completed job
       </button>
     </div>
   );
 }
 
 // Refined technician info card
-function TechCard({ selectedTech, avatar, vehicleLabel, service, reference, status, eta, onCall, onSms, onCancel, onSupport, cancelling = false }) {
+function TechCard({ selectedTech, avatar, vehicleLabel, service, reference, status, eta, contactPhone, onMissingContact, onCancel, onChat, cancelling = false }) {
+  const callLink = phoneHref('tel', contactPhone);
+  const smsLink = phoneHref('sms', contactPhone);
+  const guardContact = (event) => {
+    if (!contactPhone) {
+      event.preventDefault();
+      onMissingContact?.();
+    }
+  };
   return (
     <div className="bg-surface/95 backdrop-blur-xl rounded-2xl shadow-xl shadow-on-surface/10 border border-outline-variant/30 overflow-hidden">
       {/* Header band */}
@@ -730,10 +743,10 @@ function TechCard({ selectedTech, avatar, vehicleLabel, service, reference, stat
           </div>
         </div>
         <div className="flex gap-sm shrink-0">
-          <a href="tel:+15550001234" onClick={onCall} aria-label="Call" className="w-11 h-11 flex items-center justify-center rounded-xl bg-secondary-container text-on-secondary-container hover:bg-surface-container-high transition-all active:scale-95">
+          <a href={callLink || '#'} onClick={guardContact} aria-label="Call" className="w-11 h-11 flex items-center justify-center rounded-xl bg-secondary-container text-on-secondary-container hover:bg-surface-container-high transition-all active:scale-95">
             <span className="material-symbols-outlined">call</span>
           </a>
-          <a href="sms:+15550001234" onClick={onSms} aria-label="Message" className="w-11 h-11 flex items-center justify-center rounded-xl bg-secondary-container text-on-secondary-container hover:bg-surface-container-high transition-all active:scale-95">
+          <a href={smsLink || '#'} onClick={guardContact} aria-label="Message" className="w-11 h-11 flex items-center justify-center rounded-xl bg-secondary-container text-on-secondary-container hover:bg-surface-container-high transition-all active:scale-95">
             <span className="material-symbols-outlined">chat_bubble</span>
           </a>
         </div>
@@ -774,9 +787,9 @@ function TechCard({ selectedTech, avatar, vehicleLabel, service, reference, stat
             </>
           )}
         </button>
-        <button onClick={onSupport} className="flex-1 py-3 bg-surface-container-high text-on-surface-variant font-nav-item text-nav-item font-semibold rounded-xl flex items-center justify-center gap-sm hover:bg-surface-container-highest transition-all">
-          <span className="material-symbols-outlined text-md">help_outline</span>
-          Support
+        <button onClick={onChat} className="flex-1 py-3 bg-surface-container-high text-on-surface-variant font-nav-item text-nav-item font-semibold rounded-xl flex items-center justify-center gap-sm hover:bg-surface-container-highest transition-all">
+          <span className="material-symbols-outlined text-md">forum</span>
+          Chat Company
         </button>
       </div>
     </div>

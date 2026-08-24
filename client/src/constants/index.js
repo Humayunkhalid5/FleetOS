@@ -10,7 +10,7 @@ export const ROUTES = {
   register: '/register',
   about: '/about',
   contact: '/contact',
-  dashboard: '/',
+  dashboard: '/customer/companies',
   profile: '/customer/profile',
   bookings: '/customer/bookings',
   reviews: '/customer/reviews',
@@ -33,9 +33,10 @@ export const ROUTES = {
   companyAnalytics: '/company/analytics',
   companyChat: '/company/chat',
   companyDetails: '/company/details',
+  companySettings: '/company/settings',
 };
 
-export const companyRoute = (id = 'swiftfleet') => `/customer/company/${id}`;
+export const companyRoute = (id = 'pak-fleet-mobility') => `/customer/company/${id}`;
 
 // Sidebar navigation links (desktop drawer)
 export const SIDEBAR_LINKS = [
@@ -74,8 +75,8 @@ export const CATEGORIES = [
 // Technicians for the booking flow (Customize Booking)
 export const TECHNICIANS = [
   {
-    name: 'Marcus Chen',
-    role: 'HVAC Specialist',
+    name: 'Imran Ali',
+    role: 'Fleet HVAC Specialist',
     rating: 4.9,
     exp: '5 Years Exp.',
     tag: 'Available Today',
@@ -84,7 +85,7 @@ export const TECHNICIANS = [
       'https://lh3.googleusercontent.com/aida-public/AB6AXuD5AyVNVgU3fMKYE-w9lt2vv-p6eVQZIfg6Dptpx8JCaL4-6nGgTDHa_mj5-AzmY-uLMkGNTIrWAAerynADtJ0GHObDXf-Uvz2QwEZmKhyEfAT_nSugmPIYwE2PzjauysFb8q2M7FkZBzAsEoni28SOUIcacSdkVYpoGZSXujS0CoJH6dA1CzgzKSoZifnern2RmB6DcTx8hafQaxycXpqYrW7wzIfoLmmMKFf5mF_Dfl-KBvh47o2jsg',
   },
   {
-    name: 'Elena Rodriguez',
+    name: 'Ayesha Khan',
     role: 'Master Electrician',
     rating: 5.0,
     exp: '8 Years Exp.',
@@ -94,8 +95,8 @@ export const TECHNICIANS = [
       'https://lh3.googleusercontent.com/aida-public/AB6AXuDnCiWvnkOKQReJfbwVPnaN6tu7s5397gTYSVBPMyiX6toCf8p5wo3eRuZ2QIc2TqcZrm-1vI7JyRT7oqpSWXpAdRECBDCnRGuLQM6zGzCDYi5wegUEzJG2p7E7E7jfdx9hSCUUoveU458OaY-di3G4frMSjmTJwjSznLPYXVl_zY_nMTuD0q3drMrje1gMak8VTFXTBe687naWHZTIHqBAHuyZqtzAN7B6ZysOa9vPYFnRqmNuHtlY1A',
   },
   {
-    name: 'Jordan Smith',
-    role: 'Plumbing Lead',
+    name: 'Bilal Ahmed',
+    role: 'Mechanical Lead',
     rating: 4.7,
     exp: '12 Years Exp.',
     tag: 'Next Available: 2 PM',

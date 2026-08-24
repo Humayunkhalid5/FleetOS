@@ -19,7 +19,8 @@ function CompanyTechnicians() {
     name: '',
     role: 'HVAC Specialist',
     phone: '',
-    exp: '3 Years Exp.'
+    exp: '3 Years Exp.',
+    avatar: ''
   });
 
   useEffect(() => {
@@ -41,7 +42,7 @@ function CompanyTechnicians() {
           }));
           setTechnicians(mapped);
         }
-      } catch (err) {}
+    } catch (err) { window.alert(err.message); }
     }
     loadTechnicians();
   }, [companyId]);
@@ -54,7 +55,8 @@ function CompanyTechnicians() {
         name: newTech.name,
         role: newTech.role,
         phone: newTech.phone,
-        experienceYears: Number.parseInt(newTech.exp, 10) || 1
+        experienceYears: Number.parseInt(newTech.exp, 10) || 1,
+        avatar: newTech.avatar
       });
       const record = res.technician;
       const created = { id: record.techId, _id: record._id, name: record.name, role: record.role, phone: record.phone, rating: record.rating, exp: `${record.experienceYears} Years Exp.`, status: record.status, statusColor: 'bg-emerald-100 text-emerald-800', avatar: record.avatar || '' };
@@ -65,7 +67,24 @@ function CompanyTechnicians() {
     } catch (err) { window.alert(err.message); return; }
 
     setShowAddModal(false);
-    setNewTech({ name: '', role: 'HVAC Specialist', phone: '', exp: '3 Years Exp.' });
+    setNewTech({ name: '', role: 'HVAC Specialist', phone: '', exp: '3 Years Exp.', avatar: '' });
+  };
+
+  const pickAvatar = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      window.alert('Please choose a PNG, JPG or WEBP image.');
+      return;
+    }
+    if (file.size > 1.5 * 1024 * 1024) {
+      window.alert('Technician picture must be under 1.5 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setNewTech((current) => ({ ...current, avatar: reader.result }));
+    reader.onerror = () => window.alert('Unable to read this image. Please try another file.');
+    reader.readAsDataURL(file);
   };
 
   const toggleStatus = async (id) => {
@@ -76,15 +95,16 @@ function CompanyTechnicians() {
 
     setTechnicians(technicians.map(t => (t.id === id || t._id === id ? { ...t, status: nextStatus, statusColor: nextColor } : t)));
     if (target._id) {
-      try { await api.put(`/technicians/${target._id}`, { status: nextStatus }); } catch {}
+      try { await api.put(`/technicians/${target._id}`, { status: nextStatus }); } catch (err) { window.alert(err.message); setTechnicians(technicians); }
     }
   };
 
   const removeTechnician = async (id) => {
     const target = technicians.find(t => t.id === id || t._id === id);
+    if (!window.confirm(`Remove ${target?.name || 'this technician'}?`)) return;
     setTechnicians(technicians.filter(t => t.id !== id && t._id !== id));
     if (target?._id) {
-      try { await api.del(`/technicians/${target._id}`); } catch {}
+      try { await api.del(`/technicians/${target._id}`); } catch (err) { window.alert(err.message); setTechnicians(technicians); }
     }
   };
 
@@ -284,10 +304,16 @@ function CompanyTechnicians() {
             </div>
 
             <form onSubmit={handleAddTech} className="space-y-3 text-xs">
-              <div className="flex items-center gap-4 py-2 border-b pb-3">
-                <div className="w-14 h-14 rounded-full border border-slate-200 bg-slate-100 shrink-0 flex items-center justify-center text-slate-400"><span className="material-symbols-outlined text-2xl">person</span></div>
-                <div><p className="text-slate-700 font-semibold">Technician profile</p><p className="text-slate-500 mt-1">Photo uploads remain disabled until secure object storage and malware scanning are configured.</p></div>
-              </div>
+              <label className="flex items-center gap-4 py-2 border-b pb-3 cursor-pointer">
+                <div className="w-14 h-14 rounded-full border border-slate-200 bg-slate-100 shrink-0 overflow-hidden flex items-center justify-center text-slate-400">
+                  {newTech.avatar ? <img src={newTech.avatar} alt="Technician preview" className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-2xl">person</span>}
+                </div>
+                <div>
+                  <p className="text-slate-700 font-semibold">Technician picture</p>
+                  <p className="text-slate-500 mt-1">Upload PNG, JPG or WEBP up to 1.5 MB. The picture is saved with the technician record.</p>
+                </div>
+                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={pickAvatar} className="sr-only" />
+              </label>
 
               <div>
                 <label className="block text-slate-700 font-semibold mb-1">Technician Name</label>
@@ -322,7 +348,7 @@ function CompanyTechnicians() {
                   type="tel" 
                   required
                   className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" 
-                  placeholder="+1 (555) 000-0000"
+                  placeholder="+92 300 1234567"
                   value={newTech.phone}
                   onChange={(e) => setNewTech({ ...newTech, phone: e.target.value })}
                 />

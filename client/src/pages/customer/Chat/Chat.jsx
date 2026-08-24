@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { useAuth } from '../../../hooks/useAuth';
 import api from '../../../services/api';
 
 function Chat() {
   const { companyId } = useParams();
-  const { user } = useAuth();
+  const location = useLocation();
+  const requestedBookingId = location.state?.bookingId || '';
   const [conversations, setConversations] = useState([]);
   const [active, setActive] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -16,11 +16,13 @@ function Chat() {
     try {
       const result = await api.get('/chats/conversations', { noCache: true });
       const items = result.conversations || [];
-      const matched = companyId ? items.find(({ booking }) => [booking.company?._id, booking.company?.slug].includes(companyId)) : null;
+      const matched = requestedBookingId
+        ? items.find(({ booking }) => booking._id === requestedBookingId)
+        : companyId ? items.find(({ booking }) => [booking.company?._id, booking.company?.slug].includes(companyId)) : null;
       setConversations(items);
       setActive((current) => current || matched?.booking || items[0]?.booking || null);
     } catch (requestError) { setError(requestError.message); }
-  }, [companyId]);
+  }, [companyId, requestedBookingId]);
   const loadMessages = useCallback(async () => { if (!active?._id) return; try { const result = await api.get(`/chats/${active._id}/messages`, { noCache: true }); setMessages(result.messages || []); } catch (requestError) { setError(requestError.message); } }, [active?._id]);
   useEffect(() => { loadConversations(); }, [loadConversations]);
   useEffect(() => { loadMessages(); }, [loadMessages]);

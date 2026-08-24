@@ -44,7 +44,7 @@ function CompanyInventory() {
           }));
           setItems(mapped);
         }
-      } catch (err) {}
+      } catch (err) { window.alert(err.message); }
     }
     loadInventory();
   }, [companyId]);
@@ -55,15 +55,16 @@ function CompanyInventory() {
     const nextQty = Math.max(0, target.qty + delta);
     setItems(items.map(item => (item.id === id || item._id === id ? { ...item, qty: nextQty } : item)));
     if (target._id) {
-      try { await api.put(`/inventory/${target._id}`, { qty: nextQty }); } catch {}
+      try { await api.put(`/inventory/${target._id}`, { qty: nextQty }); } catch (err) { window.alert(err.message); setItems(items); }
     }
   };
 
   const removeItem = async (id) => {
     const target = items.find(i => i.id === id || i._id === id);
+    if (!window.confirm(`Delete ${target?.name || 'this inventory item'}?`)) return;
     setItems(items.filter(item => item.id !== id && item._id !== id));
     if (target?._id) {
-      try { await api.del(`/inventory/${target._id}`); } catch {}
+      try { await api.del(`/inventory/${target._id}`); } catch (err) { window.alert(err.message); setItems(items); }
     }
   };
 

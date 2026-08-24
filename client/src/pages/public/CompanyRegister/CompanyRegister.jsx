@@ -228,7 +228,7 @@ function CompanyRegister() {
                       required
                       type="tel"
                       className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
-                      placeholder="+1 (555) 000-0000"
+                      placeholder="+92 300 1234567"
                       value={form.phone}
                       onChange={update('phone')}
                     />
