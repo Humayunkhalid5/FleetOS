@@ -18,6 +18,9 @@ function Companies() {
   const [areasByCity, setAreasByCity]   = useState({});
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState('');
+  const [page, setPage]                 = useState(1);
+  const [total, setTotal]               = useState(0);
+  const [hasMore, setHasMore]           = useState(false);
 
   // Sync URL params when filters change
   useEffect(() => {
@@ -30,42 +33,52 @@ function Companies() {
   }, [query, city, area, category, setSearchParams]);
 
   useEffect(() => {
+    setPage(1);
+  }, [query, city, area, category]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
     const fetchCompanies = async () => {
-      setLoading(true);
+      if (page === 1) setLoading(true);
       setError('');
       try {
-        const response = await api.get('/companies');
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: '120',
+        });
+        if (query.trim()) params.set('search', query.trim());
+        if (city !== 'All') params.set('city', city);
+        if (area !== 'All') params.set('area', area);
+        if (category !== 'All') params.set('category', category);
+        const response = await api.get(`/companies?${params.toString()}`, { noCache: true });
         const fetched = response.companies || [];
-        setCompanies(fetched);
+        setCompanies((current) => {
+          if (page === 1) return fetched;
+          const seen = new Set(current.map((company) => company._id || company.slug));
+          return [...current, ...fetched.filter((company) => !seen.has(company._id || company.slug))];
+        });
+        setTotal(Number(response.total || fetched.length));
+        setHasMore(Boolean(response.hasMore));
         if (response.cities?.length) setCities(['All', ...response.cities]);
         if (response.areasByCity) setAreasByCity(response.areasByCity);
       } catch (requestError) {
         setError(requestError.message);
-        setCompanies([]);
+        if (page === 1) setCompanies([]);
       } finally {
-        setLoading(false);
+        if (page === 1) setLoading(false);
       }
     };
     fetchCompanies();
-  }, []);
+    }, query.trim() ? 250 : 0);
+    return () => clearTimeout(timer);
+  }, [query, city, area, category, page]);
 
   const selectCity = (c) => { setCity(c); setArea('All'); };
   const selectCategory = (c) => setCategory((prev) => (prev === c ? 'All' : c));
 
   const availableAreas = city === 'All' ? [] : (areasByCity[city] || []);
 
-  const filtered = companies.filter((co) => {
-    const matchCity     = city === 'All'     || (co.city || '').toLowerCase() === city.toLowerCase();
-    const matchArea     = area === 'All'     ||
-      (co.areas || []).some((a) => a.toLowerCase().includes(area.toLowerCase())) ||
-      (co.location || '').toLowerCase().includes(area.toLowerCase());
-    const matchCategory = category === 'All' ||
-      (co.category || '').toLowerCase() === category.toLowerCase() ||
-      (co.services || []).some((s) => (s.name || '').toLowerCase().includes(category.toLowerCase()));
-    const haystack = `${co.name} ${co.location} ${co.city} ${co.service} ${co.category} ${(co.areas || []).join(' ')} ${(co.services || []).map((s) => s.name).join(' ')}`.toLowerCase();
-    const matchQuery    = !query.trim() || haystack.includes(query.trim().toLowerCase());
-    return matchCity && matchArea && matchCategory && matchQuery;
-  });
+  const filtered = companies;
 
   // Group filtered companies by city for the "by location" view
   const groupedByCity = filtered.reduce((acc, co) => {
@@ -218,7 +231,8 @@ function Companies() {
         {/* ── Active filter pills + result count ── */}
         <div className="flex flex-wrap items-center gap-sm">
           <p className="text-sm text-slate-600">
-            {loading ? 'Loading…' : `${filtered.length} compan${filtered.length === 1 ? 'y' : 'ies'} found`}
+            {loading && page === 1 ? 'Loading…' : `${total || filtered.length} compan${(total || filtered.length) === 1 ? 'y' : 'ies'} found`}
+            {filtered.length > 0 && total > filtered.length ? ` · showing ${filtered.length}` : ''}
           </p>
           {activeFilters.map((f) => (
             <span key={f} className="inline-flex items-center gap-xs px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
@@ -326,6 +340,17 @@ function Companies() {
             </div>
           );
         })()}
+
+        {!loading && hasMore && (
+          <div className="flex justify-center pt-2">
+            <button
+              onClick={() => setPage((current) => current + 1)}
+              className="px-6 py-3 rounded-2xl bg-[#0D1B2A] text-white text-sm font-black hover:bg-[#1B263B] transition-colors shadow-sm"
+            >
+              Load more companies
+            </button>
+          </div>
+        )}
 
       </main>
     </div>
@@ -436,7 +461,6 @@ function CompanyCard({ company: co, onBook, onDetails, onChat }) {
 }
 
 function marketplaceCover(name = 'Company', city = 'Pakistan', category = 'Marketplace') {
-  const safeName = String(name).replace(/[<>&"]/g, '');
   const safeCity = String(city || 'Pakistan').replace(/[<>&"]/g, '');
   const safeCategory = String(category || 'Marketplace').replace(/[<>&"]/g, '');
   const categoryKey = safeCategory.toLowerCase();
@@ -446,7 +470,7 @@ function marketplaceCover(name = 'Company', city = 'Pakistan', category = 'Marke
     : categoryKey.includes('business') ? '💼'
     : categoryKey.includes('repair') || categoryKey.includes('support') ? '🛠️'
     : '✨';
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#0D1B2A"/><stop offset=".55" stop-color="#1B263B"/><stop offset="1" stop-color="#415A77"/></linearGradient><radialGradient id="r" cx=".78" cy=".18" r=".62"><stop stop-color="#E0E1DD" stop-opacity=".45"/><stop offset="1" stop-color="#E0E1DD" stop-opacity="0"/></radialGradient></defs><rect width="960" height="540" rx="44" fill="url(#g)"/><rect width="960" height="540" rx="44" fill="url(#r)"/><circle cx="770" cy="130" r="126" fill="#778DA9" opacity=".32"/><circle cx="820" cy="218" r="86" fill="#E0E1DD" opacity=".18"/><rect x="64" y="318" width="832" height="122" rx="36" fill="#E0E1DD" opacity=".12"/><text x="76" y="138" font-size="74">${icon}</text><text x="78" y="244" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="58" font-weight="800">${safeName}</text><text x="82" y="298" fill="#E0E1DD" font-family="Inter,Arial,sans-serif" font-size="30" font-weight="650">${safeCategory} • ${safeCity}</text></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#0D1B2A"/><stop offset=".55" stop-color="#1B263B"/><stop offset="1" stop-color="#415A77"/></linearGradient><radialGradient id="r" cx=".78" cy=".18" r=".62"><stop stop-color="#E0E1DD" stop-opacity=".45"/><stop offset="1" stop-color="#E0E1DD" stop-opacity="0"/></radialGradient></defs><rect width="960" height="540" rx="44" fill="url(#g)"/><rect width="960" height="540" rx="44" fill="url(#r)"/><circle cx="770" cy="130" r="126" fill="#778DA9" opacity=".32"/><circle cx="820" cy="218" r="86" fill="#E0E1DD" opacity=".18"/><rect x="64" y="318" width="832" height="122" rx="36" fill="#E0E1DD" opacity=".12"/><text x="76" y="150" font-size="88">${icon}</text><text x="82" y="360" fill="#E0E1DD" font-family="Inter,Arial,sans-serif" font-size="34" font-weight="750">${safeCategory}</text><text x="82" y="406" fill="#778DA9" font-family="Inter,Arial,sans-serif" font-size="26" font-weight="650">${safeCity}</text></svg>`;
   return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
 }
 

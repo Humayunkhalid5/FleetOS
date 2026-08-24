@@ -44,6 +44,7 @@ export const SIDEBAR_LINKS = [
   { label: 'Browse Services', icon: 'category',          to: ROUTES.companies },
   { label: 'Browse Companies',icon: 'business',          to: ROUTES.companies },
   { label: 'My Bookings',     icon: 'calendar_today',    to: ROUTES.bookings },
+  { label: 'Messages',        icon: 'forum',             to: ROUTES.chat, badge: 'messages' },
   { label: 'Payments',        icon: 'payments',          to: ROUTES.payments },
   { label: 'Reviews',         icon: 'rate_review',       to: ROUTES.reviews },
   { label: 'Notifications',   icon: 'notifications',     to: ROUTES.notifications },

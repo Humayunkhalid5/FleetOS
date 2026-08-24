@@ -12,10 +12,13 @@ async function authorizedBooking(req, bookingId) {
 
 exports.getConversations = async (req, res) => {
   const filter = req.user.role === 'customer' ? { customer: req.user._id } : { company: req.user.company?._id || req.user.company };
-  const bookings = await Booking.find(filter).populate('company', 'name logo').sort({ updatedAt: -1 }).lean();
+  const bookings = await Booking.find(filter).populate('company', 'name logo slug').sort({ updatedAt: -1 }).lean();
   const conversations = await Promise.all(bookings.map(async (booking) => {
-    const lastMessage = await ChatMessage.findOne({ booking: booking._id }).sort({ createdAt: -1 }).lean();
-    return { booking, lastMessage };
+    const [lastMessage, unreadCount] = await Promise.all([
+      ChatMessage.findOne({ booking: booking._id }).sort({ createdAt: -1 }).lean(),
+      ChatMessage.countDocuments({ booking: booking._id, senderRole: { $ne: req.user.role }, readAt: null }),
+    ]);
+    return { booking, lastMessage, unreadCount };
   }));
   return res.json({ conversations });
 };
@@ -65,6 +68,7 @@ exports.startCompanyConversation = async (req, res) => {
 exports.getChatMessages = async (req, res) => {
   const booking = await authorizedBooking(req, req.params.bookingId);
   if (!booking) return res.status(404).json({ message: 'Conversation not found' });
+  await ChatMessage.updateMany({ booking: booking._id, senderRole: { $ne: req.user.role }, readAt: null }, { $set: { readAt: new Date() } });
   const messages = await ChatMessage.find({ booking: booking._id }).populate('sender', 'name avatar role').sort({ createdAt: 1 }).lean();
   return res.json({ booking, messages });
 };
@@ -82,6 +86,7 @@ exports.sendChatMessage = async (req, res) => {
     senderRole: req.user.role,
     text,
   });
+  await Booking.updateOne({ _id: booking._id }, { $set: { updatedAt: new Date() } });
   const io = req.app.get('io');
   if (io) io.to(`booking:${booking._id}`).emit('chat:message', message);
   return res.status(201).json({ message });

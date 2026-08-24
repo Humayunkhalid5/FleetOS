@@ -1198,7 +1198,6 @@ textarea:focus-visible { outline: 3px solid rgba(59, 130, 246, 0.24); outline-of
 
 .company-theme .company-sidebar-scroll {
   scrollbar-width: none;
-  overscroll-behavior: contain;
 }
 
 .company-theme .company-sidebar-scroll::-webkit-scrollbar { display: none; }
@@ -1212,7 +1211,6 @@ textarea:focus-visible { outline: 3px solid rgba(59, 130, 246, 0.24); outline-of
 
 .company-theme aside[class*="fixed"][class*="inset-y-0"][class*="left-0"] nav {
   scrollbar-width: none;
-  overscroll-behavior: contain;
 }
 
 .company-theme aside[class*="fixed"][class*="inset-y-0"][class*="left-0"] nav::-webkit-scrollbar { display: none; }
@@ -1271,6 +1269,15 @@ textarea:focus-visible { outline: 3px solid rgba(59, 130, 246, 0.24); outline-of
   color: rgba(224, 225, 221, 0.68) !important;
 }
 
+.company-theme aside[class*="fixed"][class*="left-0"] .company-profile-action {
+  background: #ffffff !important;
+  color: #0D1B2A !important;
+}
+
+.company-theme aside[class*="fixed"][class*="left-0"] .company-profile-action * {
+  color: inherit !important;
+}
+
 .company-theme .bg-blue-600,
 .company-theme button[class*="bg-blue-600"],
 .company-theme a[class*="bg-blue-600"] {
@@ -1288,6 +1295,136 @@ textarea:focus-visible { outline: 3px solid rgba(59, 130, 246, 0.24); outline-of
 .client-theme:not(.company-register-theme) button,
 .client-theme:not(.company-register-theme) a {
   overflow-wrap: anywhere;
+}
+
+/* Company legacy pages: keep dashboard/sidebar visual language consistent */
+.company-theme aside[class*="fixed"][class*="left-0"][class*="top-0"] {
+  background: linear-gradient(180deg, #0D1B2A 0%, #1B263B 100%) !important;
+  border-right: 1px solid rgba(224, 225, 221, 0.1) !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  color: #E0E1DD !important;
+}
+
+.company-theme aside[class*="fixed"][class*="left-0"][class*="top-0"] > div:first-child {
+  min-height: 88px;
+  padding: 20px 24px !important;
+  margin-bottom: 0 !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-bottom: 1px solid rgba(224, 225, 221, 0.08);
+}
+
+.company-theme aside[class*="fixed"][class*="left-0"][class*="top-0"] > div:first-child > span:first-child {
+  color: #ffffff !important;
+  font-size: 14px !important;
+  line-height: 1.15 !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.01em;
+}
+
+.company-theme aside[class*="fixed"][class*="left-0"][class*="top-0"] > div:first-child > span:first-child::after {
+  content: none;
+}
+
+.company-theme aside[class*="fixed"][class*="left-0"][class*="top-0"] nav {
+  padding: 12px 20px !important;
+  margin: 0 !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  scrollbar-width: none !important;
+}
+
+.company-theme aside[class*="fixed"][class*="left-0"][class*="top-0"] nav::-webkit-scrollbar {
+  display: none;
+}
+
+.company-theme aside[class*="fixed"][class*="left-0"][class*="top-0"] nav a {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 10px 14px !important;
+  border-radius: 16px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+.company-theme aside[class*="fixed"][class*="left-0"][class*="top-0"] nav a span:last-child {
+  font-size: 13px !important;
+  line-height: 1.2 !important;
+}
+
+.company-theme aside[class*="fixed"][class*="left-0"][class*="top-0"] > div:last-child {
+  padding: 18px 20px 22px !important;
+  margin-top: auto !important;
+  border-top: 1px solid rgba(224, 225, 221, 0.08);
+}
+
+.company-theme aside[class*="fixed"][class*="left-0"][class*="top-0"] > div:last-child button {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 10px 14px !important;
+  border-radius: 16px !important;
+}
+
+.company-theme main > header[class*="sticky"] {
+  min-height: 80px !important;
+  height: auto !important;
+  padding: 16px 20px !important;
+  background: rgba(244, 247, 251, 0.86) !important;
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.62) !important;
+  gap: 12px;
+}
+
+@media (min-width: 768px) {
+  .company-theme main > header[class*="sticky"] {
+    padding-left: 32px !important;
+    padding-right: 32px !important;
+  }
+}
+
+.company-theme main > header[class*="sticky"] h1 {
+  color: #0D1B2A !important;
+  line-height: 1.15 !important;
+  overflow-wrap: normal;
+}
+
+.company-theme main [class*="bg-white"] {
+  border-color: rgba(226, 232, 240, 0.9);
+}
+
+.company-theme main .text-white,
+.company-theme main button[class*="bg-[#0D1B2A]"],
+.company-theme main button[class*="bg-blue-600"],
+.company-theme main a[class*="bg-blue-600"] {
+  color: #ffffff !important;
+}
+
+.company-theme main button[class*="bg-blue-600"] span,
+.company-theme main a[class*="bg-blue-600"] span {
+  color: inherit !important;
+}
+
+.company-theme main .text-slate-900,
+.company-theme main .text-slate-950 {
+  color: #0D1B2A !important;
+}
+
+.company-theme main .text-slate-500,
+.company-theme main .text-slate-600,
+.company-theme main .text-slate-700 {
+  color: #415A77 !important;
+}
+
+.company-theme main .text-blue-600,
+.company-theme main .text-blue-700 {
+  color: #1B263B !important;
+}
+
+.company-theme main .bg-blue-50 {
+  background: rgba(119, 141, 169, 0.14) !important;
 }
 
 .client-theme:not(.company-register-theme) button[class*="bg-primary"],

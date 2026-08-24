@@ -32,5 +32,7 @@ const companySchema = new mongoose.Schema({
 
 companySchema.virtual('verified').get(function verified() { return this.approvalStatus === 'approved'; });
 companySchema.set('toJSON', { virtuals: true });
+companySchema.index({ approvalStatus: 1, city: 1, rating: -1, updatedAt: -1, name: 1 });
+companySchema.index({ approvalStatus: 1, rating: -1, updatedAt: -1, name: 1 });
 
 module.exports = mongoose.models.Company || mongoose.model('Company', companySchema);

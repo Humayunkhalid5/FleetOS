@@ -7,6 +7,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "node --test test/*.test.js",
+    "audit:mongo": "node src/scripts/auditMongoPersistence.js",
     "reset:dev-admin": "node src/scripts/resetDevAdmin.js",
     "set-admin": "node src/scripts/setAdminCredentials.js"
   },

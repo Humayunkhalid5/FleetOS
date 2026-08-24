@@ -22,13 +22,48 @@ function publicCompany(company, services = [], owner = null) {
   return { ...data, verified: data.approvalStatus === 'approved', ownerStatus: owner?.status || data.ownerStatus || 'active', clientVisible: isClientVisible(data, owner), services };
 }
 
+function escapeRegex(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 exports.getCompanies = async (req, res) => {
   const query = { approvalStatus: 'approved' };
-  if (req.query.city) query.city = new RegExp(`^${String(req.query.city).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
-  if (req.query.search) query.$text = { $search: req.query.search };
-  const limit = Math.min(Number(req.query.limit || 1200), 1500);
-  const [rawCompanies, cityRows] = await Promise.all([
-    Company.find(query).sort({ rating: -1, name: 1 }).limit(limit).lean(),
+  const search = String(req.query.search || req.query.q || '').trim();
+  const area = String(req.query.area || '').trim();
+  const category = String(req.query.category || '').trim();
+  const page = Math.max(Number(req.query.page || 1), 1);
+  const limit = Math.min(Math.max(Number(req.query.limit || 120), 1), 500);
+  const skip = (page - 1) * limit;
+
+  if (req.query.city) query.city = new RegExp(`^${escapeRegex(req.query.city)}$`, 'i');
+  if (area) query.$or = [
+    { location: new RegExp(escapeRegex(area), 'i') },
+    { areas: new RegExp(escapeRegex(area), 'i') },
+  ];
+  if (search) {
+    const searchRegex = new RegExp(escapeRegex(search), 'i');
+    const searchConditions = [
+      { name: searchRegex },
+      { description: searchRegex },
+      { location: searchRegex },
+      { city: searchRegex },
+      { areas: searchRegex },
+    ];
+    query.$and = [...(query.$and || []), { $or: searchConditions }];
+  }
+
+  if (category) {
+    const categoryRegex = new RegExp(escapeRegex(category), 'i');
+    const matchingServices = await Service.distinct('company', {
+      status: 'Active',
+      $or: [{ category: categoryRegex }, { name: categoryRegex }],
+    });
+    query._id = { $in: matchingServices };
+  }
+
+  const [rawCompanies, total, cityRows] = await Promise.all([
+    Company.find(query).sort({ rating: -1, updatedAt: -1, name: 1 }).skip(skip).limit(limit).lean(),
+    Company.countDocuments(query),
     City.find({}, 'name province').sort({ name: 1 }).lean(),
   ]);
   const ownerRows = await User.find({ company: { $in: rawCompanies.map((company) => company._id) }, role: 'company' }, 'company status').lean();
@@ -54,6 +89,10 @@ exports.getCompanies = async (req, res) => {
     cities: cityRows.map((city) => city.name),
     cityCatalogue: cityRows,
     areasByCity,
+    page,
+    limit,
+    total,
+    hasMore: skip + rawCompanies.length < total,
   });
 };
 

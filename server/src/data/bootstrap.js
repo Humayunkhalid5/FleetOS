@@ -131,7 +131,7 @@ async function bootstrap() {
       if (error.codeName !== 'IndexNotFound') throw error;
     }),
   ]);
-  await Promise.all([Booking.syncIndexes(), Payment.syncIndexes(), Service.syncIndexes(), Technician.syncIndexes(), Inventory.syncIndexes(), Review.syncIndexes()]);
+  await Promise.all([Company.syncIndexes(), Booking.syncIndexes(), Payment.syncIndexes(), Service.syncIndexes(), Technician.syncIndexes(), Inventory.syncIndexes(), Review.syncIndexes()]);
 
   if (process.env.NODE_ENV === 'production') {
     const admin = await User.findOne({ role: 'super-admin' }).select('email').lean();

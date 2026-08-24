@@ -15,6 +15,8 @@ function publicUser(user) {
   if (company && typeof company === 'object') {
     data.companyId = company._id;
     data.companyName = company.name;
+    data.companyLogo = company.logo || '';
+    data.companySlug = company.slug || '';
     data.approvalStatus = company.approvalStatus;
   }
   return data;

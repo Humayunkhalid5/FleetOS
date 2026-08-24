@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SIDEBAR_LINKS, SIDEBAR_FOOTER_LINKS, ROUTES } from '../../constants';
 import { useAppContext } from '../../context/AppContext';
+import api from '../../services/api';
 
 /**
  * Sidebar — reusable navigation drawer used across all customer pages.
@@ -13,6 +15,19 @@ function Sidebar({ open, onClose }) {
   const navigate   = useNavigate();
   const location   = useLocation();
   const { user, logout } = useAppContext();
+  const [messageCount, setMessageCount] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+    if (!user) return undefined;
+    api.get('/chats/conversations', { noCache: true })
+      .then((result) => {
+        if (!mounted) return;
+        setMessageCount((result.conversations || []).reduce((sum, item) => sum + Number(item.unreadCount || 0), 0));
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, [user, location.pathname]);
 
   const displayUser = user || {
     name: 'Ali Shahzad',
@@ -109,7 +124,12 @@ function Sidebar({ open, onClose }) {
                   {link.icon}
                 </span>
                 <span className="font-nav-item text-nav-item">{link.label}</span>
-                {active && (
+                {link.badge === 'messages' && messageCount > 0 && (
+                  <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-[#0D1B2A] text-white text-[11px] font-black grid place-items-center">
+                    {messageCount > 9 ? '9+' : messageCount}
+                  </span>
+                )}
+                {active && link.badge !== 'messages' && (
                   <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
                 )}
               </a>

@@ -1,21 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../hooks/useAuth';
+import CompanyShell from '../../../components/company/CompanyShell';
 import api from '../../../services/api';
-
-const nav = [
-  ['space_dashboard', 'Overview', '/company/dashboard'],
-  ['handyman', 'Requests', '/company/bookings'],
-  ['badge', 'Staff', '/company/technicians'],
-  ['inventory_2', 'Inventory', '/company/inventory'],
-  ['storefront', 'Services', '/company/services'],
-  ['groups', 'Customers', '/company/customers'],
-  ['forum', 'Client Messages', '/company/chat'],
-  ['star', 'Reviews', '/company/reviews'],
-  ['monitoring', 'Analytics', '/company/analytics'],
-  ['domain', 'Company Details', '/company/details'],
-  ['settings', 'Settings', '/company/settings'],
-];
 
 const money = (value) => `PKR ${Number(value || 0).toLocaleString('en-PK')}`;
 const time = (value) => value ? new Intl.DateTimeFormat('en-PK', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
@@ -33,7 +19,6 @@ function downloadCsv(bookings) {
 
 function CompanyDashboard() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
   const [data, setData] = useState(null);
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
@@ -59,68 +44,18 @@ function CompanyDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f7fb] text-slate-800 font-sans md:flex">
-      <aside className="company-sidebar hidden md:flex fixed inset-y-0 left-0 w-[260px] bg-white border-r border-slate-100 flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
-        <div className="h-[80px] px-8 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-            <span className="material-symbols-outlined text-white text-[18px]">domain</span>
-          </div>
-          <span className="text-xl font-bold tracking-tight text-slate-900">FleetOS</span>
-        </div>
-
-        <div className="company-sidebar-scroll px-5 py-3 overflow-y-auto flex-1">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-4">Main Menu</p>
-          <nav className="space-y-1">
-            {nav.map(([icon, label, to], index) => {
-              const active = index === 0;
-              return (
-                <Link key={label} to={to} preventScrollReset className={`flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-[13px] font-semibold transition-all duration-200 ${active ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                  <span className={`material-symbols-outlined text-[20px] ${active ? 'text-blue-600' : 'text-slate-400'}`} style={active ? { fontVariationSettings: "'FILL' 1" } : {}}>{icon}</span>
-                  {label}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        <div className="mt-auto p-6">
-          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
-                {user?.name?.split(' ').map((part) => part[0]).slice(0, 2).join('') || 'CO'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-900 truncate">{user?.name || 'Company user'}</p>
-                <p className="text-[11px] font-semibold text-slate-500 truncate">{data?.company?.name || user?.companyName || 'FleetOS Company'}</p>
-              </div>
-            </div>
-            <button onClick={logout} className="w-full py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-[13px] font-bold hover:bg-slate-100 transition-colors flex justify-center items-center gap-2">
-              <span className="material-symbols-outlined text-[16px]">logout</span> Sign Out
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      <main className="flex-1 md:ml-[260px] min-w-0">
-        <header className="h-[80px] px-8 flex items-center justify-between sticky top-0 z-40 bg-[#f4f7fb]/80 backdrop-blur-xl">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Overview</h1>
-            <p className="text-sm text-slate-500 font-medium">Welcome back, here&apos;s what&apos;s happening today.</p>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="hidden lg:flex items-center gap-2 bg-white border border-slate-200 rounded-full h-11 px-4 w-64 shadow-sm focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
-              <span className="material-symbols-outlined text-slate-400 text-lg">search</span>
-              <input value={query} onChange={(event) => setQuery(event.target.value)} className="bg-transparent border-0 outline-none text-sm w-full font-medium placeholder-slate-400" placeholder="Search..." />
-            </div>
-            <button className="w-11 h-11 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm relative">
-              <span className="material-symbols-outlined text-[20px]">notifications</span>
-              <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-red-500 border-2 border-white" />
-            </button>
-          </div>
-        </header>
-
-        <div className="p-8 max-w-[1600px] mx-auto">
+    <CompanyShell
+      title="Overview"
+      subtitle="Welcome back, here&apos;s what&apos;s happening today."
+      search={query}
+      onSearch={setQuery}
+      actions={(
+        <button className="w-11 h-11 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm relative">
+          <span className="material-symbols-outlined text-[20px]">notifications</span>
+          <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-red-500 border-2 border-white" />
+        </button>
+      )}
+    >
           {error && <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium flex items-center gap-3"><span className="material-symbols-outlined">error</span> {error}</div>}
 
           {!data ? (
@@ -217,9 +152,7 @@ function CompanyDashboard() {
               </div>
             </>
           )}
-        </div>
-      </main>
-    </div>
+    </CompanyShell>
   );
 }
 

@@ -1,6 +1,8 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { ROUTES } from '../../constants';
 import { useAuth } from '../../hooks/useAuth';
+import api from '../../services/api';
 
 export const COMPANY_NAV = [
   ['space_dashboard', 'Overview', ROUTES.companyDashboard],
@@ -9,10 +11,10 @@ export const COMPANY_NAV = [
   ['inventory_2', 'Inventory', ROUTES.companyInventory],
   ['storefront', 'Services', ROUTES.companyServices],
   ['groups', 'Customers', ROUTES.companyCustomers],
-  ['forum', 'Client Messages', ROUTES.companyChat],
+  ['forum', 'Messages', ROUTES.companyChat, 'messages'],
   ['star', 'Reviews', ROUTES.companyReviews],
   ['monitoring', 'Analytics', ROUTES.companyAnalytics],
-  ['domain', 'Company Details', ROUTES.companyDetails],
+  ['domain', 'Company Profile', ROUTES.companyDetails],
   ['settings', 'Settings', ROUTES.companySettings],
 ];
 
@@ -24,6 +26,21 @@ function CompanyShell({ title, subtitle, actions, search, onSearch, children }) 
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [messageCount, setMessageCount] = useState(0);
+  const [company, setCompany] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.allSettled([
+      api.get('/chats/conversations', { noCache: true }),
+      api.get('/company/dashboard', { noCache: true }),
+    ]).then(([chatResult, dashboardResult]) => {
+        if (!mounted) return;
+        if (chatResult.status === 'fulfilled') setMessageCount((chatResult.value.conversations || []).reduce((sum, item) => sum + Number(item.unreadCount || 0), 0));
+        if (dashboardResult.status === 'fulfilled') setCompany(dashboardResult.value.company || null);
+      });
+    return () => { mounted = false; };
+  }, [location.pathname]);
 
   const signOut = () => {
     logout();
@@ -33,22 +50,30 @@ function CompanyShell({ title, subtitle, actions, search, onSearch, children }) 
   return (
     <div className="min-h-screen bg-[#f4f7fb] text-slate-800 font-sans md:flex">
       <aside className="company-sidebar hidden md:flex fixed inset-y-0 left-0 w-[260px] bg-white border-r border-slate-100 flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
-        <div className="h-[80px] px-8 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-            <span className="material-symbols-outlined text-white text-[18px]">domain</span>
+        <button onClick={() => navigate(ROUTES.companyDetails)} className="h-[88px] px-6 flex items-center gap-3 text-left hover:bg-white/5 transition-colors">
+          <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/10 overflow-hidden flex items-center justify-center shrink-0 text-white font-black">
+            {company?.logo ? <img src={company.logo} alt={company.name || 'Company logo'} className="w-full h-full object-cover" /> : initials(company?.name || user?.companyName)}
           </div>
-          <span className="text-xl font-bold tracking-tight text-slate-900">FleetOS</span>
-        </div>
+          <div className="min-w-0">
+            <span className="block text-sm font-black tracking-tight text-white truncate">{company?.name || user?.companyName || 'Company Portal'}</span>
+            <span className="block text-[11px] font-bold text-white/55 truncate">Company Portal</span>
+          </div>
+        </button>
 
         <div className="company-sidebar-scroll px-5 py-3 overflow-y-auto flex-1">
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-4">Main Menu</p>
           <nav className="space-y-1">
-            {COMPANY_NAV.map(([icon, label, to]) => {
+            {COMPANY_NAV.map(([icon, label, to, badge]) => {
               const active = location.pathname === to;
               return (
                 <Link key={label} to={to} preventScrollReset className={`flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-[13px] font-semibold transition-all duration-200 ${active ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                   <span className={`material-symbols-outlined text-[20px] ${active ? 'text-blue-600' : 'text-slate-400'}`} style={active ? { fontVariationSettings: "'FILL' 1" } : {}}>{icon}</span>
-                  {label}
+                  <span className="min-w-0 flex-1 truncate">{label}</span>
+                  {badge === 'messages' && messageCount > 0 && (
+                    <span className="min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-black grid place-items-center">
+                      {messageCount > 9 ? '9+' : messageCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -56,17 +81,20 @@ function CompanyShell({ title, subtitle, actions, search, onSearch, children }) 
         </div>
 
         <div className="mt-auto p-6">
-          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+          <div className="company-account-card rounded-2xl p-4 border border-white/10 bg-white/10">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
-                {initials(user?.name || user?.companyName)}
+              <div className="w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center font-bold overflow-hidden shrink-0">
+                {company?.logo ? <img src={company.logo} alt={company.name || 'Company'} className="w-full h-full object-cover" /> : initials(company?.name || user?.companyName)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-900 truncate">{user?.name || 'Company user'}</p>
-                <p className="text-[11px] font-semibold text-slate-500 truncate">{user?.companyName || 'FleetOS Company'}</p>
+                <p className="text-sm font-bold text-white truncate">{user?.name || 'Company user'}</p>
+                <p className="text-[11px] font-semibold text-white/60 truncate">{company?.name || user?.companyName || 'Company account'}</p>
               </div>
             </div>
-            <button onClick={signOut} className="w-full py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-[13px] font-bold hover:bg-slate-100 transition-colors flex justify-center items-center gap-2">
+            <button onClick={() => navigate(ROUTES.companyDetails)} className="company-profile-action w-full mb-2 py-2.5 rounded-xl bg-white text-[#0D1B2A] text-[13px] font-black hover:bg-[#E0E1DD] transition-colors flex justify-center items-center gap-2">
+              <span className="material-symbols-outlined text-[16px]">edit</span> Edit Profile
+            </button>
+            <button onClick={signOut} className="w-full py-2.5 rounded-xl bg-transparent border border-white/15 text-white/75 text-[13px] font-bold hover:bg-white/10 transition-colors flex justify-center items-center gap-2">
               <span className="material-symbols-outlined text-[16px]">logout</span> Sign Out
             </button>
           </div>
