@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Outlet, Link, useLocation } from 'react-router-dom'
 import './App.css'
 import { AppProvider } from './context/AppContext'
@@ -80,13 +80,24 @@ function RoleGate({ role }) {
   return <Outlet />
 }
 
+function RouteScrollManager() {
+  const location = useLocation();
+  useEffect(() => {
+    if (location.pathname.startsWith('/company')) return;
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+  return null;
+}
+
 function RoutedApp() {
   const location = useLocation()
   const companySurface = location.pathname.startsWith('/company')
+  const companyRegisterSurface = location.pathname === '/company/register'
 
   return (
     <AppProvider>
-      <div className={`app-shell ${companySurface ? 'company-theme' : 'client-theme'}`}>
+      <RouteScrollManager />
+      <div className={`app-shell ${companySurface && !companyRegisterSurface ? 'company-theme' : 'client-theme'} ${companyRegisterSurface ? 'company-register-theme' : ''}`}>
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public */}

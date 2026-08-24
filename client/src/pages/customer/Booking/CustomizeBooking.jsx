@@ -18,7 +18,7 @@ function CustomizeBooking() {
   const [problemDetails, setProblemDetails] = useState(location.state?.problemDetails || '');
 
   const [availableServices, setAvailableServices] = useState([]);
-  const [service, setService] = useState(location.state?.service || 'Fleet Maintenance');
+  const [service, setService] = useState(location.state?.service || 'Basic Service Request');
   const [servicePrice, setServicePrice] = useState(Number(location.state?.price) || BASE_LABOR);
   const [serviceLocation, setServiceLocation] = useState({
     address: '',
@@ -316,7 +316,7 @@ function CustomizeBooking() {
                 className="w-full mt-sm p-md rounded-xl border border-outline-variant bg-surface-container-low focus:border-primary focus:ring-1 focus:ring-primary outline-none"
                 placeholder="Share the problem, symptoms, urgency, and any notes for the company"
               />
-              <p className="mt-sm text-sm text-on-surface-variant">The selected company will review the request and assign a technician once the service is confirmed.</p>
+              <p className="mt-sm text-sm text-on-surface-variant">The selected company will review the request and assign the right team member once the service is confirmed.</p>
             </section>
           </div>
 

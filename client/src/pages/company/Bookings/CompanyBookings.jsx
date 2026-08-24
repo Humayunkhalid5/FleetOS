@@ -53,7 +53,7 @@ function CompanyBookings() {
             customer: b.customerName || b.user?.name || b.customer || 'Direct Client',
             customerPhone: b.customerPhone || b.user?.phone || '',
             customerEmail: b.customerEmail || b.user?.email || '',
-            service: b.serviceSnapshot?.name || b.service?.name || 'Fleet Maintenance',
+            service: b.serviceSnapshot?.name || b.service?.name || 'Basic Service Request',
             date: b.scheduledAt ? new Date(b.scheduledAt).toLocaleString() : new Date(b.createdAt).toLocaleDateString(),
             status: b.status || 'Pending',
             paymentStatus: b.paymentStatus || 'unpaid',
@@ -150,7 +150,7 @@ function CompanyBookings() {
         customerName: newBooking.customer,
         location: newBooking.address || 'Client Facility',
         scheduledAt: newBooking.date || new Date(Date.now() + 86400000).toISOString(),
-        vehicle: { label: 'Customer vehicle' },
+        vehicle: { label: 'Client request' },
         paymentMethod: 'cash'
       });
       if (res.booking?._id) {
@@ -186,7 +186,7 @@ function CompanyBookings() {
               <img className="w-full h-full object-cover" alt="Avatar" src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDob1EAfuIbOEB4mJ8aEtGMOAqZ2pFY3XlqCk2JkHoW67b-ZOBUc5zFlRYqQ2BZ3DG67ncjfW2OLoo5hg7xuxYuAqd8Dnt5ilPQQXVTUmumtWf50x262r2EhICAmE-N5bwuBjLhajhwN27J-KOxykfXlTI8WYp4DU3gYg4J6dBnKMvJL7SnjiVZ4DXESV3KRM6gWcKX9-Ly_MH0qvOPlsnmmbJxlvGssOUoAAS512hpEREvE9kMnIHJ0g"} />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-900">{user?.name || 'Fleet Manager'}</p>
+              <p className="text-xs font-bold text-slate-900">{user?.name || 'Company Admin'}</p>
               <p className="text-xs text-slate-500">{user?.companyName || 'Admin Console'}</p>
             </div>
           </div>
@@ -250,7 +250,7 @@ function CompanyBookings() {
       {/* Main Content */}
       <main className="md:ml-[260px] flex-grow min-h-screen">
         <header className="sticky top-0 z-40 flex justify-between items-center w-full px-4 md:px-8 h-16 bg-[#f4f7fb]/85 backdrop-blur-xl border-b border-white/60">
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Fleet Bookings Manager</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Company Requests Manager</h1>
         </header>
 
         <div className="p-4 md:p-8 max-w-[1600px] mx-auto space-y-6">

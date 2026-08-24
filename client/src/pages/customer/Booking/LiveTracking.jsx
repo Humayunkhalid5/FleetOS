@@ -20,7 +20,7 @@ const coordsFromText = (value) => {
   const match = CITY_COORDS.find((city) => label.toLowerCase().includes(city.key));
   return match ? { lat: match.lat, lng: match.lng, label } : null;
 };
-const offsetCoords = (point, label = 'Technician dispatch point') => ({
+const offsetCoords = (point, label = 'Company dispatch point') => ({
   lat: Number((Number(point?.lat || PAKISTAN_CENTER.lat) + 0.035).toFixed(6)),
   lng: Number((Number(point?.lng || PAKISTAN_CENTER.lng) - 0.035).toFixed(6)),
   label,
@@ -39,7 +39,7 @@ const createTrackingIcon = (type, icon) =>
     iconAnchor: [24, 24],
   });
 
-const createTechIcon = () => createTrackingIcon('tech', 'local_shipping');
+const createTechIcon = () => createTrackingIcon('tech', 'badge');
 const createUserIcon = () => createTrackingIcon('user', 'my_location');
 const createDestinationIcon = () => createTrackingIcon('destination', 'home_work');
 const createOriginDot = () => L.divIcon({ className: 'origin-marker', html: '<span class="fleet-tracking-dot"></span>', iconSize: [16, 16], iconAnchor: [8, 8] });
@@ -88,7 +88,7 @@ function LiveTracking() {
   const navigate = useNavigate();
   const location = useLocation();
   const bookingId = location.state?.bookingId || null;
-  const [selectedTech, setSelectedTech] = useState(location.state?.selectedTech || 'Assigned technician');
+  const [selectedTech, setSelectedTech] = useState(location.state?.selectedTech || 'Assigned staff member');
 
   // Map state
   const mapRef = useRef(null);
@@ -128,7 +128,7 @@ function LiveTracking() {
   // Located description for UI
   const serviceLocationLabel = tracking?.destination?.label || tracking?.location || 'Service Location';
 
-// Move the technician marker smoothly
+// Move the assigned staff marker smoothly
   const moveTechMarker = useCallback((pos) => {
     if (!mapRef.current || !techMarkerRef.current) return;
     techMarkerRef.current.setLatLng([Number(pos.lat), Number(pos.lng)]);
@@ -145,7 +145,7 @@ function LiveTracking() {
       const response = await api.get(`/bookings/${id}/tracking`);
       const data = response.tracking;
       setTracking(normalizeTracking(data, data.status, data.technician));
-      setSelectedTech(data.technician?.name || 'Assigned technician');
+      setSelectedTech(data.technician?.name || 'Assigned staff member');
       setEta(data.etaMinutes ?? 0);
       setStage(stageForStatus(data.status));
       setError('');
@@ -231,7 +231,7 @@ function LiveTracking() {
     if (techPoint) {
       const latlng = [techPoint.lat, techPoint.lng];
       if (!techMarkerRef.current) {
-        techMarkerRef.current = L.marker(latlng, { icon: createTechIcon() }).addTo(map).bindTooltip('Technician live location', { direction: 'top', offset: [0, -10] });
+        techMarkerRef.current = L.marker(latlng, { icon: createTechIcon() }).addTo(map).bindTooltip('Assigned staff live location', { direction: 'top', offset: [0, -10] });
       } else {
         techMarkerRef.current.setLatLng(latlng);
       }
@@ -340,7 +340,7 @@ function LiveTracking() {
   }, [bookingId]);
 
   const shareBooking = () => {
-    const shareData = { title: 'FleetOS Live Tracking', text: `Track your service with ${selectedTech}`, url: window.location.href };
+    const shareData = { title: 'FleetOS Live Tracking', text: `Track your service request with ${selectedTech}`, url: window.location.href };
     if (navigator.share) navigator.share(shareData).catch(() => {});
     else navigator.clipboard?.writeText(window.location.href);
   };
@@ -382,7 +382,7 @@ function LiveTracking() {
   const primaryStage = STAGE_LABELS[stage] || 'Assigned';
   const progressPercent = stage === 'completed' ? 100 : progressPct;
   const contactPhone = tracking?.technician?.phone || tracking?.company?.phone || '';
-  const unavailableContact = () => setError('Contact number is not available yet. It will appear once the company assigns a technician.');
+  const unavailableContact = () => setError('Contact number is not available yet. It will appear once the company assigns staff.');
 
   return (
     <div className="live-tracking-root fixed inset-0 bg-background text-on-surface font-body-md">
@@ -492,7 +492,7 @@ function LiveTracking() {
             {/* Trip Progress */}
             <div className="bg-surface/95 backdrop-blur-xl p-lg rounded-2xl shadow-xl shadow-on-surface/10 border border-outline-variant/40">
               <div className="flex items-center justify-between mb-md">
-                <h3 className="font-headline-md text-headline-md text-primary font-bold">Trip Progress</h3>
+                <h3 className="font-headline-md text-headline-md text-primary font-bold">Request Progress</h3>
                 <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-label-sm text-label-sm font-bold flex items-center gap-xs">
                   <span className="material-symbols-outlined text-[14px]">route</span>
                   {progressPercent}%
@@ -515,7 +515,7 @@ function LiveTracking() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-label-sm text-label-sm text-outline uppercase tracking-wider leading-none">Dispatch</p>
-                    <p className="font-body-md text-body-md text-on-surface font-medium leading-tight mt-0.5 break-words">{tracking?.origin?.label || 'FleetOS Dispatch Center'}</p>
+                    <p className="font-body-md text-body-md text-on-surface font-medium leading-tight mt-0.5 break-words">{tracking?.origin?.label || 'Company Dispatch Center'}</p>
                   </div>
                 </div>
                 <div className="ml-4 h-4 border-l-2 border-dashed border-outline-variant"></div>
@@ -531,11 +531,11 @@ function LiveTracking() {
               </div>
             </div>
 
-            {/* Technician card */}
+            {/* Assigned staff card */}
             <TechCard
               selectedTech={selectedTech}
               avatar={getTechAvatar(selectedTech)}
-              vehicleLabel={tracking?.vehicleLabel || 'Fleet Van #012'}
+              vehicleLabel={tracking?.vehicleLabel || 'Company Staff'}
               service={tracking?.service || 'On-site Service'}
               reference={tracking?.reference || '—'}
               status={tracking?.status || 'in-progress'}
@@ -614,7 +614,7 @@ function LiveTracking() {
                 {/* Progress block */}
                 <div className="bg-surface-container-low rounded-2xl p-lg">
                   <div className="flex items-center justify-between mb-sm">
-                    <h3 className="font-headline-md text-headline-md text-primary font-bold">Trip Progress</h3>
+                    <h3 className="font-headline-md text-headline-md text-primary font-bold">Request Progress</h3>
                     <span className="font-nav-item text-nav-item font-bold text-primary">{progressPercent}%</span>
                   </div>
                   <div className="h-2 rounded-full bg-surface-container-high overflow-hidden">
@@ -623,7 +623,7 @@ function LiveTracking() {
                   <div className="mt-md space-y-sm">
                     <div className="flex items-center gap-sm">
                       <span className="material-symbols-outlined text-primary text-[16px] shrink-0">trip_origin</span>
-                      <span className="font-label-sm text-label-sm text-on-surface-variant flex-1 break-words">{tracking?.origin?.label || 'Dispatch Center'}</span>
+                      <span className="font-label-sm text-label-sm text-on-surface-variant flex-1 break-words">{tracking?.origin?.label || 'Company Dispatch Center'}</span>
                     </div>
                     <div className="flex items-center gap-sm">
                       <span className="material-symbols-outlined text-tertiary text-[16px] shrink-0">home_work</span>
@@ -632,11 +632,11 @@ function LiveTracking() {
                   </div>
                 </div>
 
-                {/* Technician card (mobile compact) */}
+                {/* Assigned staff card (mobile compact) */}
                 <TechCard
                   selectedTech={selectedTech}
                   avatar={getTechAvatar(selectedTech)}
-                  vehicleLabel={tracking?.vehicleLabel || 'Fleet Van #012'}
+                  vehicleLabel={tracking?.vehicleLabel || 'Company Staff'}
                   service={tracking?.service || 'On-site Service'}
                   reference={tracking?.reference || '—'}
                   status={tracking?.status || 'in-progress'}
@@ -719,7 +719,7 @@ function StageTimeline({ stageIndex, onComplete }) {
   );
 }
 
-// Refined technician info card
+// Refined assigned staff info card
 function TechCard({ selectedTech, avatar, vehicleLabel, service, reference, status, eta, contactPhone, onMissingContact, onCancel, onChat, cancelling = false }) {
   const callLink = phoneHref('tel', contactPhone);
   const smsLink = phoneHref('sms', contactPhone);

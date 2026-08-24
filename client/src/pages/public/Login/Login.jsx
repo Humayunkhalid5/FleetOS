@@ -46,7 +46,7 @@ function Login() {
           <div className="flex flex-col items-center mb-xl">
             <div className="flex items-center gap-sm mb-md">
               <div className="bg-primary p-xs rounded-lg shadow-lg shadow-primary/20">
-                <span className="material-symbols-outlined text-on-primary text-[32px]">local_shipping</span>
+                <span className="material-symbols-outlined text-on-primary text-[32px]">hub</span>
               </div>
               <span className="font-headline-lg text-headline-lg text-primary tracking-tighter">FleetOS</span>
             </div>

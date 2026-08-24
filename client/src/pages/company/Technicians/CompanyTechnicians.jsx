@@ -17,7 +17,7 @@ function CompanyTechnicians() {
 
   const [newTech, setNewTech] = useState({
     name: '',
-    role: 'HVAC Specialist',
+    role: 'Service Specialist',
     phone: '',
     exp: '3 Years Exp.',
     avatar: ''
@@ -67,24 +67,49 @@ function CompanyTechnicians() {
     } catch (err) { window.alert(err.message); return; }
 
     setShowAddModal(false);
-    setNewTech({ name: '', role: 'HVAC Specialist', phone: '', exp: '3 Years Exp.', avatar: '' });
+    setNewTech({ name: '', role: 'Service Specialist', phone: '', exp: '3 Years Exp.', avatar: '' });
+  };
+
+  const readAvatar = (file, onReady) => {
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'].includes(file.type)) {
+      window.alert('Please choose a PNG, JPG, WEBP, or SVG image.');
+      return;
+    }
+    if (file.size > 1.5 * 1024 * 1024) {
+      window.alert('Staff picture must be under 1.5 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => onReady(reader.result);
+    reader.onerror = () => window.alert('Unable to read this image. Please try another file.');
+    reader.readAsDataURL(file);
   };
 
   const pickAvatar = (event) => {
     const file = event.target.files?.[0];
-    if (!file) return;
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-      window.alert('Please choose a PNG, JPG or WEBP image.');
-      return;
-    }
-    if (file.size > 1.5 * 1024 * 1024) {
-      window.alert('Technician picture must be under 1.5 MB.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => setNewTech((current) => ({ ...current, avatar: reader.result }));
-    reader.onerror = () => window.alert('Unable to read this image. Please try another file.');
-    reader.readAsDataURL(file);
+    readAvatar(file, (result) => setNewTech((current) => ({ ...current, avatar: result })));
+    event.target.value = '';
+  };
+
+  const updateAvatar = (id) => (event) => {
+    const file = event.target.files?.[0];
+    const target = technicians.find(t => t.id === id || t._id === id);
+    readAvatar(file, async (result) => {
+      const previous = technicians;
+      setTechnicians((current) => current.map((tech) => (tech.id === id || tech._id === id ? { ...tech, avatar: result } : tech)));
+      if (target?._id) {
+        try {
+          const response = await api.put(`/technicians/${target._id}`, { avatar: result });
+          const saved = response.technician;
+          setTechnicians((current) => current.map((tech) => (tech.id === id || tech._id === id ? { ...tech, avatar: saved.avatar || result } : tech)));
+        } catch (err) {
+          window.alert(err.message);
+          setTechnicians(previous);
+        }
+      }
+    });
+    event.target.value = '';
   };
 
   const toggleStatus = async (id) => {
@@ -101,7 +126,7 @@ function CompanyTechnicians() {
 
   const removeTechnician = async (id) => {
     const target = technicians.find(t => t.id === id || t._id === id);
-    if (!window.confirm(`Remove ${target?.name || 'this technician'}?`)) return;
+    if (!window.confirm(`Remove ${target?.name || 'this staff member'}?`)) return;
     setTechnicians(technicians.filter(t => t.id !== id && t._id !== id));
     if (target?._id) {
       try { await api.del(`/technicians/${target._id}`); } catch (err) { window.alert(err.message); setTechnicians(technicians); }
@@ -124,7 +149,7 @@ function CompanyTechnicians() {
               <img className="w-full h-full object-cover" alt="Avatar" src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDob1EAfuIbOEB4mJ8aEtGMOAqZ2pFY3XlqCk2JkHoW67b-ZOBUc5zFlRYqQ2BZ3DG67ncjfW2OLoo5hg7xuxYuAqd8Dnt5ilPQQXVTUmumtWf50x262r2EhICAmE-N5bwuBjLhajhwN27J-KOxykfXlTI8WYp4DU3gYg4J6dBnKMvJL7SnjiVZ4DXESV3KRM6gWcKX9-Ly_MH0qvOPlsnmmbJxlvGssOUoAAS512hpEREvE9kMnIHJ0g"} />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-900">{user?.name || 'Fleet Manager'}</p>
+              <p className="text-xs font-bold text-slate-900">{user?.name || 'Company Admin'}</p>
               <p className="text-xs text-slate-500">{user?.companyName || 'Admin Console'}</p>
             </div>
           </div>
@@ -254,19 +279,25 @@ function CompanyTechnicians() {
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
+                  <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                     <button 
                       onClick={() => removeTechnician(tech.id)}
                       className="text-xs text-rose-600 hover:underline font-medium"
                     >
                       Remove
                     </button>
-                    <button 
-                      onClick={() => toggleStatus(tech.id)}
-                      className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-                    >
-                      Toggle Duty Status
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
+                        Change picture
+                        <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={updateAvatar(tech.id)} className="sr-only" />
+                      </label>
+                      <button 
+                        onClick={() => toggleStatus(tech.id)}
+                        className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        Toggle Status
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -277,15 +308,15 @@ function CompanyTechnicians() {
                 <span className="material-symbols-outlined text-3xl">badge</span>
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-800">No Technicians Added</h3>
-                <p className="text-xs text-slate-500 mt-1">Add maintenance specialists, mechanics and drivers to dispatch service jobs.</p>
+              <h3 className="text-base font-bold text-slate-800">No Staff Added</h3>
+                <p className="text-xs text-slate-500 mt-1">Add company staff who can handle client requests, service work, delivery, support, or fulfilment.</p>
               </div>
               <button
                 onClick={() => setShowAddModal(true)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold inline-flex items-center gap-2"
               >
                 <span className="material-symbols-outlined text-sm">person_add</span>
-                Add First Technician
+                Add First Staff Member
               </button>
             </div>
           )}
@@ -297,7 +328,7 @@ function CompanyTechnicians() {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-base font-bold text-slate-900">Add New Technician</h3>
+              <h3 className="text-base font-bold text-slate-900">Add New Staff Member</h3>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
                 <span className="material-symbols-outlined text-base">close</span>
               </button>
@@ -309,10 +340,10 @@ function CompanyTechnicians() {
                   {newTech.avatar ? <img src={newTech.avatar} alt="Technician preview" className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-2xl">person</span>}
                 </div>
                 <div>
-                  <p className="text-slate-700 font-semibold">Technician picture</p>
-                  <p className="text-slate-500 mt-1">Upload PNG, JPG or WEBP up to 1.5 MB. The picture is saved with the technician record.</p>
+                  <p className="text-slate-700 font-semibold">Staff picture</p>
+                  <p className="text-slate-500 mt-1">Upload PNG, JPG, WEBP or SVG up to 1.5 MB. The picture is saved with the staff record.</p>
                 </div>
-                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={pickAvatar} className="sr-only" />
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={pickAvatar} className="sr-only" />
               </label>
 
               <div>
@@ -334,11 +365,12 @@ function CompanyTechnicians() {
                   value={newTech.role}
                   onChange={(e) => setNewTech({ ...newTech, role: e.target.value })}
                 >
-                  <option value="HVAC Specialist">HVAC Specialist</option>
-                  <option value="Master Electrician">Master Electrician</option>
-                  <option value="Plumbing & Hydraulic Lead">Plumbing & Hydraulic Lead</option>
-                  <option value="Heavy Engine Specialist">Heavy Engine Specialist</option>
-                  <option value="Brake & Suspension Specialist">Brake & Suspension Specialist</option>
+                  <option value="Service Specialist">Service Specialist</option>
+                  <option value="Client Support Staff">Client Support Staff</option>
+                  <option value="Installation Expert">Installation Expert</option>
+                  <option value="Product Consultant">Product Consultant</option>
+                  <option value="Fulfilment Coordinator">Fulfilment Coordinator</option>
+                  <option value="Digital Setup Expert">Digital Setup Expert</option>
                 </select>
               </div>
 
@@ -377,7 +409,7 @@ function CompanyTechnicians() {
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:opacity-90"
                 >
-                  Save Technician
+                  Save Staff Member
                 </button>
               </div>
             </form>

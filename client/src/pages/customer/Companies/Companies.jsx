@@ -92,14 +92,14 @@ function Companies() {
   ].filter(Boolean);
 
   return (
-    <div className="bg-white text-slate-950 min-h-screen pb-32">
+    <div className="client-dashboard-shell text-[#0D1B2A] min-h-screen pb-32">
       {/* TopAppBar */}
-      <header className="sticky top-0 w-full z-50 flex justify-between items-center px-5 md:px-8 h-20 bg-white/90 backdrop-blur-xl border-b border-slate-200">
+      <header className="sticky top-0 w-full z-50 flex justify-between items-center px-5 md:px-8 h-20 bg-white/90 backdrop-blur-xl border-b border-[#E0E1DD]">
         <div className="flex items-center gap-md">
           <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-slate-100 transition-colors">
             <span className="material-symbols-outlined text-blue-600">arrow_back</span>
           </button>
-          <h1 className="text-xl font-black tracking-tight text-slate-950">Browse Companies</h1>
+          <h1 className="text-xl font-black tracking-tight text-[#0D1B2A]">Browse Companies</h1>
         </div>
         <button onClick={() => navigate(ROUTES.dashboard)} className="p-2 rounded-full hover:bg-slate-100 transition-colors">
           <span className="material-symbols-outlined text-slate-600">home</span>
@@ -345,20 +345,18 @@ function CompanyGrid({ companies, onBook, onDetails, onChat }) {
 
 function CompanyCard({ company: co, onBook, onDetails, onChat }) {
   const categoryMeta = CATEGORIES.find((c) => c.value === (co.category || '').toLowerCase());
+  const serviceCategory = co.services?.[0]?.category || co.category || co.services?.[0]?.name || 'Marketplace Service';
+  const fallbackImage = marketplaceCover(co.name, co.city, serviceCategory);
+  const coverImage = co.heroImage || co.logo || co.gallery?.[0] || fallbackImage;
+  const servicePreview = co.services?.length
+    ? co.services.slice(0, 2)
+    : [{ name: co.category || 'Company offer' }];
 
   return (
-    <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200 flex flex-col hover:shadow-elevation-2 transition-shadow">
+    <div className="client-company-card bg-white rounded-[30px] shadow-sm overflow-hidden border border-[#E0E1DD] flex flex-col hover:shadow-elevation-2 transition-all">
       {/* Hero */}
-      <div className="h-40 w-full bg-slate-200 overflow-hidden relative">
-        {co.heroImage ? (
-          <img className="w-full h-full object-cover" alt={co.name} src={co.heroImage} />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-blue-50 text-blue-700">
-            <span className="material-symbols-outlined text-5xl">
-              {categoryMeta?.icon || 'local_shipping'}
-            </span>
-          </div>
-        )}
+      <div className="h-44 w-full bg-[#E0E1DD] overflow-hidden relative">
+        <img className="w-full h-full object-cover" alt={co.name} src={coverImage} />
         {/* Category badge */}
         {categoryMeta && (
           <span className="absolute top-2 left-2 inline-flex items-center gap-xs px-2 py-1 rounded-full bg-surface/80 backdrop-blur-sm text-slate-950 text-xs font-semibold">
@@ -382,7 +380,7 @@ function CompanyCard({ company: co, onBook, onDetails, onChat }) {
           </span>
         </div>
 
-        <p className="mt-sm text-sm text-slate-600 line-clamp-2 flex-1">{co.description}</p>
+        <p className="mt-sm text-sm text-[#415A77] line-clamp-2 flex-1">{co.description || `${co.name} offers verified products and services in ${co.city || 'Pakistan'}.`}</p>
 
         {/* Areas served */}
         {co.areas?.length > 0 && (
@@ -401,10 +399,10 @@ function CompanyCard({ company: co, onBook, onDetails, onChat }) {
         )}
 
         {/* Services preview */}
-        {co.services?.length > 0 && (
+        {servicePreview.length > 0 && (
           <div className="mt-sm flex flex-wrap gap-xs">
-            {co.services.slice(0, 2).map((s) => (
-              <span key={s.name} className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs">
+            {servicePreview.map((s) => (
+              <span key={s.name} className="px-2 py-0.5 rounded-full bg-[#E0E1DD] text-[#1B263B] text-xs font-semibold">
                 {s.name}
               </span>
             ))}
@@ -414,20 +412,20 @@ function CompanyCard({ company: co, onBook, onDetails, onChat }) {
         <div className="mt-md flex gap-xs">
           <button
             onClick={() => onBook(co)}
-            className="flex-1 py-2 rounded-lg bg-blue-600 text-white font-medium text-sm hover:bg-primary-container transition-colors"
+            className="flex-1 py-2 rounded-2xl bg-[#0D1B2A] text-white font-medium text-sm hover:bg-[#1B263B] transition-colors"
           >
             Book Now
           </button>
           <button
             onClick={() => onChat(co)}
-            className="py-2 px-3 rounded-lg bg-secondary-container text-on-secondary-container font-medium text-sm hover:bg-slate-200 transition-colors flex items-center gap-xs"
+            className="py-2 px-3 rounded-2xl bg-[#E0E1DD] text-[#0D1B2A] font-medium text-sm hover:bg-[#778DA9]/30 transition-colors flex items-center gap-xs"
             title="Chat with company"
           >
             <span className="material-symbols-outlined text-[16px]">chat</span>
           </button>
           <button
             onClick={() => onDetails(co)}
-            className="flex-1 py-2 rounded-lg bg-slate-100 text-slate-600 font-medium text-sm hover:bg-slate-200 transition-colors"
+            className="flex-1 py-2 rounded-2xl bg-[#E0E1DD]/70 text-[#1B263B] font-medium text-sm hover:bg-[#778DA9]/30 transition-colors"
           >
             Details
           </button>
@@ -435,6 +433,21 @@ function CompanyCard({ company: co, onBook, onDetails, onChat }) {
       </div>
     </div>
   );
+}
+
+function marketplaceCover(name = 'Company', city = 'Pakistan', category = 'Marketplace') {
+  const safeName = String(name).replace(/[<>&"]/g, '');
+  const safeCity = String(city || 'Pakistan').replace(/[<>&"]/g, '');
+  const safeCategory = String(category || 'Marketplace').replace(/[<>&"]/g, '');
+  const categoryKey = safeCategory.toLowerCase();
+  const icon = categoryKey.includes('digital') ? '💻'
+    : categoryKey.includes('retail') || categoryKey.includes('product') ? '🛍️'
+    : categoryKey.includes('home') ? '🏠'
+    : categoryKey.includes('business') ? '💼'
+    : categoryKey.includes('repair') || categoryKey.includes('support') ? '🛠️'
+    : '✨';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#0D1B2A"/><stop offset=".55" stop-color="#1B263B"/><stop offset="1" stop-color="#415A77"/></linearGradient><radialGradient id="r" cx=".78" cy=".18" r=".62"><stop stop-color="#E0E1DD" stop-opacity=".45"/><stop offset="1" stop-color="#E0E1DD" stop-opacity="0"/></radialGradient></defs><rect width="960" height="540" rx="44" fill="url(#g)"/><rect width="960" height="540" rx="44" fill="url(#r)"/><circle cx="770" cy="130" r="126" fill="#778DA9" opacity=".32"/><circle cx="820" cy="218" r="86" fill="#E0E1DD" opacity=".18"/><rect x="64" y="318" width="832" height="122" rx="36" fill="#E0E1DD" opacity=".12"/><text x="76" y="138" font-size="74">${icon}</text><text x="78" y="244" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="58" font-weight="800">${safeName}</text><text x="82" y="298" fill="#E0E1DD" font-family="Inter,Arial,sans-serif" font-size="30" font-weight="650">${safeCategory} • ${safeCity}</text></svg>`;
+  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
 }
 
 export default Companies;

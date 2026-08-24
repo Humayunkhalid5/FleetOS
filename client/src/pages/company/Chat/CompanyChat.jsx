@@ -69,7 +69,7 @@ function CompanyChat() {
                 <b className="block text-sm text-slate-900 truncate">{booking.customerName}</b>
                 <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-500">{booking.status}</span>
               </div>
-              <small className="text-slate-500 font-medium">{booking.reference} · {booking.vehicle?.label || 'Vehicle'}</small>
+              <small className="text-slate-500 font-medium">{booking.reference} · {booking.vehicle?.label || 'Client request'}</small>
               <p className="text-xs text-slate-500 truncate mt-2">{lastMessage?.text || 'No messages yet'}</p>
             </button>
           ))}
@@ -81,7 +81,7 @@ function CompanyChat() {
               <div className="p-5 border-b border-slate-100 bg-white flex items-start justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">{active.customerName}</h3>
-                  <p className="text-sm text-slate-500 mt-1">{active.serviceSnapshot?.name || 'Fleet service'} · {active.reference}</p>
+                  <p className="text-sm text-slate-500 mt-1">{active.serviceSnapshot?.name || 'Service request'} · {active.reference}</p>
                 </div>
                 <span className="text-xs px-3 py-1.5 h-fit bg-blue-50 text-blue-700 rounded-full font-bold">{active.status}</span>
               </div>

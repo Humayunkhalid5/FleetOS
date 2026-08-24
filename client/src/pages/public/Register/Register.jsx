@@ -69,22 +69,22 @@ function Register() {
             </div>
             <div className="relative z-20">
               <div className="flex items-center gap-sm mb-lg">
-                <span className="material-symbols-outlined text-[32px]">local_shipping</span>
+                <span className="material-symbols-outlined text-[32px]">hub</span>
                 <h1 className="font-headline-lg text-headline-lg font-bold tracking-tight">FleetOS</h1>
               </div>
-              <h2 className="font-headline-md text-headline-md mb-md">Streamline your fleet operations today.</h2>
-              <p className="font-body-lg text-body-lg opacity-80">Join thousands of managers who rely on FleetOS for reliable service booking, real-time tracking, and automated payments.</p>
+              <h2 className="font-headline-md text-headline-md mb-md">Discover trusted companies and their offers in one place.</h2>
+              <p className="font-body-lg text-body-lg opacity-80">Join clients who use FleetOS to find approved companies, compare products and services, chat, book, track, pay, and review.</p>
             </div>
             <div className="relative z-20">
               <div className="bg-primary-container p-md rounded-xl text-on-primary-container shadow-sm border border-on-primary/10">
                 <p className="font-label-sm text-label-sm uppercase mb-xs opacity-70">Latest Update</p>
-                <p className="font-body-md text-body-md font-medium">New: Advanced driver analytics and maintenance scheduling tools now available.</p>
+                <p className="font-body-md text-body-md font-medium">New: Company product/service listings, client chat, booking tracking, and payment tools are now available.</p>
               </div>
             </div>
             <div className="relative mt-xl h-48 rounded-lg overflow-hidden shadow-lg border border-white/10">
               <img
                 className="w-full h-full object-cover"
-                alt="Fleet dashboard"
+                alt="FleetOS marketplace dashboard"
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuDr1GtFdGImNZ5fl-gpSHZ0qWanX0egJDETDQ7K9rl6mtYPVx-ET3TiNn7IWm8k_NGfzTeaw6VLuhqUo6vkb1ygju96ZuxfKOtlZ31G9YZqiYQ3iKTwCwc_yEX6Z0CYy2t0Wns1vrOZ7ozpdULvAeoiY20s8wpg32Kn9dhOaLBhRZE5CEteB6VXeG73_EHUxiP1QAgoieIiPi-wuiYsVm-1hE0yIfnfiAXLL_MByRwdaDL_pIDINZ1Uww"
               />
             </div>
@@ -129,7 +129,7 @@ function Register() {
                     }`}
                   >
                     <span className="material-symbols-outlined text-[18px]">storefront</span>
-                    Dealer / Fleet Provider
+                    Company / Seller
                   </button>
                 </div>
               </div>
@@ -203,7 +203,7 @@ function Register() {
                   <div className="absolute top-4 left-[14px] flex items-center pointer-events-none w-6 justify-center">
                     <span className="material-symbols-outlined text-outline text-[20px] group-focus-within:text-primary transition-colors">location_on</span>
                   </div>
-                  <textarea className="w-full pl-[52px] pr-md py-md bg-surface-container-low border border-outline-variant rounded-xl focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none" id="address" placeholder="123 Logistics Way, Tech Park, CA" required rows="2" value={form.address} onChange={update('address')}></textarea>
+                  <textarea className="w-full pl-[52px] pr-md py-md bg-surface-container-low border border-outline-variant rounded-xl focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none" id="address" placeholder="House/office, area, city, Pakistan" required rows="2" value={form.address} onChange={update('address')}></textarea>
                 </div>
               </div>
               {/* Terms Checkbox */}
@@ -241,7 +241,7 @@ function Register() {
                   </>
                 ) : (
                   <>
-                    Continue to Fleet Setup
+                    Continue to FleetOS
                     <span className="material-symbols-outlined">arrow_forward</span>
                   </>
                 )}

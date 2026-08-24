@@ -39,7 +39,7 @@ function CompanyAnalytics() {
               <img className="w-full h-full object-cover" alt="Avatar" src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDob1EAfuIbOEB4mJ8aEtGMOAqZ2pFY3XlqCk2JkHoW67b-ZOBUc5zFlRYqQ2BZ3DG67ncjfW2OLoo5hg7xuxYuAqd8Dnt5ilPQQXVTUmumtWf50x262r2EhICAmE-N5bwuBjLhajhwN27J-KOxykfXlTI8WYp4DU3gYg4J6dBnKMvJL7SnjiVZ4DXESV3KRM6gWcKX9-Ly_MH0qvOPlsnmmbJxlvGssOUoAAS512hpEREvE9kMnIHJ0g"} />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-900">{user?.name || 'Fleet Manager'}</p>
+              <p className="text-xs font-bold text-slate-900">{user?.name || 'Company Admin'}</p>
               <p className="text-xs text-slate-500">{user?.companyName || 'Admin Console'}</p>
             </div>
           </div>
@@ -103,7 +103,7 @@ function CompanyAnalytics() {
       {/* Main Content */}
       <main className="md:ml-[260px] flex-grow min-h-screen">
         <header className="sticky top-0 z-40 flex justify-between items-center w-full px-4 md:px-8 h-16 bg-[#f4f7fb]/85 backdrop-blur-xl border-b border-white/60">
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Fleet Analytics & Intelligence</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Company Analytics & Intelligence</h1>
         </header>
 
         <div className="p-4 md:p-8 max-w-[1600px] mx-auto space-y-6">
@@ -121,7 +121,7 @@ function CompanyAnalytics() {
             </div>
 
             <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-2">
-              <p className="text-xs font-semibold text-slate-500 uppercase">Active Dispatch Jobs</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase">Active Client Requests</p>
               <p className="text-3xl font-bold text-slate-900">{totalJobs - completedJobs}</p>
               <span className="text-slate-500 text-xs font-bold">Pending or in-progress</span>
             </div>
@@ -130,7 +130,7 @@ function CompanyAnalytics() {
           <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-4">
             <h3 className="text-base font-bold text-slate-900">Performance Summary</h3>
             {totalJobs > 0 ? (
-              <p className="text-xs text-slate-600">Your portal is actively processing service orders and technician telemetry.</p>
+              <p className="text-xs text-slate-600">Your portal is actively processing client requests, staff assignments, and revenue activity.</p>
             ) : (
               <div className="p-8 text-center text-slate-400 space-y-2">
                 <span className="material-symbols-outlined text-4xl text-slate-300">analytics</span>

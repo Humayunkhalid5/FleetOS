@@ -23,7 +23,7 @@ function CompanyReviews() {
           const mapped = data.reviews.map(r => ({
             id: r._id || Date.now(),
             customer: r.customer?.name || 'Verified Customer',
-            service: r.booking?.serviceSnapshot?.name || 'Fleet Maintenance Service',
+            service: r.booking?.serviceSnapshot?.name || 'Completed Company Service',
             tech: r.technician || 'Assigned Specialist',
             rating: Number(r.rating) || 5,
             date: new Date(r.createdAt || Date.now()).toLocaleDateString(),
@@ -64,7 +64,7 @@ function CompanyReviews() {
               <img className="w-full h-full object-cover" alt="Avatar" src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDob1EAfuIbOEB4mJ8aEtGMOAqZ2pFY3XlqCk2JkHoW67b-ZOBUc5zFlRYqQ2BZ3DG67ncjfW2OLoo5hg7xuxYuAqd8Dnt5ilPQQXVTUmumtWf50x262r2EhICAmE-N5bwuBjLhajhwN27J-KOxykfXlTI8WYp4DU3gYg4J6dBnKMvJL7SnjiVZ4DXESV3KRM6gWcKX9-Ly_MH0qvOPlsnmmbJxlvGssOUoAAS512hpEREvE9kMnIHJ0g"} />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-900">{user?.name || 'Fleet Manager'}</p>
+              <p className="text-xs font-bold text-slate-900">{user?.name || 'Company Admin'}</p>
               <p className="text-xs text-slate-500">{user?.companyName || 'Admin Console'}</p>
             </div>
           </div>

@@ -19,7 +19,8 @@ exports.getPublicInventory = async (req, res) => {
     if (owner?.status === 'suspended') return res.status(404).json({ message: 'Approved company not found' });
   }
 
-  const inventoryFilter = { company: company._id, quantity: { $gt: 0 } };
+  const baseInventoryFilter = { company: company._id, quantity: { $gt: 0 } };
+  const inventoryFilter = { ...baseInventoryFilter };
   const serviceKey = req.query.serviceId || req.query.serviceName || req.query.service;
   if (serviceKey) {
     const serviceFilter = mongoose.isValidObjectId(serviceKey)
@@ -29,10 +30,16 @@ exports.getPublicInventory = async (req, res) => {
     if (service?.category) inventoryFilter.category = service.category;
   }
 
-  const inventory = await Inventory.find(inventoryFilter)
+  let inventory = await Inventory.find(inventoryFilter)
     .select('sku name category quantity unitPrice unit')
     .sort({ category: 1, name: 1 })
     .lean();
+  if (inventory.length === 0 && serviceKey) {
+    inventory = await Inventory.find(baseInventoryFilter)
+      .select('sku name category quantity unitPrice unit')
+      .sort({ category: 1, name: 1 })
+      .lean();
+  }
 
   return res.json({
     inventory: inventory.map((item) => ({

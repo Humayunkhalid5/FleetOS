@@ -63,13 +63,13 @@ export const BOTTOM_NAV = [
 
 // Service categories shown on the dashboard and Companies filter
 export const CATEGORIES = [
-  { icon: 'plumbing',             label: 'Plumbing',     value: 'plumbing' },
-  { icon: 'electrical_services',  label: 'Electrical',   value: 'electrical' },
-  { icon: 'cleaning_services',    label: 'Cleaning',     value: 'cleaning' },
-  { icon: 'hvac',                 label: 'HVAC',         value: 'hvac' },
-  { icon: 'pest_control',         label: 'Pests',        value: 'pest_control' },
-  { icon: 'build',                label: 'Mechanical',   value: 'mechanical' },
-  { icon: 'local_shipping',       label: 'Fleet',        value: 'fleet' },
+  { icon: 'storefront',           label: 'Retail Product',       value: 'retail product' },
+  { icon: 'construction',         label: 'Installation',         value: 'installation' },
+  { icon: 'support_agent',        label: 'Repair & Support',     value: 'repair & support' },
+  { icon: 'home_repair_service',  label: 'Home Service',         value: 'home service' },
+  { icon: 'business_center',      label: 'Business Service',     value: 'business service' },
+  { icon: 'computer',             label: 'Digital Service',      value: 'digital service' },
+  { icon: 'workspace_premium',    label: 'Professional Service', value: 'professional service' },
 ];
 
 // Technicians for the booking flow (Customize Booking)

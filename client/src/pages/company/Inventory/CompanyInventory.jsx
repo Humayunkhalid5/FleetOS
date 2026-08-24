@@ -105,7 +105,7 @@ function CompanyInventory() {
               <img className="w-full h-full object-cover" alt="Avatar" src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDob1EAfuIbOEB4mJ8aEtGMOAqZ2pFY3XlqCk2JkHoW67b-ZOBUc5zFlRYqQ2BZ3DG67ncjfW2OLoo5hg7xuxYuAqd8Dnt5ilPQQXVTUmumtWf50x262r2EhICAmE-N5bwuBjLhajhwN27J-KOxykfXlTI8WYp4DU3gYg4J6dBnKMvJL7SnjiVZ4DXESV3KRM6gWcKX9-Ly_MH0qvOPlsnmmbJxlvGssOUoAAS512hpEREvE9kMnIHJ0g"} />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-900">{user?.name || 'Fleet Manager'}</p>
+              <p className="text-xs font-bold text-slate-900">{user?.name || 'Company Admin'}</p>
               <p className="text-xs text-slate-500">{user?.companyName || 'Admin Console'}</p>
             </div>
           </div>
@@ -169,7 +169,7 @@ function CompanyInventory() {
       {/* Main Content */}
       <main className="md:ml-[260px] flex-grow min-h-screen">
         <header className="sticky top-0 z-40 flex justify-between items-center w-full px-4 md:px-8 h-16 bg-[#f4f7fb]/85 backdrop-blur-xl border-b border-white/60">
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Fleet Inventory & Parts</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Company Inventory & Add-ons</h1>
           <button 
             onClick={() => setShowAddModal(true)}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm hover:opacity-90 transition-opacity"
@@ -372,7 +372,7 @@ function CompanyInventory() {
                   type="text" 
                   required
                   className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" 
-                  placeholder="e.g. Heavy Duty Brake Fluid"
+                  placeholder="e.g. Premium Product Add-on"
                   value={newItem.name}
                   onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
                 />

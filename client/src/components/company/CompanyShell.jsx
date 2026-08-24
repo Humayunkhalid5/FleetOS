@@ -4,10 +4,10 @@ import { useAuth } from '../../hooks/useAuth';
 
 export const COMPANY_NAV = [
   ['space_dashboard', 'Overview', ROUTES.companyDashboard],
-  ['handyman', 'Bookings', ROUTES.companyBookings],
-  ['badge', 'Technicians', ROUTES.companyTechnicians],
+  ['handyman', 'Requests', ROUTES.companyBookings],
+  ['badge', 'Staff', ROUTES.companyTechnicians],
   ['inventory_2', 'Inventory', ROUTES.companyInventory],
-  ['car_repair', 'Services', ROUTES.companyServices],
+  ['storefront', 'Services', ROUTES.companyServices],
   ['groups', 'Customers', ROUTES.companyCustomers],
   ['forum', 'Client Messages', ROUTES.companyChat],
   ['star', 'Reviews', ROUTES.companyReviews],
@@ -32,7 +32,7 @@ function CompanyShell({ title, subtitle, actions, search, onSearch, children }) 
 
   return (
     <div className="min-h-screen bg-[#f4f7fb] text-slate-800 font-sans md:flex">
-      <aside className="hidden md:flex fixed inset-y-0 left-0 w-[260px] bg-white border-r border-slate-100 flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+      <aside className="company-sidebar hidden md:flex fixed inset-y-0 left-0 w-[260px] bg-white border-r border-slate-100 flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         <div className="h-[80px] px-8 flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
             <span className="material-symbols-outlined text-white text-[18px]">domain</span>
@@ -40,13 +40,13 @@ function CompanyShell({ title, subtitle, actions, search, onSearch, children }) 
           <span className="text-xl font-bold tracking-tight text-slate-900">FleetOS</span>
         </div>
 
-        <div className="px-6 py-4 overflow-y-auto flex-1">
+        <div className="company-sidebar-scroll px-5 py-3 overflow-y-auto flex-1">
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-4">Main Menu</p>
           <nav className="space-y-1">
             {COMPANY_NAV.map(([icon, label, to]) => {
               const active = location.pathname === to;
               return (
-                <Link key={label} to={to} className={`flex items-center gap-3.5 px-4 py-3 rounded-2xl text-[14px] font-semibold transition-all duration-200 ${active ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                <Link key={label} to={to} preventScrollReset className={`flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-[13px] font-semibold transition-all duration-200 ${active ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                   <span className={`material-symbols-outlined text-[20px] ${active ? 'text-blue-600' : 'text-slate-400'}`} style={active ? { fontVariationSettings: "'FILL' 1" } : {}}>{icon}</span>
                   {label}
                 </Link>

@@ -765,3 +765,75 @@ tbody tr:hover {
   .admin-hero { grid-template-columns: 1fr; padding: 24px; }
   .hero-card { min-height: auto; }
 }
+
+/* FleetOS overflow + contrast hardening */
+.metrics {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.metric,
+.metric span,
+.hero-card,
+.panel,
+.panel > header,
+.topbar,
+td,
+th {
+  min-width: 0;
+}
+
+.metric {
+  overflow: hidden;
+}
+
+.metric small,
+.metric b,
+.hero-card b,
+.hero-card span,
+.topbar h1,
+.topbar p,
+td,
+th {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.metric b {
+  font-size: clamp(20px, 2.2vw, 28px);
+  line-height: 1.08;
+}
+
+.panel button:not(.danger):not(.secondary),
+.modal-actions button,
+.login-panel form button,
+.settings form button {
+  background: #0D1B2A;
+  color: #ffffff;
+}
+
+.panel button:not(.danger):not(.secondary):hover,
+.modal-actions button:hover,
+.login-panel form button:hover,
+.settings form button:hover {
+  background: #1B263B;
+  color: #ffffff;
+}
+
+.panel button:not(.danger):not(.secondary) *,
+.modal-actions button *,
+.login-panel form button *,
+.settings form button * {
+  color: inherit;
+}
+
+@media (max-width: 860px) {
+  .panel > header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .status-bars > div {
+    grid-template-columns: minmax(0, 92px) minmax(0, 1fr) 32px;
+  }
+}

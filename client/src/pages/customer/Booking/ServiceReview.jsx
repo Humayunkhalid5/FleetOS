@@ -6,7 +6,7 @@ import api from '../../../services/api';
 function ServiceReview() {
   const navigate = useNavigate();
   const location = useLocation();
-  const selectedTech = location.state?.selectedTech?.name || location.state?.selectedTech || 'Assigned technician';
+  const selectedTech = location.state?.selectedTech?.name || location.state?.selectedTech || 'Assigned staff member';
   const bookingId = location.state?.bookingId || null;
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState('');
@@ -121,7 +121,7 @@ function ServiceReview() {
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
               className="w-full bg-surface-container rounded-lg border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary p-md font-body-md text-body-md placeholder:text-on-secondary-container/50 transition-all resize-none" 
-              placeholder="Was the service on time? Did the technician follow all safety protocols?" 
+              placeholder="Was the service on time? Did the company communicate clearly and complete the request properly?" 
               rows="5"
             ></textarea>
           </div>
@@ -171,7 +171,7 @@ function ServiceReview() {
             </div>
             <div>
               <p className="font-label-sm text-label-sm text-on-surface-variant uppercase">Service Type</p>
-              <p className="font-headline-md text-headline-md">{booking?.serviceSnapshot?.name || 'Completed fleet service'}</p>
+              <p className="font-headline-md text-headline-md">{booking?.serviceSnapshot?.name || 'Completed service request'}</p>
               <p className="text-xs text-outline">Reference: {booking?.reference || 'Selected booking'}</p>
             </div>
           </div>
@@ -180,11 +180,11 @@ function ServiceReview() {
               <img className="w-full h-full object-cover" alt={selectedTech} src={getTechAvatar(selectedTech)} />
             </div>
             <div>
-              <p className="font-label-sm text-label-sm text-on-surface-variant uppercase">Technician</p>
+              <p className="font-label-sm text-label-sm text-on-surface-variant uppercase">Assigned Staff</p>
               <p className="font-headline-md text-headline-md">{selectedTech}</p>
               <p className="text-xs text-tertiary flex items-center gap-1">
                 <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
-                Certified Expert
+                Verified Company Staff
               </p>
             </div>
           </div>

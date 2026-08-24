@@ -5,12 +5,12 @@ import api from '../../../services/api';
 
 const nav = [
   ['space_dashboard', 'Overview', '/company/dashboard'],
-  ['handyman', 'Dispatch & Bookings', '/company/bookings'],
-  ['badge', 'Technicians', '/company/technicians'],
+  ['handyman', 'Requests', '/company/bookings'],
+  ['badge', 'Staff', '/company/technicians'],
   ['inventory_2', 'Inventory', '/company/inventory'],
-  ['car_repair', 'Services', '/company/services'],
+  ['storefront', 'Services', '/company/services'],
   ['groups', 'Customers', '/company/customers'],
-  ['forum', 'Messages', '/company/chat'],
+  ['forum', 'Client Messages', '/company/chat'],
   ['star', 'Reviews', '/company/reviews'],
   ['monitoring', 'Analytics', '/company/analytics'],
   ['domain', 'Company Details', '/company/details'],
@@ -21,7 +21,7 @@ const money = (value) => `PKR ${Number(value || 0).toLocaleString('en-PK')}`;
 const time = (value) => value ? new Intl.DateTimeFormat('en-PK', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
 
 function downloadCsv(bookings) {
-  const rows = [['Reference', 'Customer', 'Vehicle', 'Service', 'Technician', 'Status', 'Amount'], ...bookings.map((item) => [item.reference, item.customerName, item.vehicle?.label, item.serviceSnapshot?.name, item.technician?.name || 'Unassigned', item.status, item.pricing?.finalTotal])];
+  const rows = [['Reference', 'Customer', 'Request', 'Service', 'Assigned Staff', 'Status', 'Amount'], ...bookings.map((item) => [item.reference, item.customerName, item.vehicle?.label, item.serviceSnapshot?.name, item.technician?.name || 'Unassigned', item.status, item.pricing?.finalTotal])];
   const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
   const anchor = document.createElement('a');
@@ -60,7 +60,7 @@ function CompanyDashboard() {
 
   return (
     <div className="min-h-screen bg-[#f4f7fb] text-slate-800 font-sans md:flex">
-      <aside className="hidden md:flex fixed inset-y-0 left-0 w-[260px] bg-white border-r border-slate-100 flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+      <aside className="company-sidebar hidden md:flex fixed inset-y-0 left-0 w-[260px] bg-white border-r border-slate-100 flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         <div className="h-[80px] px-8 flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
             <span className="material-symbols-outlined text-white text-[18px]">domain</span>
@@ -68,13 +68,13 @@ function CompanyDashboard() {
           <span className="text-xl font-bold tracking-tight text-slate-900">FleetOS</span>
         </div>
 
-        <div className="px-6 py-4">
+        <div className="company-sidebar-scroll px-5 py-3 overflow-y-auto flex-1">
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-4">Main Menu</p>
           <nav className="space-y-1">
             {nav.map(([icon, label, to], index) => {
               const active = index === 0;
               return (
-                <Link key={label} to={to} className={`flex items-center gap-3.5 px-4 py-3 rounded-2xl text-[14px] font-semibold transition-all duration-200 ${active ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                <Link key={label} to={to} preventScrollReset className={`flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-[13px] font-semibold transition-all duration-200 ${active ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                   <span className={`material-symbols-outlined text-[20px] ${active ? 'text-blue-600' : 'text-slate-400'}`} style={active ? { fontVariationSettings: "'FILL' 1" } : {}}>{icon}</span>
                   {label}
                 </Link>
@@ -133,9 +133,9 @@ function CompanyDashboard() {
                 {[
                   ['account_balance_wallet', 'Revenue', money(data.metrics.recordedRevenue), 'text-emerald-600 bg-emerald-50'],
                   ['fact_check', 'Total Bookings', data.metrics.totalBookings, 'text-blue-600 bg-blue-50'],
-                  ['local_shipping', 'Pending Jobs', data.metrics.pendingDispatch, 'text-orange-600 bg-orange-50'],
-                  ['task_alt', 'Completed Jobs', data.metrics.completedJobs, 'text-cyan-600 bg-cyan-50'],
-                  ['engineering', 'Available Techs', `${data.metrics.availableTechnicians}/${data.metrics.technicianTotal}`, 'text-purple-600 bg-purple-50'],
+                  ['pending_actions', 'Pending Requests', data.metrics.pendingDispatch, 'text-orange-600 bg-orange-50'],
+                  ['task_alt', 'Completed Work', data.metrics.completedJobs, 'text-cyan-600 bg-cyan-50'],
+                  ['groups', 'Available Staff', `${data.metrics.availableTechnicians}/${data.metrics.technicianTotal}`, 'text-purple-600 bg-purple-50'],
                 ].map(([icon, label, value, colorClass]) => (
                   <div key={label} className="bg-white rounded-3xl p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100 hover:-translate-y-1 transition-transform">
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${colorClass}`}>
@@ -171,12 +171,12 @@ function CompanyDashboard() {
                           {filtered.slice(0, 8).map((booking) => (
                             <tr key={booking._id} className="hover:bg-slate-50/50 transition-colors">
                               <td className="p-4 pl-6"><span className="font-mono text-sm font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-lg">{booking.reference}</span></td>
-                              <td className="p-4"><p className="font-bold text-slate-900 text-sm">{booking.customerName}</p><p className="text-xs text-slate-500 font-medium mt-0.5">{booking.vehicle?.label || 'No vehicle'} • {time(booking.scheduledAt)}</p></td>
+                              <td className="p-4"><p className="font-bold text-slate-900 text-sm">{booking.customerName}</p><p className="text-xs text-slate-500 font-medium mt-0.5">{booking.vehicle?.label || 'Client request'} • {time(booking.scheduledAt)}</p></td>
                               <td className="p-4 text-sm font-medium text-slate-700">{booking.serviceSnapshot?.name}</td>
                               <td className="p-4"><span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${booking.status === 'Completed' || booking.status === 'Paid' ? 'bg-emerald-50 text-emerald-700' : booking.status === 'Pending' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'}`}>{booking.status}</span></td>
                               <td className="p-4 text-sm font-bold text-slate-900">{money(booking.pricing?.finalTotal)}</td>
                               <td className="p-4 pr-6 text-center">
-                                {booking.status === 'Pending' ? <button disabled={busy === booking._id} onClick={() => assignFirstAvailable(booking)} className="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50">Assign Tech</button> : <button onClick={() => navigate('/company/bookings')} className="text-slate-400 hover:text-blue-600 transition-colors"><span className="material-symbols-outlined">more_horiz</span></button>}
+                                {booking.status === 'Pending' ? <button disabled={busy === booking._id} onClick={() => assignFirstAvailable(booking)} className="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50">Assign Staff</button> : <button onClick={() => navigate('/company/bookings')} className="text-slate-400 hover:text-blue-600 transition-colors"><span className="material-symbols-outlined">more_horiz</span></button>}
                               </td>
                             </tr>
                           ))}
@@ -202,7 +202,7 @@ function CompanyDashboard() {
                   </div>
 
                   <div className="bg-white rounded-3xl p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100">
-                    <h3 className="font-bold text-lg text-slate-900 mb-4 flex justify-between items-center">Top Technicians <Link to="/company/technicians" className="text-sm text-blue-600 hover:underline">Manage</Link></h3>
+                    <h3 className="font-bold text-lg text-slate-900 mb-4 flex justify-between items-center">Top Staff <Link to="/company/technicians" className="text-sm text-blue-600 hover:underline">Manage</Link></h3>
                     <div className="space-y-4">
                       {data.technicians.slice(0, 4).map((tech) => (
                         <div key={tech._id} className="flex items-center gap-4">

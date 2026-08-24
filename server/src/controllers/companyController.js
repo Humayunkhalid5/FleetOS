@@ -108,6 +108,10 @@ exports.updateCompanySettings = async (req, res) => {
     const { validateLogo } = require('../utils/uploads');
     updates.logo = validateLogo(req.body.logo).data;
   }
+  if (req.body.heroImage && req.body.heroImage !== req.company.heroImage) {
+    const { validateLogo } = require('../utils/uploads');
+    updates.heroImage = validateLogo(req.body.heroImage).data;
+  }
   Object.assign(req.company, updates);
   await req.company.save();
   return res.json({ company: publicCompany(req.company) });

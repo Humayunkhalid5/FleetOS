@@ -12,104 +12,104 @@ body {
    reference: warm editorial canvas, soft cards, black ink, charcoal bands.
    Scoped to .client-theme so company dashboard pages keep their own UI.
 ---------------------------------------------------------------------------- */
-.client-theme {
-  --client-bg: #f7f2e8;
-  --client-paper: #fffaf2;
-  --client-card: #ece2d2;
-  --client-card-soft: #f1e8da;
-  --client-ink: #171814;
-  --client-muted: #6f675b;
-  --client-line: rgba(23, 24, 20, 0.12);
-  --client-dark: #25231d;
-  --client-yellow: #f8dfa0;
-  --client-coral: #f4c9bf;
-  --client-lilac: #e7dcf4;
-  --client-green: #e0e8d1;
+.client-theme:not(.company-register-theme) {
+  --client-bg: #f4f7fa;
+  --client-paper: #ffffff;
+  --client-card: #E0E1DD;
+  --client-card-soft: rgba(224, 225, 221, 0.48);
+  --client-ink: #0D1B2A;
+  --client-muted: #415A77;
+  --client-line: rgba(65, 90, 119, 0.18);
+  --client-dark: #0D1B2A;
+  --client-yellow: #E0E1DD;
+  --client-coral: #778DA9;
+  --client-lilac: #E0E1DD;
+  --client-green: #778DA9;
   background: var(--client-bg);
   color: var(--client-ink);
 }
 
-.client-theme .bg-background,
-.client-theme .bg-white,
-.client-theme .bg-surface,
-.client-theme .bg-surface-container-lowest {
+.client-theme:not(.company-register-theme) .bg-background,
+.client-theme:not(.company-register-theme) .bg-white,
+.client-theme:not(.company-register-theme) .bg-surface,
+.client-theme:not(.company-register-theme) .bg-surface-container-lowest {
   background-color: var(--client-paper) !important;
 }
 
-.client-theme .bg-slate-50,
-.client-theme .bg-slate-100,
-.client-theme .bg-surface-container,
-.client-theme .bg-surface-container-low,
-.client-theme .bg-secondary-container {
+.client-theme:not(.company-register-theme) .bg-slate-50,
+.client-theme:not(.company-register-theme) .bg-slate-100,
+.client-theme:not(.company-register-theme) .bg-surface-container,
+.client-theme:not(.company-register-theme) .bg-surface-container-low,
+.client-theme:not(.company-register-theme) .bg-secondary-container {
   background-color: var(--client-card-soft) !important;
 }
 
-.client-theme .text-primary,
-.client-theme .text-blue-600,
-.client-theme .text-on-surface,
-.client-theme .text-slate-950 {
+.client-theme:not(.company-register-theme) .text-primary,
+.client-theme:not(.company-register-theme) .text-blue-600,
+.client-theme:not(.company-register-theme) .text-on-surface,
+.client-theme:not(.company-register-theme) .text-slate-950 {
   color: var(--client-ink) !important;
 }
 
-.client-theme .text-on-surface-variant,
-.client-theme .text-slate-600,
-.client-theme .text-outline {
+.client-theme:not(.company-register-theme) .text-on-surface-variant,
+.client-theme:not(.company-register-theme) .text-slate-600,
+.client-theme:not(.company-register-theme) .text-outline {
   color: var(--client-muted) !important;
 }
 
-.client-theme .border-slate-200,
-.client-theme .border-outline-variant,
-.client-theme .border-surface-container {
+.client-theme:not(.company-register-theme) .border-slate-200,
+.client-theme:not(.company-register-theme) .border-outline-variant,
+.client-theme:not(.company-register-theme) .border-surface-container {
   border-color: var(--client-line) !important;
 }
 
-.client-theme .bg-primary,
-.client-theme .bg-blue-600 {
+.client-theme:not(.company-register-theme) .bg-primary,
+.client-theme:not(.company-register-theme) .bg-blue-600 {
   background-color: var(--client-dark) !important;
-  color: #fffaf1 !important;
+  color: #E0E1DD !important;
 }
 
-.client-theme .bg-primary\/5 {
-  background-color: rgba(39, 36, 29, 0.055) !important;
+.client-theme:not(.company-register-theme) .bg-primary\/5 {
+  background-color: rgba(13, 27, 42, 0.055) !important;
 }
 
-.client-theme .rounded-xl {
+.client-theme:not(.company-register-theme) .rounded-xl {
   border-radius: 24px;
 }
 
-.client-theme input,
-.client-theme textarea,
-.client-theme select {
-  background: #fffaf1 !important;
+.client-theme:not(.company-register-theme) input,
+.client-theme:not(.company-register-theme) textarea,
+.client-theme:not(.company-register-theme) select {
+  background: rgba(255,255,255,.92) !important;
   border-color: var(--client-line) !important;
   color: var(--client-ink) !important;
   border-radius: 18px !important;
 }
 
-.client-theme input:focus,
-.client-theme textarea:focus,
-.client-theme select:focus {
-  border-color: rgba(39, 36, 29, 0.35) !important;
-  box-shadow: 0 0 0 4px rgba(39, 36, 29, 0.08) !important;
+.client-theme:not(.company-register-theme) input:focus,
+.client-theme:not(.company-register-theme) textarea:focus,
+.client-theme:not(.company-register-theme) select:focus {
+  border-color: rgba(13, 27, 42, 0.35) !important;
+  box-shadow: 0 0 0 4px rgba(119, 141, 169, 0.18) !important;
 }
 
-.client-theme button,
-.client-theme a {
+.client-theme:not(.company-register-theme) button,
+.client-theme:not(.company-register-theme) a {
   border-radius: 14px;
 }
 
-.client-theme .shadow-sm,
-.client-theme .shadow-lg,
-.client-theme .shadow-xl,
-.client-theme .shadow-\[0_4px_16px_0_rgba\(11\,29\,45\,0\.12\)\],
-.client-theme .shadow-\[0_4px_16px_0_rgba\(11\,29\,45\,0\.08\)\] {
-  box-shadow: 0 18px 45px rgba(48, 43, 35, 0.08) !important;
+.client-theme:not(.company-register-theme) .shadow-sm,
+.client-theme:not(.company-register-theme) .shadow-lg,
+.client-theme:not(.company-register-theme) .shadow-xl,
+.client-theme:not(.company-register-theme) .shadow-\[0_4px_16px_0_rgba\(11\,29\,45\,0\.12\)\],
+.client-theme:not(.company-register-theme) .shadow-\[0_4px_16px_0_rgba\(11\,29\,45\,0\.08\)\] {
+  box-shadow: 0 18px 45px rgba(13, 27, 42, 0.08) !important;
 }
 
 .client-landing {
   background:
-    radial-gradient(circle at 18% 4%, rgba(255, 228, 163, 0.25), transparent 28rem),
-    radial-gradient(circle at 86% 6%, rgba(234, 220, 255, 0.28), transparent 28rem),
+    radial-gradient(circle at 18% 4%, rgba(119, 141, 169, 0.26), transparent 28rem),
+    radial-gradient(circle at 86% 6%, rgba(65, 90, 119, 0.18), transparent 28rem),
     var(--client-bg);
 }
 
@@ -195,9 +195,9 @@ body {
 
 .client-dark-btn {
   background: var(--client-dark);
-  color: #fffaf1;
+  color: #E0E1DD;
   border-color: var(--client-dark);
-  box-shadow: 0 14px 28px rgba(39, 36, 29, 0.16);
+  box-shadow: 0 14px 28px rgba(13, 27, 42, 0.18);
 }
 
 .client-large-btn {
@@ -288,10 +288,10 @@ body {
 .client-phone-mock {
   width: 276px;
   height: 522px;
-  border: 10px solid #171511;
+  border: 10px solid #0D1B2A;
   border-radius: 46px;
-  background: #fffaf1;
-  box-shadow: 0 32px 64px rgba(39, 36, 29, 0.2);
+  background: #E0E1DD;
+  box-shadow: 0 32px 64px rgba(13, 27, 42, 0.18);
   padding: 24px 18px;
   position: relative;
   z-index: 2;
@@ -377,7 +377,7 @@ body {
 .client-booking-card em {
   padding: 5px 8px;
   border-radius: 999px;
-  background: rgba(39, 36, 29, 0.1);
+  background: rgba(13, 27, 42, 0.10);
   font-size: 10px;
   font-style: normal;
 }
@@ -429,7 +429,7 @@ body {
   display: inline-grid;
   place-items: center;
   background: var(--client-ink);
-  color: #fffaf1;
+  color: #E0E1DD;
   font-size: 11px;
   font-weight: 700;
 }
@@ -552,7 +552,7 @@ body {
 .client-store-row span {
   display: inline-block;
   background: var(--client-ink);
-  color: #fffaf1;
+  color: #E0E1DD;
   border-radius: 9px;
   padding: 8px 14px;
   line-height: 1.1;
@@ -607,14 +607,14 @@ body {
   padding: 58px 66px;
   border-radius: 22px;
   background:
-    radial-gradient(circle at 50% 110%, rgba(255, 228, 163, 0.22), transparent 24rem),
+    radial-gradient(circle at 50% 110%, rgba(119, 141, 169, 0.22), transparent 24rem),
     var(--client-dark);
-  color: #fffaf1;
+  color: #E0E1DD;
 }
 
 .client-dark-band h2 {
   margin: 0;
-  color: #fffaf1;
+  color: #E0E1DD;
   font-size: clamp(34px, 3.9vw, 56px);
   font-weight: 650;
 }
@@ -650,7 +650,7 @@ body {
 
 .client-dark-features h3 {
   font-size: 15px;
-  color: #fffaf1;
+  color: #E0E1DD;
 }
 
 .client-dark-features p {
@@ -711,7 +711,7 @@ body {
   display: grid;
   place-items: center;
   background: var(--client-ink);
-  color: #fffaf1;
+  color: #E0E1DD;
   font-size: 12px;
   font-weight: 700;
 }
@@ -1131,4 +1131,181 @@ textarea:focus-visible { outline: 3px solid rgba(59, 130, 246, 0.24); outline-of
 .live-tracking-root .leaflet-container {
   width: 100% !important;
   height: 100% !important;
+}
+
+/* FleetOS professional client dashboard palette: keep homepage artwork intact, upgrade logged-in client surfaces. */
+.client-dashboard-shell,
+.client-theme:has(.client-dashboard-shell) {
+  --client-bg: #f4f7fa;
+  --client-paper: #ffffff;
+  --client-card: #E0E1DD;
+  --client-card-soft: rgba(224, 225, 221, 0.42);
+  --client-ink: #0D1B2A;
+  --client-muted: #415A77;
+  --client-line: rgba(65, 90, 119, 0.18);
+  --client-dark: #0D1B2A;
+  background:
+    radial-gradient(circle at 12% -8%, rgba(119, 141, 169, 0.22), transparent 28rem),
+    linear-gradient(135deg, #f8fafc 0%, #eef3f7 48%, #E0E1DD 100%) !important;
+  color: #0D1B2A;
+}
+
+.client-dashboard-shell header {
+  background: rgba(255,255,255,.84) !important;
+  border-color: rgba(65,90,119,.16) !important;
+}
+
+.client-dashboard-shell input,
+.client-dashboard-shell textarea,
+.client-dashboard-shell select {
+  border-radius: 18px !important;
+  border-color: rgba(65,90,119,.18) !important;
+  background: rgba(255,255,255,.9) !important;
+}
+
+.client-dashboard-shell .client-company-card {
+  background: rgba(255,255,255,.92) !important;
+  box-shadow: 0 24px 70px rgba(13, 27, 42, 0.08) !important;
+}
+
+.client-dashboard-shell .client-company-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 30px 90px rgba(13, 27, 42, 0.14) !important;
+}
+
+.company-theme .company-sidebar,
+.company-theme aside.company-sidebar {
+  background: linear-gradient(180deg, #0D1B2A 0%, #1B263B 100%) !important;
+  color: #E0E1DD;
+  border-right-color: rgba(224,225,221,.1) !important;
+}
+
+.company-theme .company-sidebar a,
+.company-theme .company-sidebar p,
+.company-theme .company-sidebar span {
+  color: inherit;
+}
+
+.company-theme .company-sidebar nav a:not(.bg-blue-50) {
+  color: rgba(224,225,221,.72) !important;
+}
+
+.company-theme .company-sidebar nav a.bg-blue-50,
+.company-theme .company-sidebar nav a:hover {
+  background: rgba(224,225,221,.12) !important;
+  color: #fff !important;
+}
+
+.company-theme .company-sidebar-scroll {
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+
+.company-theme .company-sidebar-scroll::-webkit-scrollbar { display: none; }
+
+.company-theme aside[class*="fixed"][class*="inset-y-0"][class*="left-0"] {
+  background: linear-gradient(180deg, #0D1B2A 0%, #1B263B 100%) !important;
+  color: #E0E1DD;
+  border-right-color: rgba(224,225,221,.1) !important;
+  overflow: hidden;
+}
+
+.company-theme aside[class*="fixed"][class*="inset-y-0"][class*="left-0"] nav {
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+
+.company-theme aside[class*="fixed"][class*="inset-y-0"][class*="left-0"] nav::-webkit-scrollbar { display: none; }
+
+.company-theme aside[class*="fixed"][class*="inset-y-0"][class*="left-0"] a {
+  scroll-margin: 0;
+}
+
+/* FleetOS portal consistency + contrast hardening */
+.company-theme {
+  --company-ink: #0D1B2A;
+  --company-navy: #1B263B;
+  --company-muted: #415A77;
+  --company-line: rgba(65, 90, 119, 0.16);
+}
+
+.company-theme main,
+.company-theme .grid > *,
+.client-theme:not(.company-register-theme) .grid > * {
+  min-width: 0;
+}
+
+.company-theme aside[class*="fixed"][class*="left-0"] {
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  overflow: hidden !important;
+}
+
+.company-theme aside[class*="fixed"][class*="left-0"] nav {
+  flex: 1 1 auto;
+  overflow-y: auto !important;
+  min-height: 0;
+  padding-right: 6px;
+}
+
+.company-theme aside[class*="fixed"][class*="left-0"] a,
+.company-theme aside[class*="fixed"][class*="left-0"] button {
+  color: rgba(224, 225, 221, 0.76) !important;
+}
+
+.company-theme aside[class*="fixed"][class*="left-0"] a:hover,
+.company-theme aside[class*="fixed"][class*="left-0"] button:hover,
+.company-theme aside[class*="fixed"][class*="left-0"] a[class*="bg-blue-50"] {
+  background: rgba(224, 225, 221, 0.12) !important;
+  color: #ffffff !important;
+}
+
+.company-theme aside[class*="fixed"][class*="left-0"] .text-slate-900,
+.company-theme aside[class*="fixed"][class*="left-0"] .text-blue-700,
+.company-theme aside[class*="fixed"][class*="left-0"] .text-blue-600 {
+  color: #ffffff !important;
+}
+
+.company-theme aside[class*="fixed"][class*="left-0"] .text-slate-500,
+.company-theme aside[class*="fixed"][class*="left-0"] .text-slate-400 {
+  color: rgba(224, 225, 221, 0.68) !important;
+}
+
+.company-theme .bg-blue-600,
+.company-theme button[class*="bg-blue-600"],
+.company-theme a[class*="bg-blue-600"] {
+  background: #0D1B2A !important;
+  color: #ffffff !important;
+}
+
+.company-theme button[class*="bg-blue-600"] *,
+.company-theme a[class*="bg-blue-600"] * {
+  color: inherit !important;
+}
+
+.company-theme button,
+.company-theme a,
+.client-theme:not(.company-register-theme) button,
+.client-theme:not(.company-register-theme) a {
+  overflow-wrap: anywhere;
+}
+
+.client-theme:not(.company-register-theme) button[class*="bg-primary"],
+.client-theme:not(.company-register-theme) button[class*="bg-blue-600"],
+.client-theme:not(.company-register-theme) a[class*="bg-primary"],
+.client-theme:not(.company-register-theme) a[class*="bg-blue-600"],
+.client-theme:not(.company-register-theme) .client-dark-btn {
+  color: #ffffff !important;
+}
+
+.client-theme:not(.company-register-theme) button[class*="bg-primary"] *,
+.client-theme:not(.company-register-theme) button[class*="bg-blue-600"] *,
+.client-theme:not(.company-register-theme) a[class*="bg-primary"] *,
+.client-theme:not(.company-register-theme) a[class*="bg-blue-600"] * {
+  color: inherit !important;
+}
+
+.client-theme:not(.company-register-theme) .bg-secondary-container,
+.client-theme:not(.company-register-theme) .bg-tertiary-container {
+  color: #0D1B2A !important;
 }

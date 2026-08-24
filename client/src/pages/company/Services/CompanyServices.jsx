@@ -92,7 +92,7 @@ function CompanyServices() {
               <img className="w-full h-full object-cover" alt="Avatar" src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDob1EAfuIbOEB4mJ8aEtGMOAqZ2pFY3XlqCk2JkHoW67b-ZOBUc5zFlRYqQ2BZ3DG67ncjfW2OLoo5hg7xuxYuAqd8Dnt5ilPQQXVTUmumtWf50x262r2EhICAmE-N5bwuBjLhajhwN27J-KOxykfXlTI8WYp4DU3gYg4J6dBnKMvJL7SnjiVZ4DXESV3KRM6gWcKX9-Ly_MH0qvOPlsnmmbJxlvGssOUoAAS512hpEREvE9kMnIHJ0g"} />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-900">{user?.name || 'Fleet Manager'}</p>
+              <p className="text-xs font-bold text-slate-900">{user?.name || 'Company Admin'}</p>
               <p className="text-xs text-slate-500">{user?.companyName || 'Admin Console'}</p>
             </div>
           </div>
@@ -237,7 +237,7 @@ function CompanyServices() {
                         <div className="space-y-3">
                           <span className="material-symbols-outlined text-4xl text-slate-300">build</span>
                           <h4 className="text-sm font-bold text-slate-800">No Services in Catalog</h4>
-                          <p className="text-xs text-slate-400">Add custom services offered by your fleet/maintenance portal.</p>
+                          <p className="text-xs text-slate-400">Add custom services or product offers published by your company portal.</p>
                           <button
                             onClick={() => setShowAddModal(true)}
                             className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold inline-flex items-center gap-2"
@@ -274,7 +274,7 @@ function CompanyServices() {
                   type="text" 
                   required
                   className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" 
-                  placeholder="e.g. Multi-Point Fleet Inspection"
+                  placeholder="e.g. Premium installation, product demo, or support package"
                   value={newSvc.name}
                   onChange={(e) => setNewSvc({ ...newSvc, name: e.target.value })}
                 />
@@ -288,10 +288,13 @@ function CompanyServices() {
                     value={newSvc.category}
                     onChange={(e) => setNewSvc({ ...newSvc, category: e.target.value })}
                   >
-                    <option value="Mechanical">Mechanical</option>
-                    <option value="Safety">Safety</option>
-                    <option value="Climate">Climate</option>
-                    <option value="Maintenance">Maintenance</option>
+                    <option value="Professional Service">Professional Service</option>
+                    <option value="Retail Product">Retail Product</option>
+                    <option value="Installation">Installation</option>
+                    <option value="Repair & Support">Repair & Support</option>
+                    <option value="Home Service">Home Service</option>
+                    <option value="Business Service">Business Service</option>
+                    <option value="Digital Service">Digital Service</option>
                   </select>
                 </div>
                 <div>
@@ -307,7 +310,7 @@ function CompanyServices() {
               </div>
 
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Standard Price ($)</label>
+                <label className="block text-slate-700 font-semibold mb-1">Standard Price (PKR)</label>
                 <input 
                   type="number" 
                   step="0.01"

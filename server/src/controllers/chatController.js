@@ -1,5 +1,7 @@
 const Booking = require('../models/Booking');
 const ChatMessage = require('../models/ChatMessage');
+const Company = require('../models/Company');
+const Service = require('../models/Service');
 
 async function authorizedBooking(req, bookingId) {
   const filter = req.user.role === 'customer'
@@ -16,6 +18,48 @@ exports.getConversations = async (req, res) => {
     return { booking, lastMessage };
   }));
   return res.json({ conversations });
+};
+
+exports.startCompanyConversation = async (req, res) => {
+  if (req.user.role !== 'customer') return res.status(403).json({ message: 'Only clients can start company chats' });
+  const identifier = req.params.companyId;
+  const filter = require('mongoose').isValidObjectId(identifier) ? { _id: identifier } : { slug: String(identifier).toLowerCase() };
+  const company = await Company.findOne({ ...filter, approvalStatus: 'approved' }).lean();
+  if (!company) return res.status(404).json({ message: 'Approved company not found' });
+
+  let booking = await Booking.findOne({
+    customer: req.user._id,
+    company: company._id,
+    'serviceSnapshot.name': 'General company inquiry',
+    status: 'Pending',
+  }).sort({ createdAt: -1 });
+
+  if (!booking) {
+    const service = await Service.findOne({ company: company._id, status: 'Active' }).sort({ name: 1 }).lean();
+    booking = await Booking.create({
+      reference: `FOS-CHAT-${Date.now().toString(36).toUpperCase()}`,
+      customer: req.user._id,
+      company: company._id,
+      service: service?._id || null,
+      serviceSnapshot: {
+        name: service?.name || 'General company inquiry',
+        category: service?.category || 'Inquiry',
+        price: Number(service?.price || 0),
+      },
+      customerName: req.user.name,
+      customerPhone: req.user.phone || '',
+      customerEmail: req.user.email || '',
+      vehicle: { label: 'Client inquiry' },
+      pricing: { serviceTotal: 0, materialsTotal: 0, tax: 0, finalTotal: 0 },
+      status: 'Pending',
+      statusHistory: [{ status: 'Pending', at: new Date(), byRole: 'customer', note: 'Client started a company chat inquiry.' }],
+      scheduledAt: new Date(),
+      location: req.user.address || req.user.city || company.city || 'Pakistan',
+      paymentMethod: 'cash',
+    });
+  }
+
+  return res.status(201).json({ booking });
 };
 
 exports.getChatMessages = async (req, res) => {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { ROUTES } from '../../../constants';
@@ -6,6 +6,8 @@ import { ROUTES } from '../../../constants';
 function CompanyRegister() {
   const navigate = useNavigate();
   const { register, error } = useAuth();
+  const licenseInputRef = useRef(null);
+  const logoInputRef = useRef(null);
   
   const [form, setForm] = useState({
     companyName: '',
@@ -25,37 +27,79 @@ function CompanyRegister() {
   const [logoDataUrl, setLogoDataUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+  const [submittedCompany, setSubmittedCompany] = useState(null);
 
   const update = (key) => (e) => {
     const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     setForm({ ...form, [key]: val });
   };
 
-  const readUpload = (file, maxBytes, onReady) => {
-    if (!file) return;
+  const mimeFromFile = (file, fallback = 'application/octet-stream') => {
+    const extension = String(file?.name || '').split('.').pop()?.toLowerCase();
+    const byExtension = {
+      pdf: 'application/pdf',
+      png: 'image/png',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      webp: 'image/webp',
+      svg: 'image/svg+xml',
+    };
+    return file?.type || byExtension[extension] || fallback;
+  };
+
+  const normalizeDataUrlMime = (dataUrl, file) => {
+    const mimeType = mimeFromFile(file);
+    return String(dataUrl || '').replace(/^data:[^;,]*;base64,/, `data:${mimeType};base64,`);
+  };
+
+  const readUpload = (file, maxBytes) => new Promise((resolve, reject) => {
+    if (!file) {
+      resolve('');
+      return;
+    }
     if (file.size > maxBytes) {
-      setFormError(`“${file.name}” exceeds the ${Math.round(maxBytes / 1024 / 1024)} MB limit.`);
+      reject(new Error(`“${file.name}” exceeds the ${Math.round(maxBytes / 1024 / 1024)} MB limit.`));
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => onReady(String(reader.result));
-    reader.onerror = () => setFormError(`Could not read “${file.name}”.`);
+    reader.onload = () => resolve(normalizeDataUrlMime(reader.result, file));
+    reader.onerror = () => reject(new Error(`Could not read “${file.name}”.`));
     reader.readAsDataURL(file);
-  };
+  });
 
   const handleLicenseChange = (e) => {
-    const file = e.target.files?.[0];
+    const file = e.target.files?.[0] || null;
     if (file) {
+      setFormError('');
       setLicenseFile(file);
-      readUpload(file, 5 * 1024 * 1024, setLicenseDataUrl);
+      setLicenseDataUrl('');
+      readUpload(file, 5 * 1024 * 1024)
+        .then(setLicenseDataUrl)
+        .catch((uploadError) => {
+          setLicenseFile(null);
+          setFormError(uploadError.message);
+        });
+    } else {
+      setLicenseFile(null);
+      setLicenseDataUrl('');
     }
   };
 
   const handleLogoChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
+    const file = e.target.files?.[0] || null;
+    if (file) {
+      setFormError('');
       setLogoFile(file);
-      readUpload(file, 1.5 * 1024 * 1024, setLogoDataUrl);
+      setLogoDataUrl('');
+      readUpload(file, 1.5 * 1024 * 1024)
+        .then(setLogoDataUrl)
+        .catch((uploadError) => {
+          setLogoFile(null);
+          setFormError(uploadError.message);
+        });
+    } else {
+      setLogoFile(null);
+      setLogoDataUrl('');
     }
   };
 
@@ -67,13 +111,26 @@ function CompanyRegister() {
       setFormError('You must agree to the Terms of Service and Data Protection Agreement.');
       return;
     }
-    if (!logoDataUrl || !licenseDataUrl) {
+    const selectedLogoFile = logoFile || logoInputRef.current?.files?.[0] || null;
+    const selectedLicenseFile = licenseFile || licenseInputRef.current?.files?.[0] || null;
+
+    if (!selectedLogoFile || !selectedLicenseFile) {
       setFormError('Company logo and business license are required for Admin verification.');
       return;
     }
 
     setSubmitting(true);
     try {
+      const [readyLogoDataUrl, readyLicenseDataUrl] = await Promise.all([
+        logoDataUrl ? Promise.resolve(logoDataUrl) : readUpload(selectedLogoFile, 1.5 * 1024 * 1024),
+        licenseDataUrl ? Promise.resolve(licenseDataUrl) : readUpload(selectedLicenseFile, 5 * 1024 * 1024),
+      ]);
+      if (!readyLogoDataUrl || !readyLicenseDataUrl) {
+        throw new Error('Please choose both company logo and business license again, then submit.');
+      }
+      setLogoDataUrl(readyLogoDataUrl);
+      setLicenseDataUrl(readyLicenseDataUrl);
+
       const targetName = form.companyName || form.ownerName;
       const regPayload = {
         name: targetName,
@@ -85,14 +142,18 @@ function CompanyRegister() {
         companyName: form.companyName || targetName,
         registrationNumber: form.registrationNumber,
         city: form.city.trim(),
-        logo: logoDataUrl,
-        businessLicense: { name: licenseFile.name, data: licenseDataUrl },
+        logo: readyLogoDataUrl,
+        businessLicense: { name: selectedLicenseFile.name, data: readyLicenseDataUrl },
       };
 
       const res = await register(regPayload);
 
       if (res) {
-        navigate(ROUTES.companyDashboard);
+        setSubmittedCompany({
+          name: res.companyName || regPayload.companyName,
+          email: regPayload.email,
+          status: res.approvalStatus || 'pending',
+        });
       }
     } catch (err) {
       setFormError(err.message || 'Registration failed');
@@ -100,6 +161,36 @@ function CompanyRegister() {
       setSubmitting(false);
     }
   };
+
+  if (submittedCompany) {
+    return (
+      <div className="bg-surface-container-low min-h-screen flex items-center justify-center px-4 py-10">
+        <section className="w-full max-w-xl rounded-3xl border border-outline-variant bg-white p-8 text-center shadow-xl">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+            <span className="material-symbols-outlined text-4xl">hourglass_top</span>
+          </div>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-secondary">Registration submitted</p>
+          <h1 className="mt-3 text-3xl font-black text-primary">Your company is waiting for Super Admin approval</h1>
+          <p className="mt-4 text-sm leading-6 text-on-surface-variant">
+            {submittedCompany.name} has been saved in MongoDB with your logo and business license. It will appear to clients after the Super Admin approves it.
+          </p>
+          <div className="mt-6 rounded-2xl bg-surface-container-low p-4 text-left text-sm">
+            <p><span className="font-bold">Company:</span> {submittedCompany.name}</p>
+            <p className="mt-1"><span className="font-bold">Email:</span> {submittedCompany.email}</p>
+            <p className="mt-1"><span className="font-bold">Status:</span> {submittedCompany.status}</p>
+          </div>
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <button onClick={() => navigate(ROUTES.home)} className="rounded-xl border border-outline-variant px-5 py-3 text-sm font-bold text-on-surface hover:bg-surface-container-low">
+              Go to public site
+            </button>
+            <button onClick={() => navigate(ROUTES.companyDashboard)} className="rounded-xl bg-secondary px-5 py-3 text-sm font-bold text-on-secondary hover:bg-secondary-container">
+              Check approval status
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-background text-on-background min-h-screen flex flex-col font-sans">
@@ -135,20 +226,20 @@ function CompanyRegister() {
             <div className="bg-secondary-container/20 w-16 h-16 rounded-xl flex items-center justify-center mb-6">
               <span className="material-symbols-outlined text-secondary text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>verified_user</span>
             </div>
-            <h2 className="text-on-primary font-bold text-3xl">Secure Onboarding for Global Fleets</h2>
-            <p className="text-on-primary-container text-base">Join thousands of B2B enterprises managing critical logistics with precision. Your data is protected by industry-standard encryption and comprehensive privacy protocols.</p>
+            <h2 className="text-on-primary font-bold text-3xl">Secure onboarding for Pakistani companies</h2>
+            <p className="text-on-primary-container text-base">Join FleetOS to pitch your products, services, add-ons, and offers to clients by city. Your company profile, documents, requests, chats, payments, and reviews stay connected through one SaaS portal.</p>
             <div className="pt-6 space-y-4">
               <div className="flex items-center gap-3">
                 <span className="material-symbols-outlined text-on-tertiary-container" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                <span className="text-on-primary text-xs font-semibold">ISO 27001 Certified Security</span>
+                <span className="text-on-primary text-xs font-semibold">Admin approval before client visibility</span>
               </div>
               <div className="flex items-center gap-3">
                 <span className="material-symbols-outlined text-on-tertiary-container" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                <span className="text-on-primary text-xs font-semibold">Real-time Data Privacy Shields</span>
+                <span className="text-on-primary text-xs font-semibold">Products, services, inventory, and bookings in MongoDB</span>
               </div>
               <div className="flex items-center gap-3">
                 <span className="material-symbols-outlined text-on-tertiary-container" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                <span className="text-on-primary text-xs font-semibold">Priority B2B Account Manager</span>
+                <span className="text-on-primary text-xs font-semibold">One portal for requests, chat, payments, and reviews</span>
               </div>
             </div>
           </div>
@@ -160,7 +251,7 @@ function CompanyRegister() {
             {/* Form Header */}
             <div className="mb-6 text-center md:text-left">
               <h3 className="text-on-surface text-xl font-bold mb-1">Register Company</h3>
-              <p className="text-on-surface-variant text-sm">Initialize your organization's administrative console within FleetOS.</p>
+              <p className="text-on-surface-variant text-sm">Create your company profile so clients can discover your products, services, and offers after Super Admin approval.</p>
             </div>
 
             {(error || formError) && (
@@ -182,7 +273,7 @@ function CompanyRegister() {
                       required
                       type="text"
                       className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
-                      placeholder="e.g. Nexus Logistics"
+                      placeholder="e.g. Lahore Home Solutions"
                       value={form.companyName}
                       onChange={update('companyName')}
                     />
@@ -213,7 +304,7 @@ function CompanyRegister() {
                       required
                       type="text"
                       className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
-                      placeholder="Tax ID / EIN"
+                      placeholder="SECP / NTN / business registration no."
                       value={form.registrationNumber}
                       onChange={update('registrationNumber')}
                     />
@@ -259,7 +350,7 @@ function CompanyRegister() {
                       required
                       rows="2"
                       className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary resize-none"
-                      placeholder="Street, Suite, City, State, ZIP"
+                      placeholder="Street, area, city, province"
                       value={form.address}
                       onChange={update('address')}
                     ></textarea>
@@ -275,7 +366,7 @@ function CompanyRegister() {
                       required
                       type="email"
                       className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
-                      placeholder="admin@nexuslogistics.com"
+                      placeholder="admin@yourcompany.pk"
                       value={form.email}
                       onChange={update('email')}
                     />
@@ -295,28 +386,53 @@ function CompanyRegister() {
                       onChange={update('password')}
                     />
                   </div>
+                  <p className="text-[11px] leading-4 text-on-surface-variant">
+                    Use 10+ characters with uppercase, lowercase, number, and symbol. Example: CompanyTest1!
+                  </p>
                 </div>
               </div>
 
               {/* File Upload Bento Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                <label className={`p-4 rounded-lg border-2 border-dashed border-outline-variant bg-surface-container flex flex-col items-center justify-center text-center cursor-pointer hover:bg-surface-container-high transition-colors ${licenseFile ? 'bg-secondary/10 border-secondary' : ''}`}>
+                <button
+                  type="button"
+                  onClick={() => licenseInputRef.current?.click()}
+                  className={`p-4 rounded-lg border-2 border-dashed border-outline-variant bg-surface-container flex flex-col items-center justify-center text-center cursor-pointer hover:bg-surface-container-high transition-colors ${licenseFile ? 'bg-secondary/10 border-secondary' : ''}`}
+                >
                   <span className="material-symbols-outlined text-secondary mb-1 text-2xl" data-icon="description">description</span>
                   <span className="text-on-surface text-xs font-semibold">Business License</span>
                   <span className="text-on-surface-variant text-xs mt-1">
                     {licenseFile ? licenseFile.name : 'PDF, JPG (Max 5MB)'}
                   </span>
-                  <input required type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={handleLicenseChange} />
-                </label>
+                  {licenseFile && <span className="mt-2 rounded-full bg-secondary/10 px-3 py-1 text-[11px] font-bold text-secondary">License selected</span>}
+                </button>
+                <input
+                  ref={licenseInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/png,image/jpeg"
+                  className="sr-only"
+                  onChange={handleLicenseChange}
+                />
 
-                <label className={`p-4 rounded-lg border-2 border-dashed border-outline-variant bg-surface-container flex flex-col items-center justify-center text-center cursor-pointer hover:bg-surface-container-high transition-colors ${logoFile ? 'bg-secondary/10 border-secondary' : ''}`}>
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  className={`p-4 rounded-lg border-2 border-dashed border-outline-variant bg-surface-container flex flex-col items-center justify-center text-center cursor-pointer hover:bg-surface-container-high transition-colors ${logoFile ? 'bg-secondary/10 border-secondary' : ''}`}
+                >
                   {logoDataUrl ? <img src={logoDataUrl} alt="Logo preview" className="w-10 h-10 object-contain rounded-lg mb-1 bg-white" /> : <span className="material-symbols-outlined text-secondary mb-1 text-2xl" data-icon="add_photo_alternate">add_photo_alternate</span>}
                   <span className="text-on-surface text-xs font-semibold">Company Logo</span>
                   <span className="text-on-surface-variant text-xs mt-1">
-                    {logoFile ? logoFile.name : 'PNG, SVG (1:1 Ratio)'}
+                    {logoFile ? logoFile.name : 'PNG, JPG, WEBP, SVG'}
                   </span>
-                  <input required type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={handleLogoChange} />
-                </label>
+                  {logoFile && <span className="mt-2 rounded-full bg-secondary/10 px-3 py-1 text-[11px] font-bold text-secondary">Logo selected</span>}
+                </button>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
+                  className="sr-only"
+                  onChange={handleLogoChange}
+                />
               </div>
 
               {/* CTA Section */}
@@ -342,7 +458,7 @@ function CompanyRegister() {
                     <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
                   </span>
                   <span className="text-on-surface-variant text-xs leading-5">
-                    I acknowledge that the information provided is legally binding. {form.companyName || 'Your Company'} agrees to the <a className="text-secondary underline font-semibold" href="#" onClick={(e) => { e.preventDefault(); e.stopPropagation(); alert('FleetOS Data Protection Agreement — uploaded license, logo, and company details are used only for verification and service discovery.'); }}>Data Protection Agreement</a> and <a className="text-secondary underline font-semibold" href="#" onClick={(e) => { e.preventDefault(); e.stopPropagation(); alert('FleetOS Terms of Service — Companies must provide accurate details, maintain professional conduct, and honor accepted bookings.'); }}>Terms of Service</a>.
+                    I acknowledge that the information provided is legally binding. {form.companyName || 'Your Company'} agrees to the <a className="text-secondary underline font-semibold" href="#" onClick={(e) => { e.preventDefault(); e.stopPropagation(); alert('FleetOS Data Protection Agreement — uploaded license, logo, company profile, product/service details, and client workflow data are used only for verification, discovery, bookings, payments, and support.'); }}>Data Protection Agreement</a> and <a className="text-secondary underline font-semibold" href="#" onClick={(e) => { e.preventDefault(); e.stopPropagation(); alert('FleetOS Terms of Service — Companies must provide accurate details, publish honest products/services, maintain professional conduct, and honor accepted client requests.'); }}>Terms of Service</a>.
                   </span>
                 </label>
 <button 

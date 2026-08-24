@@ -59,7 +59,7 @@ function Profile() {
   const selectedTech = location.state?.selectedTech || null;
   const profile = user || {
     name: 'Ali Shahzad',
-    role: 'Fleet Manager',
+    role: 'Client',
     email: 'ali.shahzad@fleetos.local',
     phone: '+92 300 1234567',
     address: 'Johar Town, Lahore, Punjab',
@@ -271,7 +271,7 @@ function Profile() {
           {selectedTech && (
             <div className="mt-md w-full bg-secondary-container text-on-secondary-container rounded-lg p-md flex items-center gap-sm">
               <span className="material-symbols-outlined">verified</span>
-              <span className="font-body-md text-body-md">Viewing profile context for technician {selectedTech}</span>
+              <span className="font-body-md text-body-md">Viewing profile context for assigned staff member {selectedTech}</span>
             </div>
           )}
 

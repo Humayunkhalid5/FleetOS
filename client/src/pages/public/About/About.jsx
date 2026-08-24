@@ -5,16 +5,16 @@ function About() {
   const navigate = useNavigate();
 
   const stats = [
-    { value: '15+', label: 'Years Experience' },
-    { value: '120k', label: 'Services Completed' },
+    { value: '246', label: 'Pakistan Cities' },
+    { value: '120k', label: 'Requests Managed' },
     { value: '4.8★', label: 'Average Rating' },
-    { value: '2.4k', label: 'Certified Techs' },
+    { value: '2.4k', label: 'Verified Companies' },
   ];
 
   const values = [
-    { icon: 'verified', title: 'Reliability', desc: 'Vetted professionals and on-time service guarantees.' },
-    { icon: 'visibility', title: 'Transparency', desc: 'Real-time tracking and clear, itemized pricing.' },
-    { icon: 'support_agent', title: 'Support', desc: 'Dedicated fleet support around the clock.' },
+    { icon: 'verified', title: 'Reliability', desc: 'Admin-approved companies, client reviews, and accountable workflows.' },
+    { icon: 'visibility', title: 'Transparency', desc: 'Clear products, services, optional items, prices, and request status.' },
+    { icon: 'support_agent', title: 'Support', desc: 'Dedicated platform support for companies and clients.' },
   ];
 
   return (
@@ -32,9 +32,9 @@ function About() {
       <main className="pt-24 px-container-margin max-w-4xl mx-auto space-y-lg">
         {/* Intro */}
         <section className="relative overflow-hidden rounded-xl bg-primary-container text-on-primary-container p-xl">
-          <h2 className="font-headline-lg text-headline-lg font-bold mb-sm">Empowering fleet managers</h2>
+          <h2 className="font-headline-lg text-headline-lg font-bold mb-sm">Empowering companies and clients</h2>
           <p className="font-body-lg text-body-lg max-w-xl">
-            FleetOS connects fleet managers with certified technicians, delivering reliable maintenance, real-time tracking, and transparent billing — all in one platform.
+            FleetOS is a SaaS marketplace where approved companies can pitch products and services while clients discover, request, chat, track, pay, and review — all in one platform.
           </p>
         </section>
 

@@ -22,8 +22,12 @@ function validateLogo(value) {
   return parseDataUrl(value, { label: 'Company logo', allowedTypes: IMAGE_TYPES, maxBytes: 1.5 * 1024 * 1024 });
 }
 
+function validateAvatar(value) {
+  return parseDataUrl(value, { label: 'Staff picture', allowedTypes: IMAGE_TYPES, maxBytes: 1.5 * 1024 * 1024 });
+}
+
 function validateBusinessLicense(value) {
   return parseDataUrl(value, { label: 'Business license', allowedTypes: LICENSE_TYPES, maxBytes: 5 * 1024 * 1024 });
 }
 
-module.exports = { validateLogo, validateBusinessLicense };
+module.exports = { validateLogo, validateAvatar, validateBusinessLicense };

@@ -30,7 +30,7 @@ function BookingSummary() {
   // Filter materials that have qty > 0 to display them
   const selectedMaterials = Object.values(materials).filter(item => item.qty > 0);
 
-  // The company allots the technician after the request is confirmed.
+  // The company allots the right staff member after the request is confirmed.
   // Until then we display a neutral placeholder (prevents undefined crash).
   const assignedTech = 'Company will assign';
 
@@ -66,7 +66,7 @@ function BookingSummary() {
         paymentMethod: selectedPayment,
         scheduledAt: new Date(Date.now() + 86400000).toISOString(),
         location: serviceLocation.address,
-        vehicle: { label: 'Customer vehicle' },
+        vehicle: { label: 'Client request' },
         idempotencyKey,
       });
       const created = response.booking || {};
@@ -109,7 +109,7 @@ function BookingSummary() {
       <main className="pt-24 pb-32 max-w-5xl mx-auto px-container-margin grid grid-cols-1 md:grid-cols-12 gap-lg">
         {/* Left Column: Details & Summary */}
         <div className="md:col-span-7 space-y-lg">
-          {/* Technician Summary Card */}
+          {/* Company Staff Summary Card */}
           <section className="bg-surface-container-lowest rounded-xl p-lg shadow-[0_4px_16px_0_rgba(11,29,45,0.08)] border border-outline-variant/10">
             <div className="flex items-center justify-between mb-md">
               <h2 className="font-headline-md text-headline-md text-on-surface">Assignment Status</h2>
@@ -120,10 +120,10 @@ function BookingSummary() {
                 <img className="w-full h-full object-cover" alt={assignedTech} src={getTechAvatar(assignedTech)} />
               </div>
               <div className="flex-1">
-                <p className="font-headline-md text-headline-md text-on-surface">Company will assign a technician</p>
+                <p className="font-headline-md text-headline-md text-on-surface">Company will assign suitable staff</p>
                 <p className="font-body-md text-body-md text-on-surface-variant flex items-center gap-xs">
                   <span className="material-symbols-outlined text-[16px]">verified</span>
-                  The selected company reviews the request and allocates the best available technician.
+                  The selected company reviews the request and allocates the best available team member.
                 </p>
               </div>
               <button onClick={() => navigate(ROUTES.customizeBooking, { state: { companyId, companyName } })} className="text-primary font-nav-item text-nav-item hover:underline">Edit Request</button>

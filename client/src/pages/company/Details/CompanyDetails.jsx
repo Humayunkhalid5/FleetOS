@@ -11,7 +11,7 @@ const fields = [
 ];
 
 function CompanyDetails() {
-  const [company, setCompany] = useState({ name: '', description: '', phone: '', location: '', city: '', province: '', areas: [], logo: '' });
+  const [company, setCompany] = useState({ name: '', description: '', phone: '', location: '', city: '', province: '', areas: [], logo: '', heroImage: '' });
   const [areaText, setAreaText] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
@@ -28,14 +28,26 @@ function CompanyDetails() {
 
   const previewAreas = useMemo(() => areaText.split(',').map((item) => item.trim()).filter(Boolean), [areaText]);
 
+  const readImage = (file, onReady) => {
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'].includes(file.type)) return setMessage('Please choose a PNG, JPG, WEBP, or SVG image.');
+    if (file.size > 1.5 * 1024 * 1024) return setMessage('Image must be under 1.5 MB.');
+    const reader = new FileReader();
+    reader.onload = () => onReady(reader.result);
+    reader.onerror = () => setMessage('Unable to read this image file.');
+    reader.readAsDataURL(file);
+  };
+
   const pickLogo = (event) => {
     const file = event.target.files?.[0];
-    if (!file) return;
-    if (file.size > 1.5 * 1024 * 1024) return setMessage('Logo must be under 1.5 MB.');
-    const reader = new FileReader();
-    reader.onload = () => setCompany((current) => ({ ...current, logo: reader.result }));
-    reader.onerror = () => setMessage('Unable to read this logo file.');
-    reader.readAsDataURL(file);
+    readImage(file, (result) => setCompany((current) => ({ ...current, logo: result, heroImage: current.heroImage || result })));
+    event.target.value = '';
+  };
+
+  const pickCover = (event) => {
+    const file = event.target.files?.[0];
+    readImage(file, (result) => setCompany((current) => ({ ...current, heroImage: result })));
+    event.target.value = '';
   };
 
   const saveCompany = async (event) => {
@@ -69,8 +81,17 @@ function CompanyDetails() {
             <span className="block text-xs text-slate-500 mt-1">PNG, JPG, WEBP or SVG up to 1.5 MB</span>
             <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={pickLogo} className="sr-only" />
           </label>
+          <label className="mt-3 block cursor-pointer rounded-2xl border border-dashed border-[#778DA9]/40 bg-[#E0E1DD]/50 p-4 text-center hover:bg-[#E0E1DD] transition-colors">
+            <span className="material-symbols-outlined text-[#1B263B]">image</span>
+            <span className="block text-sm font-bold text-[#1B263B]">Upload client card cover</span>
+            <span className="block text-xs text-slate-500 mt-1">This image appears on the client company card.</span>
+            <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={pickCover} className="sr-only" />
+          </label>
           <div className="mt-6 rounded-2xl bg-slate-50 border border-slate-100 p-4">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Discovery preview</p>
+            <div className="mt-3 h-28 rounded-2xl overflow-hidden bg-slate-200 flex items-center justify-center text-slate-400">
+              {(company.heroImage || company.logo) ? <img src={company.heroImage || company.logo} alt="Client card preview" className="h-full w-full object-cover" /> : <span className="material-symbols-outlined">storefront</span>}
+            </div>
             <h3 className="mt-3 text-lg font-bold text-slate-900">{company.name || 'Your company name'}</h3>
             <p className="text-sm text-slate-500 mt-1">{company.city || 'City'}, {company.province || 'Province'}</p>
             <p className="text-xs leading-5 text-slate-500 mt-3 line-clamp-4">{company.description || 'Add a short professional description so clients understand your services before booking.'}</p>

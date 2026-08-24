@@ -14,12 +14,12 @@ const Customer = require('../models/Customer');
 const City = require('../models/City');
 
 const providers = [
-  { name: 'Pak Fleet Mobility', slug: 'pak-fleet-mobility', city: 'Lahore', province: 'Punjab', location: 'Gulberg III, Lahore', email: 'company@fleetos.local', phone: '+92 42 35781234', description: 'Commercial fleet maintenance, dispatch and roadside support across Lahore.', rating: 4.8 },
-  { name: 'Karachi Fleet Care', slug: 'karachi-fleet-care', city: 'Karachi', province: 'Sindh', location: 'Korangi Industrial Area, Karachi', email: 'hello@karachifleetcare.pk', phone: '+92 21 35124880', description: 'Verified workshop and mobile response coverage for Karachi fleets.', rating: 4.7 },
-  { name: 'Capital Auto Response', slug: 'capital-auto-response', city: 'Islamabad', province: 'Islamabad Capital Territory', location: 'I-9 Industrial Area, Islamabad', email: 'ops@capitalresponse.pk', phone: '+92 51 4439821', description: 'Preventive maintenance and rapid-response service for the twin cities.', rating: 4.6 },
-  { name: 'Multan Commercial Motors', slug: 'multan-commercial-motors', city: 'Multan', province: 'Punjab', location: 'Bosan Road, Multan', email: 'service@multanmotors.pk', phone: '+92 61 6512210', description: 'Commercial vehicle servicing and fleet inspections in South Punjab.', rating: 4.5 },
-  { name: 'Peshawar RoadWorks', slug: 'peshawar-roadworks', city: 'Peshawar', province: 'Khyber Pakhtunkhwa', location: 'Hayatabad, Peshawar', email: 'dispatch@roadworks.pk', phone: '+92 91 5812234', description: 'Heavy vehicle diagnostics, tyres and mobile road support.', rating: 4.6 },
-  { name: 'Quetta Fleet Support', slug: 'quetta-fleet-support', city: 'Quetta', province: 'Balochistan', location: 'Airport Road, Quetta', email: 'care@quettafleet.pk', phone: '+92 81 2821440', description: 'Fleet maintenance and recovery support across Quetta.', rating: 4.4 },
+  { name: 'Lahore Home Solutions', slug: 'pak-fleet-mobility', city: 'Lahore', province: 'Punjab', location: 'Gulberg III, Lahore', email: 'company@fleetos.local', phone: '+92 42 35781234', description: 'Verified home, installation, and repair services for Lahore clients.', rating: 4.8 },
+  { name: 'Karachi Product Hub', slug: 'karachi-fleet-care', city: 'Karachi', province: 'Sindh', location: 'Korangi Industrial Area, Karachi', email: 'hello@karachifleetcare.pk', phone: '+92 21 35124880', description: 'Retail products, add-ons, and client service packages across Karachi.', rating: 4.7 },
+  { name: 'Capital Business Services', slug: 'capital-auto-response', city: 'Islamabad', province: 'Islamabad Capital Territory', location: 'I-9 Industrial Area, Islamabad', email: 'ops@capitalresponse.pk', phone: '+92 51 4439821', description: 'Professional business support, digital setup, and service fulfillment in Islamabad.', rating: 4.6 },
+  { name: 'Multan Smart Services', slug: 'multan-commercial-motors', city: 'Multan', province: 'Punjab', location: 'Bosan Road, Multan', email: 'service@multanmotors.pk', phone: '+92 61 6512210', description: 'Local product, home service, and customer support packages in South Punjab.', rating: 4.5 },
+  { name: 'Peshawar Service Market', slug: 'peshawar-roadworks', city: 'Peshawar', province: 'Khyber Pakhtunkhwa', location: 'Hayatabad, Peshawar', email: 'dispatch@roadworks.pk', phone: '+92 91 5812234', description: 'Trusted company offers, client requests, and staff assignment workflows.', rating: 4.6 },
+  { name: 'Quetta Digital & Retail', slug: 'quetta-fleet-support', city: 'Quetta', province: 'Balochistan', location: 'Airport Road, Quetta', email: 'care@quettafleet.pk', phone: '+92 81 2821440', description: 'Digital services, retail product offers, and verified local support in Quetta.', rating: 4.4 },
 ];
 
 const cityGroups = {
@@ -43,12 +43,20 @@ function phoneForSeed(index) {
   return `+92 300 ${String(7000000 + index).slice(0, 7)}`;
 }
 
+function companyHeroImage(name, city) {
+  const safeName = String(name || 'FleetOS Company').replace(/[<>&"]/g, '');
+  const safeCity = String(city || 'Pakistan').replace(/[<>&"]/g, '');
+  const hue = crypto.createHash('sha1').update(`${safeName}-${safeCity}`).digest('hex').slice(0, 6);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#0D1B2A"/><stop offset=".55" stop-color="#1B263B"/><stop offset="1" stop-color="#${hue}"/></linearGradient><radialGradient id="r" cx=".8" cy=".15" r=".6"><stop stop-color="#E0E1DD" stop-opacity=".32"/><stop offset="1" stop-color="#E0E1DD" stop-opacity="0"/></radialGradient></defs><rect width="960" height="540" rx="46" fill="url(#g)"/><rect width="960" height="540" rx="46" fill="url(#r)"/><circle cx="760" cy="115" r="88" fill="#778DA9" opacity=".28"/><circle cx="825" cy="190" r="128" fill="#415A77" opacity=".24"/><rect x="70" y="325" width="820" height="118" rx="34" fill="#E0E1DD" opacity=".12"/><text x="82" y="244" fill="#FFFFFF" font-family="Inter,Arial,sans-serif" font-size="58" font-weight="800">${safeName}</text><text x="86" y="296" fill="#E0E1DD" font-family="Inter,Arial,sans-serif" font-size="30" font-weight="600">${safeCity} marketplace company</text></svg>`;
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+}
+
 function generatedCityProviders(cities) {
   const brands = [
-    ['Rapid Fleet Care', 'Mobile diagnostics, dispatch and preventive maintenance for local fleet operators.'],
-    ['Metro Auto Works', 'Verified workshop services with emergency road support and transparent billing.'],
-    ['Prime Vehicle Response', 'Technician-led vehicle care, parts management and route-side assistance.'],
-    ['Trusted Motors Hub', 'Commercial vehicle inspections, repairs and fleet service scheduling.'],
+    ['Home Solutions', 'Verified home, repair, and installation services for local clients.'],
+    ['Product Hub', 'Retail products, add-ons, and transparent client request handling.'],
+    ['Business Services', 'Professional service packages, support staff, and city-wise fulfilment.'],
+    ['Digital & Retail', 'Digital setup, retail offers, and client support under one company portal.'],
   ];
   return cities.flatMap((city, cityIndex) => brands.map(([brand, description], brandIndex) => {
     const slug = `${slugify(city.name)}-${slugify(brand)}`;
@@ -179,7 +187,7 @@ async function bootstrap() {
     );
     const company = await Company.findOneAndUpdate(
       { slug: data.slug },
-      { $set: { ...data, owner: owner._id, approvalStatus: 'approved' }, $setOnInsert: { approvedAt: new Date() } },
+      { $set: { ...data, owner: owner._id, approvalStatus: 'approved', heroImage: companyHeroImage(data.name, data.city) }, $setOnInsert: { approvedAt: new Date() } },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     if (String(owner.company || '') !== String(company._id)) {
@@ -193,18 +201,18 @@ async function bootstrap() {
   const owner = await User.findOne({ company: mainCompany._id, role: 'company' });
 
   const serviceBlueprints = [
-    ['Preventive Maintenance', 'Maintenance', 18500, 120],
-    ['Brake Repair', 'Mechanical', 12000, 90],
-    ['AC Service', 'Climate', 7500, 75],
-    ['Engine Diagnostics', 'Diagnostics', 6000, 60],
-    ['Oil & Filter Change', 'Maintenance', 4500, 45],
+    ['Premium Installation Package', 'Installation', 18500, 120],
+    ['Repair & Support Visit', 'Repair & Support', 12000, 90],
+    ['Product Demo Session', 'Retail Product', 7500, 75],
+    ['Digital Setup Service', 'Digital Service', 6000, 60],
+    ['Basic Service Request', 'Professional Service', 4500, 45],
   ];
   for (const company of createdProviders) {
     for (let index = 0; index < serviceBlueprints.length; index += 1) {
       const [name, category, price, durationMinutes] = serviceBlueprints[index];
       await Service.updateOne(
         { company: company._id, serviceId: `SVC-${index + 1}` },
-        { $setOnInsert: { company: company._id, serviceId: `SVC-${index + 1}`, name, category, price, durationMinutes, description: `${name} by verified FleetOS technicians.` } },
+        { $setOnInsert: { company: company._id, serviceId: `SVC-${index + 1}`, name, category, price, durationMinutes, description: `${name} by verified company staff.` } },
         { upsert: true }
       );
     }
@@ -215,18 +223,18 @@ async function bootstrap() {
     for (let index = 0; index < techNames.length; index += 1) {
       await Technician.updateOne(
         { company: company._id, techId: `TECH-${index + 1}` },
-        { $setOnInsert: { company: company._id, techId: `TECH-${index + 1}`, name: techNames[index], role: index % 2 ? 'Mechanical Technician' : 'Fleet Specialist', rating: 4.5 + (index % 4) / 10, experienceYears: 3 + index, status: index === 0 && String(company._id) === String(mainCompany._id) ? 'On Job' : 'Available', phone: `+92 300 55500${index}` } },
+        { $setOnInsert: { company: company._id, techId: `TECH-${index + 1}`, name: techNames[index], role: index % 2 ? 'Service Specialist' : 'Client Support Staff', rating: 4.5 + (index % 4) / 10, experienceYears: 3 + index, status: index === 0 && String(company._id) === String(mainCompany._id) ? 'On Job' : 'Available', phone: `+92 300 55500${index}` } },
         { upsert: true }
       );
     }
   }
 
   const inventoryBlueprints = [
-    ['MNT-001', 'Fleet Engine Oil 15W-40', 'Maintenance', 16, 6, 5200],
-    ['MNT-002', 'Oil Filter Kit', 'Maintenance', 20, 8, 1450],
-    ['MEC-001', 'Brake Pads Set', 'Mechanical', 14, 6, 4200],
-    ['CLM-001', 'AC Refrigerant Refill', 'Climate', 12, 5, 3100],
-    ['DGN-001', 'Diagnostic Scan Report', 'Diagnostics', 50, 10, 900],
+    ['INS-001', 'Installation Starter Kit', 'Installation', 16, 6, 5200],
+    ['RTL-001', 'Premium Product Add-on', 'Retail Product', 20, 8, 1450],
+    ['SUP-001', 'Support Visit Toolkit', 'Repair & Support', 14, 6, 4200],
+    ['BUS-001', 'Business Setup Pack', 'Business Service', 12, 5, 3100],
+    ['DIG-001', 'Digital Configuration Report', 'Digital Service', 50, 10, 900],
   ];
   for (const company of createdProviders) {
     for (const [sku, name, category, quantity, reorderLevel, unitCost] of inventoryBlueprints) {
@@ -244,13 +252,13 @@ async function bootstrap() {
   const technician = await Technician.findOne({ company: mainCompany._id, techId: 'TECH-1' });
   const booking = await Booking.findOneAndUpdate(
     { reference: 'FOS-DEMO-1001' },
-      { $setOnInsert: { reference: 'FOS-DEMO-1001', customer: customer._id, company: mainCompany._id, service: service._id, technician: technician._id, serviceSnapshot: { name: service.name, category: service.category, price: service.price }, customerName: customer.name, customerEmail: customer.email, customerPhone: customer.phone, vehicle: { label: 'Toyota Hilux Revo G', registration: 'LEE-19-9070', make: 'Toyota', model: 'Hilux Revo' }, pricing: { serviceTotal: service.price, materialsTotal: 0, tax: 925, finalTotal: 19425 }, status: 'In Progress', statusHistory: [{ status: 'Pending', at: new Date(Date.now() - 86400000), byRole: 'customer' }, { status: 'Assigned', at: new Date(Date.now() - 43200000), byRole: 'company' }, { status: 'In Progress', at: new Date(), byRole: 'company' }], scheduledAt: new Date(Date.now() + 3600000), location: customer.address, paymentMethod: 'cash', tracking: { lat: 31.5204, lng: 74.3587, etaMinutes: 12, vehicleLabel: 'Service Van LHR-22', updatedAt: new Date() } } },
+      { $setOnInsert: { reference: 'FOS-DEMO-1001', customer: customer._id, company: mainCompany._id, service: service._id, technician: technician._id, serviceSnapshot: { name: service.name, category: service.category, price: service.price }, customerName: customer.name, customerEmail: customer.email, customerPhone: customer.phone, vehicle: { label: 'Home installation request', registration: 'REQ-LHR-1001' }, pricing: { serviceTotal: service.price, materialsTotal: 0, tax: 925, finalTotal: 19425 }, status: 'In Progress', statusHistory: [{ status: 'Pending', at: new Date(Date.now() - 86400000), byRole: 'customer' }, { status: 'Assigned', at: new Date(Date.now() - 43200000), byRole: 'company' }, { status: 'In Progress', at: new Date(), byRole: 'company' }], scheduledAt: new Date(Date.now() + 3600000), location: customer.address, paymentMethod: 'cash', tracking: { lat: 31.5204, lng: 74.3587, etaMinutes: 12, vehicleLabel: 'Assigned service staff', updatedAt: new Date() } } },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 
   const paidBooking = await Booking.findOneAndUpdate(
     { reference: 'FOS-DEMO-0997' },
-    { $setOnInsert: { reference: 'FOS-DEMO-0997', customer: customer._id, company: mainCompany._id, service: service._id, serviceSnapshot: { name: 'Brake Repair', category: 'Mechanical', price: 12000 }, customerName: customer.name, customerEmail: customer.email, vehicle: { label: 'Honda City 1.5', registration: 'LEC-18-3345' }, pricing: { serviceTotal: 12000, materialsTotal: 4000, tax: 800, finalTotal: 16800 }, status: 'Paid', statusHistory: [{ status: 'Paid', at: new Date(Date.now() - 20 * 86400000), byRole: 'company' }], scheduledAt: new Date(Date.now() - 21 * 86400000), location: customer.address, paymentMethod: 'cash' } },
+    { $setOnInsert: { reference: 'FOS-DEMO-0997', customer: customer._id, company: mainCompany._id, service: service._id, serviceSnapshot: { name: 'Repair & Support Visit', category: 'Repair & Support', price: 12000 }, customerName: customer.name, customerEmail: customer.email, vehicle: { label: 'Completed support request', registration: 'REQ-LHR-0997' }, pricing: { serviceTotal: 12000, materialsTotal: 4000, tax: 800, finalTotal: 16800 }, status: 'Paid', statusHistory: [{ status: 'Paid', at: new Date(Date.now() - 20 * 86400000), byRole: 'company' }], scheduledAt: new Date(Date.now() - 21 * 86400000), location: customer.address, paymentMethod: 'cash' } },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
   await Payment.updateOne(
@@ -260,7 +268,7 @@ async function bootstrap() {
   );
   await Review.updateOne(
     { booking: paidBooking._id },
-    { $setOnInsert: { customer: customer._id, company: mainCompany._id, booking: paidBooking._id, rating: 5, comment: 'Professional team, clear updates, and the vehicle was ready on time.' } },
+    { $setOnInsert: { customer: customer._id, company: mainCompany._id, booking: paidBooking._id, rating: 5, comment: 'Professional team, clear updates, and the service was completed on time.' } },
     { upsert: true }
   );
 
@@ -287,7 +295,7 @@ async function bootstrap() {
           customerName: customer.name,
           customerEmail: customer.email,
           customerPhone: customer.phone,
-          vehicle: { label: `${company.city} fleet vehicle`, registration: `${digest.slice(0, 3)}-${digest.slice(3, 7)}` },
+          vehicle: { label: `${company.city} client service request`, registration: `REQ-${digest.slice(0, 4)}` },
           pricing: { serviceTotal: revenueService.price, materialsTotal: 2500, tax: Math.round((revenueService.price + 2500) * 0.05), finalTotal: revenueService.price + 2500 + Math.round((revenueService.price + 2500) * 0.05) },
           status: 'Paid',
           paymentStatus: 'paid',

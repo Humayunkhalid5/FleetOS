@@ -186,14 +186,14 @@ function CompanyDetails() {
               </div>
             </section>
 
-            {/* Technicians Section */}
+            {/* Company Staff Section */}
             <section>
-              <h2 className="font-headline-md text-headline-md text-primary mb-md">Company-managed technicians</h2>
+              <h2 className="font-headline-md text-headline-md text-primary mb-md">Company-managed staff</h2>
               <div className="flex overflow-x-auto hide-scrollbar gap-md pb-md">
                 {technicians.map((tech) => (
                   <div key={tech._id || tech.name} className="flex-shrink-0 w-64 bg-white rounded-xl shadow-sm border border-surface-container overflow-hidden p-md text-center">
                     <div className="w-20 h-20 mx-auto rounded-full overflow-hidden mb-sm border-2 border-primary-fixed">
-                      <img className="w-full h-full object-cover" alt="Technician" src={tech.avatar} />
+                      <img className="w-full h-full object-cover" alt="Company staff" src={tech.avatar} />
                     </div>
                     <h3 className="font-body-lg text-body-lg font-bold">{tech.name}</h3>
                     <p className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-sm">{tech.role}</p>
@@ -244,7 +244,7 @@ function CompanyDetails() {
               <ul className="space-y-sm">
                 <li className="flex items-center gap-sm font-body-md text-body-md">
                   <span className="material-symbols-outlined">verified</span>
-                  <span>Certified Master Technicians</span>
+                  <span>Verified Company Staff</span>
                 </li>
                 <li className="flex items-center gap-sm font-body-md text-body-md">
                   <span className="material-symbols-outlined">schedule</span>
