@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES, BASE_LABOR } from '../../../constants';
 import api from '../../../services/api';
+import CustomerTopNav from '../../../components/customer/CustomerTopNav';
 
 const currency = new Intl.NumberFormat('en-PK', {
   style: 'currency',
@@ -181,25 +182,10 @@ function CustomizeBooking() {
   };
 
   return (
-    <div className="bg-background text-on-surface min-h-screen">
-      <header className="fixed top-0 w-full z-50 flex justify-between items-center px-lg h-16 bg-surface shadow-sm transition-colors duration-200 ease-in-out">
-        <div className="flex items-center gap-md">
-          <button onClick={() => navigate(-1)} className="p-sm rounded-full hover:bg-surface-container-low transition-colors duration-200">
-            <span className="material-symbols-outlined text-primary">arrow_back</span>
-          </button>
-          <h1 className="font-headline-md text-headline-md font-bold text-primary">FleetOS</h1>
-        </div>
-        <div className="flex items-center gap-sm">
-          <button onClick={() => navigate(ROUTES.bookings)} className="p-sm rounded-full hover:bg-surface-container-low transition-colors duration-200">
-            <span className="material-symbols-outlined text-on-surface-variant">notifications</span>
-          </button>
-          <div className="w-8 h-8 rounded-full overflow-hidden border border-outline-variant bg-primary text-white flex items-center justify-center font-bold text-xs">
-            U
-          </div>
-        </div>
-      </header>
+    <div className="client-dashboard-shell bg-background text-on-surface min-h-screen">
+      <CustomerTopNav title="Customize request" subtitle="Choose the service, location, timing, and relevant add-ons." backTo="" actions={<button onClick={() => navigate(ROUTES.bookings)} className="client-nav-icon material-symbols-outlined">notifications</button>} />
 
-      <main className="pt-24 pb-40 px-container-margin max-w-7xl mx-auto">
+      <main className="pt-10 pb-40 px-container-margin max-w-7xl mx-auto">
         <div className="mb-xl">
           <h2 className="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-xs">Customize Your Booking</h2>
           <p className="font-body-md text-body-md text-on-surface-variant">Choose the service and company-added items for <span className="font-bold text-primary">{companyName}</span>.</p>
@@ -221,10 +207,10 @@ function CustomizeBooking() {
                     <button
                       key={sName}
                       onClick={() => { setService(sName); setServicePrice(sPrice); }}
-                      className={`p-md rounded-xl border-2 text-left transition-all ${active ? 'border-primary bg-primary/5' : 'border-outline-variant hover:border-primary/50'}`}
+                      className={`booking-choice p-md rounded-xl border-2 text-left transition-all ${active ? 'booking-choice--active' : 'border-outline-variant hover:border-primary/50'}`}
                     >
-                      <span className="font-nav-item text-nav-item text-on-surface block font-bold">{sName}</span>
-                      <span className="font-label-sm text-label-sm text-primary mt-xs block">{currency.format(sPrice)}</span>
+                      <span className="booking-choice-title font-nav-item text-nav-item block font-bold">{sName}</span>
+                      <span className="booking-choice-price font-label-sm text-label-sm mt-xs block">{currency.format(sPrice)}</span>
                     </button>
                   );
                 })}
@@ -239,9 +225,9 @@ function CustomizeBooking() {
                   <button
                     type="button"
                     onClick={() => setLocationMode('manual')}
-                    className={`flex items-center gap-sm p-md rounded-xl border-2 transition-all text-left ${
+                    className={`booking-choice flex items-center gap-sm p-md rounded-xl border-2 transition-all text-left ${
                       locationMode === 'manual'
-                        ? 'border-primary bg-primary/5'
+                        ? 'booking-choice--active'
                         : 'border-outline-variant hover:border-primary/50'
                     }`}
                   >
@@ -255,9 +241,9 @@ function CustomizeBooking() {
                     type="button"
                     onClick={useMyLocation}
                     disabled={locatingAddress}
-                    className={`flex items-center gap-sm p-md rounded-xl border-2 transition-all text-left disabled:opacity-70 ${
+                    className={`booking-choice flex items-center gap-sm p-md rounded-xl border-2 transition-all text-left disabled:opacity-70 ${
                       locationMode === 'gps'
-                        ? 'border-primary bg-primary/5'
+                        ? 'booking-choice--active'
                         : 'border-outline-variant hover:border-primary/50'
                     }`}
                   >
@@ -274,7 +260,7 @@ function CustomizeBooking() {
                 </div>
 
                 {locationMode === 'gps' && gpsLabel && (
-                  <div className="mb-sm flex items-start gap-sm p-sm rounded-xl bg-primary-container text-on-primary-container text-sm">
+                  <div className="booking-info-callout mb-sm flex items-start gap-sm p-sm rounded-xl text-sm">
                     <span className="material-symbols-outlined text-[16px] mt-0.5 shrink-0">location_on</span>
                     <span className="flex-1 leading-snug">{gpsLabel}</span>
                     <button onClick={clearGpsLocation} className="shrink-0 hover:opacity-70 transition-opacity" title="Clear GPS location">
@@ -329,7 +315,7 @@ function CustomizeBooking() {
                 </div>
                 <span className="material-symbols-outlined text-on-surface-variant">inventory_2</span>
               </div>
-              <div className="p-sm bg-primary-container text-on-primary-container rounded-lg mb-md flex gap-sm">
+              <div className="booking-info-callout p-sm rounded-lg mb-md flex gap-sm">
                 <span className="material-symbols-outlined text-md">info</span>
                 <p className="font-label-sm text-label-sm leading-tight">Select optional items if you want the company to bring them for this service.</p>
               </div>

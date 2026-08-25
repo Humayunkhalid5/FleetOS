@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { ROUTES, companyRoute } from '../../../constants';
 import api from '../../../services/api';
+import CustomerTopNav from '../../../components/customer/CustomerTopNav';
 
 // Default fallback avatar
 const DEFAULT_AVATAR =
@@ -37,6 +38,36 @@ const resizeImage = (file, maxSize = 256) =>
     reader.readAsDataURL(file);
   });
 
+const cropProfileImage = (source, { zoom = 1, offsetX = 0, offsetY = 0 } = {}, size = 320) =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#E0E1DD';
+      context.fillRect(0, 0, size, size);
+
+      const baseScale = Math.max(size / image.width, size / image.height);
+      const scale = baseScale * zoom;
+      const width = image.width * scale;
+      const height = image.height * scale;
+      const x = (size - width) / 2 + offsetX;
+      const y = (size - height) / 2 + offsetY;
+
+      context.save();
+      context.beginPath();
+      context.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+      context.clip();
+      context.drawImage(image, x, y, width, height);
+      context.restore();
+      resolve(canvas.toDataURL('image/jpeg', 0.88));
+    };
+    image.onerror = reject;
+    image.src = source;
+  });
+
 function Profile() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,6 +79,8 @@ function Profile() {
   const [saveError, setSaveError] = useState('');
   const [avatarDataUrl, setAvatarDataUrl] = useState(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [cropSource, setCropSource] = useState('');
+  const [cropSettings, setCropSettings] = useState({ zoom: 1, offsetX: 0, offsetY: 0 });
   const [form, setForm] = useState(() => ({
     name: user?.name || '',
     phone: user?.phone || '',
@@ -87,9 +120,9 @@ function Profile() {
     setUploadingAvatar(true);
     setSaveError('');
     try {
-      const dataUrl = await resizeImage(file, 256);
-      setAvatarDataUrl(dataUrl);
-      // Also start editing mode so save button is visible
+      const dataUrl = await resizeImage(file, 900);
+      setCropSource(dataUrl);
+      setCropSettings({ zoom: 1, offsetX: 0, offsetY: 0 });
       setEditing(true);
     } catch (err) {
       setSaveError('Could not process that image. Please try another file.');
@@ -98,6 +131,21 @@ function Profile() {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   }, []);
+
+  const applyCroppedAvatar = async () => {
+    if (!cropSource) return;
+    setUploadingAvatar(true);
+    setSaveError('');
+    try {
+      const cropped = await cropProfileImage(cropSource, cropSettings);
+      setAvatarDataUrl(cropped);
+      setCropSource('');
+    } catch (err) {
+      setSaveError('Could not set this picture. Please try another file.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const toggleEdit = () => {
     if (editing) {
@@ -189,23 +237,10 @@ function Profile() {
   const avatarSrc = avatarDataUrl || (user?.avatar) || DEFAULT_AVATAR;
 
   return (
-    <div className="bg-background text-on-surface min-h-screen pb-32">
-      {/* TopAppBar */}
-      <header className="fixed top-0 w-full z-50 flex justify-between items-center px-lg h-16 bg-surface shadow-sm transition-colors duration-200 ease-in-out">
-        <div className="flex items-center gap-md">
-          <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-surface-container-low transition-colors">
-            <span className="material-symbols-outlined text-primary">arrow_back</span>
-          </button>
-          <h1 className="font-headline-md text-headline-md font-bold text-primary">Profile</h1>
-        </div>
-        <div className="flex items-center gap-md">
-          <button onClick={() => navigate(ROUTES.bookings)} className="p-2 rounded-full hover:bg-surface-container-low transition-colors">
-            <span className="material-symbols-outlined text-on-surface-variant">notifications</span>
-          </button>
-        </div>
-      </header>
+    <div className="client-dashboard-shell text-[#0D1B2A] min-h-screen pb-32">
+      <CustomerTopNav title="My Profile" subtitle="Edit your details, picture, bookings, reviews, and account settings." backTo={ROUTES.companies} />
 
-      <main className="pt-24 pb-10 px-container-margin max-w-3xl mx-auto space-y-lg">
+      <main className="pt-10 pb-10 px-container-margin max-w-4xl mx-auto space-y-lg">
         {/* Saved toast */}
         {saved && (
           <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-tertiary-container text-on-tertiary-container px-lg py-sm rounded-full shadow-lg flex items-center gap-sm">
@@ -234,16 +269,16 @@ function Profile() {
         )}
 
         {/* Profile Card */}
-        <section className="bg-surface-container-lowest rounded-xl p-lg shadow-elevation-1 border border-surface-container-low flex flex-col items-center text-center">
+        <section className="bg-white/92 rounded-[34px] p-lg shadow-[0_24px_80px_rgba(13,27,42,.08)] border border-[#E0E1DD] flex flex-col items-center text-center">
           {/* Avatar with upload overlay */}
           <div className="relative mb-md group">
-            <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-primary-fixed shadow-md">
+            <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-[0_18px_45px_rgba(13,27,42,.18)] ring-4 ring-[#E0E1DD]">
               <img className="w-full h-full object-cover" alt={profile.name} src={avatarSrc} />
             </div>
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadingAvatar}
-              className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-primary text-on-primary shadow-lg flex items-center justify-center border-2 border-surface-container-lowest hover:scale-110 active:scale-95 transition-all disabled:opacity-70"
+              className="absolute bottom-0 right-0 w-10 h-10 rounded-full bg-[#0D1B2A] text-white shadow-lg flex items-center justify-center border-2 border-white hover:scale-110 active:scale-95 transition-all disabled:opacity-70"
               title="Change profile picture"
             >
               <input
@@ -264,9 +299,9 @@ function Profile() {
             <p className="text-label-sm font-label-sm text-primary mb-sm -mt-xs">New picture ready — click Save Changes to apply.</p>
           )}
 
-          <h2 className="font-headline-lg-mobile text-headline-lg-mobile font-bold text-on-surface">{profile.name}</h2>
-          <p className="font-body-md text-body-md text-on-surface-variant">{profile.role}</p>
-          <span className="mt-xs px-3 py-1 bg-primary-container text-on-primary-container text-[10px] font-bold rounded-full uppercase tracking-wider">{profile.plan}</span>
+          <h2 className="font-headline-lg-mobile text-headline-lg-mobile font-black text-[#0D1B2A]">{profile.name}</h2>
+          <p className="font-body-md text-body-md text-[#415A77]">{profile.role || 'Client'}</p>
+          <span className="mt-xs px-3 py-1 bg-[#E0E1DD] text-[#1B263B] text-[10px] font-black rounded-full uppercase tracking-wider">{profile.plan}</span>
 
           {selectedTech && (
             <div className="mt-md w-full bg-secondary-container text-on-secondary-container rounded-lg p-md flex items-center gap-sm">
@@ -458,6 +493,67 @@ function Profile() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {cropSource && (
+        <div className="fixed inset-0 z-[120] bg-[#0D1B2A]/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-[34px] shadow-[0_30px_100px_rgba(13,27,42,.3)] w-full max-w-lg overflow-hidden border border-[#E0E1DD]">
+            <div className="p-5 border-b border-[#E0E1DD] flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-black text-[#0D1B2A]">Adjust profile picture</h3>
+                <p className="text-sm text-[#415A77] mt-1">Zoom and position your photo inside the circle.</p>
+              </div>
+              <button onClick={() => setCropSource('')} className="w-10 h-10 rounded-full bg-[#E0E1DD]/70 text-[#1B263B] grid place-items-center hover:bg-[#778DA9]/25">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div className="mx-auto w-64 h-64 rounded-full overflow-hidden border-4 border-white ring-4 ring-[#E0E1DD] shadow-[0_18px_50px_rgba(13,27,42,.18)] bg-[#E0E1DD]">
+                <img
+                  src={cropSource}
+                  alt="Profile crop preview"
+                  className="w-full h-full object-cover"
+                  style={{
+                    transform: `translate(${cropSettings.offsetX}px, ${cropSettings.offsetY}px) scale(${cropSettings.zoom})`,
+                    transition: 'transform 120ms ease',
+                  }}
+                />
+              </div>
+
+              <label className="block">
+                <span className="text-xs font-black uppercase tracking-wider text-[#415A77]">Zoom</span>
+                <input
+                  type="range"
+                  min="1"
+                  max="2.5"
+                  step="0.05"
+                  value={cropSettings.zoom}
+                  onChange={(event) => setCropSettings((current) => ({ ...current, zoom: Number(event.target.value) }))}
+                  className="w-full mt-2 accent-[#0D1B2A]"
+                />
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label>
+                  <span className="text-xs font-black uppercase tracking-wider text-[#415A77]">Move sideways</span>
+                  <input type="range" min="-80" max="80" value={cropSettings.offsetX} onChange={(event) => setCropSettings((current) => ({ ...current, offsetX: Number(event.target.value) }))} className="w-full mt-2 accent-[#0D1B2A]" />
+                </label>
+                <label>
+                  <span className="text-xs font-black uppercase tracking-wider text-[#415A77]">Move up/down</span>
+                  <input type="range" min="-80" max="80" value={cropSettings.offsetY} onChange={(event) => setCropSettings((current) => ({ ...current, offsetY: Number(event.target.value) }))} className="w-full mt-2 accent-[#0D1B2A]" />
+                </label>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <button onClick={() => setCropSource('')} className="flex-1 py-3 rounded-2xl bg-[#E0E1DD] text-[#1B263B] font-black hover:bg-[#778DA9]/30">Cancel</button>
+                <button onClick={applyCroppedAvatar} disabled={uploadingAvatar} className="flex-1 py-3 rounded-2xl bg-[#0D1B2A] text-white font-black hover:bg-[#1B263B] disabled:opacity-60">
+                  {uploadingAvatar ? 'Setting picture…' : 'Use picture'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

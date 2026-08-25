@@ -232,7 +232,7 @@ exports.logout = async (req, res) => {
 exports.getCurrentUser = async (req, res) => res.json({ user: publicUser(req.user) });
 
 exports.updateProfile = async (req, res) => {
-  const updates = pick(req.body, ['name', 'phone', 'address', 'city', 'avatar']);
+  const updates = pick(req.body, ['name', 'phone', 'address', 'city', 'avatar', 'plan']);
   Object.assign(req.user, updates);
   await req.user.save();
   return res.json({ user: publicUser(req.user) });

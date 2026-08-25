@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES } from '../../../constants';
 import api from '../../../services/api';
+import CustomerTopNav from '../../../components/customer/CustomerTopNav';
 
 function ServiceReview() {
   const navigate = useNavigate();
@@ -60,23 +61,10 @@ function ServiceReview() {
   };
 
   return (
-    <div className="bg-background text-on-surface font-body-md text-body-md overflow-x-hidden min-h-screen">
-      {/* TopAppBar */}
-      <header className="fixed top-0 w-full z-50 flex justify-between items-center px-lg h-16 bg-surface shadow-sm transition-colors duration-200 ease-in-out">
-        <div className="flex items-center gap-md">
-          <button onClick={() => navigate(ROUTES.dashboard)} className="p-2 rounded-full hover:bg-surface-container-low transition-colors">
-            <span className="material-symbols-outlined text-primary">menu</span>
-          </button>
-          <h1 className="font-headline-md text-headline-md font-bold text-primary">FleetOS</h1>
-        </div>
-        <div className="flex items-center gap-md">
-          <button onClick={() => navigate(ROUTES.bookings)} className="p-2 rounded-full hover:bg-surface-container-low transition-colors">
-            <span className="material-symbols-outlined text-primary">notifications</span>
-          </button>
-        </div>
-      </header>
+    <div className="client-dashboard-shell bg-background text-on-surface font-body-md text-body-md overflow-x-hidden min-h-screen">
+      <CustomerTopNav title="Service review" subtitle="Share feedback about your completed request." backTo={ROUTES.bookings} />
 
-      <main className="pt-24 pb-32 max-w-2xl mx-auto px-container-margin">
+      <main className="pt-10 pb-32 max-w-2xl mx-auto px-container-margin">
         {/* Success Headline Area */}
         <div className="text-center mb-xl">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-tertiary-container text-on-tertiary-container rounded-full mb-md shadow-lg shadow-tertiary/20">

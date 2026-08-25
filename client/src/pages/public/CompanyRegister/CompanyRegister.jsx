@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { ROUTES } from '../../../constants';
+import fleetosLogo from '../../../assets/fleetos-light.svg';
 
 function CompanyRegister() {
   const navigate = useNavigate();
@@ -172,7 +173,7 @@ function CompanyRegister() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-secondary">Registration submitted</p>
           <h1 className="mt-3 text-3xl font-black text-primary">Your company is waiting for Super Admin approval</h1>
           <p className="mt-4 text-sm leading-6 text-on-surface-variant">
-            {submittedCompany.name} has been saved in MongoDB with your logo and business license. It will appear to clients after the Super Admin approves it.
+            {submittedCompany.name} has been submitted with your logo and business license. It will appear to clients after the Super Admin approves it.
           </p>
           <div className="mt-6 rounded-2xl bg-surface-container-low p-4 text-left text-sm">
             <p><span className="font-bold">Company:</span> {submittedCompany.name}</p>
@@ -196,10 +197,9 @@ function CompanyRegister() {
     <div className="bg-background text-on-background min-h-screen flex flex-col font-sans">
       {/* TopAppBar */}
       <header className="bg-background dark:bg-inverse-surface border-b border-outline-variant dark:border-outline flex justify-between items-center w-full px-4 md:px-8 h-16 sticky top-0 z-50">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate(ROUTES.home)}>
-          <span className="material-symbols-outlined text-secondary" data-icon="shield">shield</span>
-          <h1 className="text-xl font-bold text-primary dark:text-primary-fixed">FleetOS</h1>
-        </div>
+        <button className="flex items-center cursor-pointer" onClick={() => navigate(ROUTES.home)} aria-label="FleetOS home">
+          <img src={fleetosLogo} alt="FleetOS" className="h-9 w-auto" />
+        </button>
         <div className="hidden md:flex items-center gap-6">
           <nav className="flex gap-4">
             <Link className="text-on-surface-variant text-xs font-semibold hover:bg-surface-container-high transition-colors px-3 py-1 rounded" to={ROUTES.home}>Solutions</Link>
@@ -235,7 +235,7 @@ function CompanyRegister() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="material-symbols-outlined text-on-tertiary-container" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                <span className="text-on-primary text-xs font-semibold">Products, services, inventory, and bookings in MongoDB</span>
+                <span className="text-on-primary text-xs font-semibold">Products, services, inventory, and bookings in one place</span>
               </div>
               <div className="flex items-center gap-3">
                 <span className="material-symbols-outlined text-on-tertiary-container" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
@@ -520,6 +520,7 @@ function CompanyRegister() {
 }
 
 export default CompanyRegister;
+
 
 
 

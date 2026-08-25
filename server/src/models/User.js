@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema({
   address: { type: String, default: '', trim: true },
   city: { type: String, default: '', trim: true },
   avatar: { type: String, default: '' },
+  plan: { type: String, default: 'Free Member', trim: true },
   googleId: { type: String, sparse: true, unique: true },
   linkedinId: { type: String, sparse: true, unique: true },
   status: { type: String, enum: ['active', 'suspended'], default: 'active', index: true },

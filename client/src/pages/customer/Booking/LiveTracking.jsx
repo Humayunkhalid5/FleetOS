@@ -4,6 +4,7 @@ import L from 'leaflet';
 import { io } from 'socket.io-client';
 import { ROUTES } from '../../../constants';
 import api from '../../../services/api';
+import CustomerTopNav from '../../../components/customer/CustomerTopNav';
 import 'leaflet/dist/leaflet.css';
 
 const PAKISTAN_CENTER = { lat: 30.3753, lng: 69.3451, label: 'Pakistan' };
@@ -385,30 +386,8 @@ function LiveTracking() {
   const unavailableContact = () => setError('Contact number is not available yet. It will appear once the company assigns staff.');
 
   return (
-    <div className="live-tracking-root fixed inset-0 bg-background text-on-surface font-body-md">
-      {/* Top App Bar */}
-      <header className="absolute top-0 left-0 right-0 z-[1000] flex justify-between items-center px-lg h-16 bg-surface/85 backdrop-blur-xl border-b border-outline-variant/30">
-        <div className="flex items-center gap-md">
-          <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-low transition-colors text-primary" aria-label="Back">
-            <span className="material-symbols-outlined">arrow_back</span>
-          </button>
-          <div>
-            <h1 className="font-headline-md text-headline-md font-bold text-primary leading-tight">Live Tracking</h1>
-            <div className="flex items-center gap-sm">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-tertiary opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-tertiary"></span>
-              </span>
-              <span className="font-label-sm text-label-sm text-on-surface-variant">{primaryStage}</span>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-md">
-          <button onClick={shareBooking} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-low transition-colors text-primary" aria-label="Share">
-            <span className="material-symbols-outlined">share</span>
-          </button>
-        </div>
-      </header>
+    <div className="client-dashboard-shell live-tracking-root fixed inset-0 bg-background text-on-surface font-body-md">
+      <CustomerTopNav title="Live tracking" subtitle={`Current status: ${primaryStage}`} backTo="" actions={<button onClick={shareBooking} className="client-nav-icon material-symbols-outlined" aria-label="Share booking">share</button>} />
 
       {/* Real Map */}
       <main className="relative w-full h-full">
@@ -710,7 +689,7 @@ function StageTimeline({ stageIndex, onComplete }) {
       })}
       <button
         onClick={onComplete}
-        className="mt-3 w-full flex items-center justify-center gap-sm text-primary font-nav-item text-nav-item font-bold py-2 rounded-xl bg-primary/5 hover:bg-primary/10 transition-colors border border-primary/20"
+        className="tracking-review-action mt-3 w-full flex items-center justify-center gap-sm font-nav-item text-nav-item font-bold py-2 rounded-xl transition-colors"
       >
         <span className="material-symbols-outlined text-sm">rate_review</span>
         Review completed job

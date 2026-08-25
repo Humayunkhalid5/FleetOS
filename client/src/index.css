@@ -960,6 +960,11 @@ input,
 select,
 textarea { transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
 
+button:active,
+a:active {
+  transform: scale(0.985);
+}
+
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
@@ -1164,13 +1169,702 @@ textarea:focus-visible { outline: 3px solid rgba(59, 130, 246, 0.24); outline-of
 }
 
 .client-dashboard-shell .client-company-card {
-  background: rgba(255,255,255,.92) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(248,250,252,.92)) !important;
+  border-color: rgba(65, 90, 119, 0.14) !important;
   box-shadow: 0 24px 70px rgba(13, 27, 42, 0.08) !important;
+  animation: clientCardEntrance 620ms cubic-bezier(.2,.8,.2,1) both;
+  animation-delay: var(--client-card-delay, 0ms);
+  will-change: transform, opacity;
 }
 
 .client-dashboard-shell .client-company-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-4px) scale(1.015);
   box-shadow: 0 30px 90px rgba(13, 27, 42, 0.14) !important;
+}
+
+.client-dashboard-shell .client-company-card:hover .client-company-cover {
+  transform: scale(1.045);
+}
+
+.client-company-cover {
+  transition: transform 760ms cubic-bezier(.2,.8,.2,1), opacity 260ms ease;
+  will-change: transform;
+  background: #E0E1DD;
+}
+
+.client-theme:not(.company-register-theme) {
+  scroll-behavior: smooth;
+}
+
+.client-top-nav {
+  animation: clientNavDrop 220ms ease both;
+}
+
+.client-profile-menu {
+  will-change: opacity, transform;
+}
+
+.client-avatar-only {
+  width: 52px;
+  height: 52px;
+  border-radius: 9999px !important;
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    conic-gradient(from 140deg, #0D1B2A, #415A77, #E0E1DD, #778DA9, #0D1B2A) border-box !important;
+  border: 2px solid transparent !important;
+  box-shadow:
+    0 18px 42px rgba(13, 27, 42, 0.16),
+    inset 0 0 0 3px rgba(255, 255, 255, 0.82);
+  overflow: visible;
+}
+
+.client-avatar-only::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: inherit;
+  background: radial-gradient(circle, rgba(119,141,169,.22), transparent 62%);
+  opacity: .75;
+  transform: scale(.94);
+  transition: opacity 220ms ease, transform 220ms ease;
+  z-index: -1;
+}
+
+.client-avatar-only:hover::before {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.client-avatar-only img {
+  border: 2px solid rgba(224, 225, 221, 0.86);
+  box-shadow: 0 8px 18px rgba(13, 27, 42, 0.16);
+}
+
+.client-avatar-halo {
+  position: absolute;
+  inset: 5px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, rgba(224,225,221,.75), rgba(119,141,169,.25));
+  z-index: 0;
+}
+
+.client-profile-menu {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,255,255,.94)),
+    radial-gradient(circle at top right, rgba(119,141,169,.22), transparent 14rem);
+}
+
+@keyframes clientNavDrop {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.client-showcase-card {
+  background:
+    radial-gradient(circle at 82% 18%, rgba(224,225,221,.3), transparent 18rem),
+    linear-gradient(135deg, #0D1B2A 0%, #1B263B 56%, #415A77 100%);
+}
+
+.client-dashboard-shell main table tbody tr {
+  transition: background-color 180ms ease, transform 180ms ease;
+}
+
+.client-dashboard-shell main table tbody tr:hover {
+  background: rgba(224, 225, 221, 0.34);
+}
+
+.client-dashboard-shell main .rounded-xl {
+  border-radius: 22px;
+}
+
+.client-dashboard-shell [class*="border-white"] {
+  border-color: transparent !important;
+}
+
+.client-dashboard-shell [class*="bg-white"] {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+}
+
+.client-dashboard-shell [class*="border-[#E0E1DD]"] {
+  border-color: transparent !important;
+}
+
+.client-dashboard-shell .client-company-card [class*="bg-white"],
+.client-profile-menu [class*="bg-white"] {
+  background-color: rgba(255, 255, 255, 0.78) !important;
+}
+
+.client-dashboard-shell .client-company-card,
+.client-dashboard-shell .client-company-card[class*="border"],
+.client-dashboard-shell .client-company-card [class*="border-[#E0E1DD]"] {
+  border-color: rgba(65, 90, 119, 0.14) !important;
+}
+
+.client-dashboard-shell input,
+.client-dashboard-shell textarea,
+.client-dashboard-shell select,
+.client-dashboard-shell button[class*="border"],
+.client-dashboard-shell a[class*="border"] {
+  border-color: rgba(65, 90, 119, 0.18) !important;
+}
+
+.client-dashboard-shell .client-showcase-card [class*="border"] {
+  border-color: rgba(224, 225, 221, 0.16) !important;
+}
+
+/* Retired palette override layer. It applied colors by partial class-name match
+   (for example, `bg-primary/5` was treated as a dark panel) and was the source
+   of the washed-out text and unnecessary boxed controls. The explicit rules
+   below this layer now own contrast. */
+@media not all {
+.client-dashboard-shell .text-on-surface,
+.client-dashboard-shell .text-slate-900,
+.client-dashboard-shell .text-slate-950,
+.client-dashboard-shell h1,
+.client-dashboard-shell h2,
+.client-dashboard-shell h3,
+.client-dashboard-shell h4,
+.client-dashboard-shell b {
+  color: #0D1B2A !important;
+}
+
+.client-dashboard-shell .text-on-surface-variant,
+.client-dashboard-shell .text-outline,
+.client-dashboard-shell .text-slate-400,
+.client-dashboard-shell .text-slate-500,
+.client-dashboard-shell .text-slate-600,
+.client-dashboard-shell small,
+.client-dashboard-shell p {
+  color: #415A77 !important;
+}
+
+.client-dashboard-shell button[class*="bg-primary"],
+.client-dashboard-shell button[class*="bg-[#0D1B2A]"],
+.client-dashboard-shell a[class*="bg-primary"],
+.client-dashboard-shell a[class*="bg-[#0D1B2A]"],
+.client-dashboard-shell .text-white,
+.client-dashboard-shell .text-on-primary {
+  color: #ffffff !important;
+}
+
+.client-dashboard-shell .client-showcase-card,
+.client-dashboard-shell .client-showcase-card *,
+.client-dashboard-shell .client-carousel-slide,
+.client-dashboard-shell .client-carousel-slide * {
+  color: inherit;
+}
+
+.client-dashboard-shell .client-showcase-card p,
+.client-dashboard-shell .client-showcase-card small {
+  color: rgba(224, 225, 221, 0.86) !important;
+}
+
+/* Project-wide client/company contrast hardening: keep every label readable on the current palette. */
+.client-dashboard-shell [class*="bg-[#0D1B2A]"],
+.client-dashboard-shell [class*="bg-[#1B263B]"],
+.client-dashboard-shell [class*="bg-[#071f3d]"],
+.client-dashboard-shell [class*="bg-primary"],
+.client-dashboard-shell [class*="bg-blue-600"],
+.client-dashboard-shell [class*="bg-emerald-600"],
+.client-dashboard-shell [class*="bg-red-600"],
+.client-dashboard-shell [class*="bg-slate-900"],
+.client-dashboard-shell [class*="bg-slate-950"] {
+  color: #ffffff !important;
+}
+
+.client-dashboard-shell [class*="bg-[#0D1B2A]"] *,
+.client-dashboard-shell [class*="bg-[#1B263B]"] *,
+.client-dashboard-shell [class*="bg-[#071f3d]"] *,
+.client-dashboard-shell [class*="bg-primary"] *,
+.client-dashboard-shell [class*="bg-blue-600"] *,
+.client-dashboard-shell [class*="bg-emerald-600"] *,
+.client-dashboard-shell [class*="bg-red-600"] *,
+.client-dashboard-shell [class*="bg-slate-900"] *,
+.client-dashboard-shell [class*="bg-slate-950"] * {
+  color: inherit !important;
+}
+
+.client-dashboard-shell [class*="bg-[#E0E1DD]"],
+.client-dashboard-shell [class*="bg-slate-50"],
+.client-dashboard-shell [class*="bg-slate-100"],
+.client-dashboard-shell [class*="bg-blue-50"],
+.client-dashboard-shell [class*="bg-surface-container"],
+.client-dashboard-shell [class*="bg-secondary-container"] {
+  color: #0D1B2A !important;
+}
+
+.client-dashboard-shell [class*="bg-[#E0E1DD]"] *,
+.client-dashboard-shell [class*="bg-slate-50"] *,
+.client-dashboard-shell [class*="bg-slate-100"] *,
+.client-dashboard-shell [class*="bg-blue-50"] *,
+.client-dashboard-shell [class*="bg-surface-container"] *,
+.client-dashboard-shell [class*="bg-secondary-container"] * {
+  color: inherit !important;
+}
+
+.client-dashboard-shell .bg-red-50,
+.client-dashboard-shell .bg-error-container {
+  color: #991b1b !important;
+}
+
+.client-dashboard-shell .bg-amber-50 {
+  color: #92400e !important;
+}
+
+.client-dashboard-shell .bg-emerald-50 {
+  color: #065f46 !important;
+}
+
+.client-dashboard-shell table th {
+  color: #1B263B !important;
+}
+
+.client-dashboard-shell table td,
+.client-dashboard-shell table td * {
+  color: #0D1B2A !important;
+}
+
+.client-dashboard-shell input::placeholder,
+.client-dashboard-shell textarea::placeholder {
+  color: #64748b !important;
+  opacity: 1;
+}
+
+.client-profile-menu > div:first-child,
+.client-profile-menu > div:first-child * {
+  color: #ffffff !important;
+}
+
+.client-profile-menu > div:first-child p:last-child {
+  color: rgba(224, 225, 221, 0.82) !important;
+}
+
+.client-dashboard-shell .client-carousel-meta {
+  color: rgba(224, 225, 221, 0.82) !important;
+}
+
+.client-dashboard-shell .client-carousel-meta + .client-carousel-meta {
+  color: rgba(224, 225, 221, 0.72) !important;
+}
+
+/* Final client dark-surface corrections: prevents dark-on-dark blending in hero/showcase areas. */
+.client-dashboard-shell .client-showcase-card,
+.client-dashboard-shell .client-showcase-copy,
+.client-dashboard-shell .client-showcase-copy *,
+.client-dashboard-shell .client-dark-panel,
+.client-dashboard-shell .client-dark-panel * {
+  color: #F8FAFC !important;
+}
+
+.client-dashboard-shell .client-showcase-copy p,
+.client-dashboard-shell .client-showcase-card .client-stagger-item,
+.client-dashboard-shell .client-showcase-card .client-stagger-item *:not(button):not(button *) {
+  color: rgba(248, 250, 252, 0.88) !important;
+}
+
+.client-dashboard-shell .client-showcase-copy h1,
+.client-dashboard-shell .client-showcase-copy h2,
+.client-dashboard-shell .client-showcase-copy h3 {
+  color: #ffffff !important;
+  text-shadow: 0 2px 22px rgba(13, 27, 42, 0.22);
+}
+
+.client-dashboard-shell .client-showcase-card .client-premium-action {
+  background: #ffffff !important;
+  color: #0D1B2A !important;
+}
+
+.client-dashboard-shell .client-showcase-card .client-premium-action *,
+.client-dashboard-shell .client-showcase-card button.bg-white,
+.client-dashboard-shell .client-showcase-card button.bg-white * {
+  color: #0D1B2A !important;
+}
+
+.client-dashboard-shell .client-showcase-card .client-carousel-slide {
+  background: rgba(255, 255, 255, 0.86) !important;
+  color: #0D1B2A !important;
+}
+
+.client-dashboard-shell .client-showcase-card .client-carousel-slide *,
+.client-dashboard-shell .client-showcase-card .client-carousel-title,
+.client-dashboard-shell .client-showcase-card .client-carousel-meta {
+  color: #0D1B2A !important;
+}
+
+.client-dashboard-shell .client-showcase-card .client-carousel-meta + .client-carousel-meta {
+  color: #415A77 !important;
+}
+
+.client-dashboard-shell .client-showcase-card span:not(.material-symbols-outlined):not(.client-avatar-halo) {
+  color: inherit;
+}
+
+/* Client contrast safety net:
+   Tailwind utility classes from older screens were fighting the new palette.
+   These rules separate light cards, dark cards, buttons, badges, and menu panels so text never disappears. */
+.client-dashboard-shell :is(h1,h2,h3,h4,h5,h6,.text-on-surface,.text-slate-900,.text-slate-950):not(.client-showcase-card *):not(.client-dark-panel *):not([class*="text-white"]):not([class*="text-on-primary"]) {
+  color: #0D1B2A !important;
+}
+
+.client-dashboard-shell :is(p,small,.text-on-surface-variant,.text-outline,.text-slate-400,.text-slate-500,.text-slate-600):not(.client-showcase-card *):not(.client-dark-panel *):not([class*="text-white"]):not([class*="text-on-primary"]) {
+  color: #415A77 !important;
+}
+
+.client-dashboard-shell :is(
+  [class*="bg-[#0D1B2A]"],
+  [class*="bg-[#1B263B]"],
+  [class*="bg-[#071f3d]"],
+  [class*="bg-slate-800"],
+  [class*="bg-slate-900"],
+  [class*="bg-slate-950"],
+  [class*="from-[#0D1B2A]"],
+  [class*="from-slate-900"],
+  [class*="via-primary"],
+  [class*="to-slate-800"],
+  .client-showcase-card,
+  .client-dark-panel
+) {
+  color: #F8FAFC !important;
+}
+
+.client-dashboard-shell :is(
+  [class*="bg-[#0D1B2A]"],
+  [class*="bg-[#1B263B]"],
+  [class*="bg-[#071f3d]"],
+  [class*="bg-slate-800"],
+  [class*="bg-slate-900"],
+  [class*="bg-slate-950"],
+  [class*="from-[#0D1B2A]"],
+  [class*="from-slate-900"],
+  [class*="via-primary"],
+  [class*="to-slate-800"],
+  .client-showcase-card,
+  .client-dark-panel
+) :is(h1,h2,h3,h4,h5,h6,b,strong,span,label,button,a):not(.client-carousel-slide *):not(.client-premium-action *):not(.material-symbols-outlined) {
+  color: #FFFFFF !important;
+}
+
+.client-dashboard-shell :is(
+  [class*="bg-[#0D1B2A]"],
+  [class*="bg-[#1B263B]"],
+  [class*="bg-[#071f3d]"],
+  [class*="bg-slate-800"],
+  [class*="bg-slate-900"],
+  [class*="bg-slate-950"],
+  [class*="from-[#0D1B2A]"],
+  [class*="from-slate-900"],
+  [class*="via-primary"],
+  [class*="to-slate-800"],
+  .client-showcase-card,
+  .client-dark-panel
+) :is(p,small,.text-on-surface-variant,.text-outline,.text-slate-400,.text-slate-500,.text-slate-600):not(.client-carousel-slide *):not(.client-premium-action *) {
+  color: rgba(248, 250, 252, 0.82) !important;
+}
+
+.client-dashboard-shell :is(
+  [class*="bg-white"],
+  [class*="bg-surface"],
+  [class*="bg-surface-container"],
+  [class*="bg-[#E0E1DD]"],
+  [class*="bg-slate-50"],
+  [class*="bg-slate-100"],
+  .client-profile-menu,
+  .client-company-card,
+  .client-carousel-slide
+):not(.client-showcase-card) {
+  color: #0D1B2A !important;
+}
+
+.client-dashboard-shell :is(
+  [class*="bg-white"],
+  [class*="bg-surface"],
+  [class*="bg-surface-container"],
+  [class*="bg-[#E0E1DD]"],
+  [class*="bg-slate-50"],
+  [class*="bg-slate-100"],
+  .client-profile-menu,
+  .client-company-card,
+  .client-carousel-slide
+):not(.client-showcase-card) :is(h1,h2,h3,h4,h5,h6,b,strong,label,td,th):not([class*="text-red"]):not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="text-blue"]) {
+  color: #0D1B2A !important;
+}
+
+.client-dashboard-shell :is(
+  [class*="bg-white"],
+  [class*="bg-surface"],
+  [class*="bg-surface-container"],
+  [class*="bg-[#E0E1DD]"],
+  [class*="bg-slate-50"],
+  [class*="bg-slate-100"],
+  .client-profile-menu,
+  .client-company-card,
+  .client-carousel-slide
+):not(.client-showcase-card) :is(p,small,.text-on-surface-variant,.text-outline,.text-slate-400,.text-slate-500,.text-slate-600):not([class*="text-red"]):not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="text-blue"]) {
+  color: #415A77 !important;
+}
+
+.client-dashboard-shell :is(button,a)[class*="bg-primary"],
+.client-dashboard-shell :is(button,a)[class*="bg-[#0D1B2A]"],
+.client-dashboard-shell :is(button,a)[class*="bg-[#1B263B]"],
+.client-dashboard-shell :is(button,a)[class*="bg-slate-900"],
+.client-dashboard-shell :is(button,a)[class*="bg-error"],
+.client-dashboard-shell :is(button,a)[class*="bg-red-600"],
+.client-dashboard-shell :is(button,a)[class*="bg-emerald-600"] {
+  color: #FFFFFF !important;
+}
+
+.client-dashboard-shell :is(button,a)[class*="bg-white"],
+.client-dashboard-shell :is(button,a)[class*="bg-[#E0E1DD]"],
+.client-dashboard-shell :is(button,a)[class*="bg-surface"],
+.client-dashboard-shell .client-showcase-card .client-premium-action {
+  color: #0D1B2A !important;
+}
+
+.client-dashboard-shell .client-carousel-slide :is(h1,h2,h3,h4,h5,h6,b,strong,span,p,small) {
+  color: inherit !important;
+}
+
+.client-dashboard-shell .client-carousel-slide .client-carousel-meta,
+.client-dashboard-shell .client-carousel-slide p,
+.client-dashboard-shell .client-carousel-slide small {
+  color: #415A77 !important;
+}
+
+.client-dashboard-shell :is(.bg-red-50,.bg-error-container),
+.client-dashboard-shell :is(.bg-red-50,.bg-error-container) * {
+  color: #991b1b !important;
+}
+
+.client-dashboard-shell :is(.bg-amber-50,.bg-amber-100),
+.client-dashboard-shell :is(.bg-amber-50,.bg-amber-100) * {
+  color: #92400e !important;
+}
+
+.client-dashboard-shell :is(.bg-emerald-50,.bg-emerald-100),
+.client-dashboard-shell :is(.bg-emerald-50,.bg-emerald-100) * {
+  color: #065f46 !important;
+}
+
+.client-dashboard-shell :is(.bg-blue-50,.bg-blue-100),
+.client-dashboard-shell :is(.bg-blue-50,.bg-blue-100) * {
+  color: #1e3a8a !important;
+}
+
+.client-dashboard-shell input,
+.client-dashboard-shell textarea,
+.client-dashboard-shell select {
+  color: #0D1B2A !important;
+}
+
+.client-dashboard-shell input::placeholder,
+.client-dashboard-shell textarea::placeholder {
+  color: #5f7188 !important;
+}
+
+/* Final polish: filters/search/city groups are controls, not cards. Keep them open/transparent. */
+.client-dashboard-shell .client-entrance-panel,
+.client-dashboard-shell main > section.client-entrance-panel,
+.client-dashboard-shell main > div.client-entrance-panel,
+.client-dashboard-shell main > section:not(.client-showcase-card):not([class*="bg-white"]):not([class*="bg-surface"]):not(.client-company-card) {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+
+.client-dashboard-shell .client-entrance-panel:hover,
+.client-dashboard-shell main > section.client-entrance-panel:hover,
+.client-dashboard-shell main > div.client-entrance-panel:hover,
+.client-dashboard-shell main > section:not(.client-showcase-card):not([class*="bg-white"]):not([class*="bg-surface"]):not(.client-company-card):hover {
+  box-shadow: none !important;
+}
+
+.client-dashboard-shell .client-entrance-panel p,
+.client-dashboard-shell .client-entrance-panel small,
+.client-dashboard-shell .client-entrance-panel .text-slate-600 {
+  color: #415A77 !important;
+}
+
+.client-dashboard-shell .client-entrance-panel :is(button,a):not([class*="bg-blue-600"]):not([class*="bg-primary"]):not([class*="bg-[#0D1B2A]"]):not([class*="bg-tertiary-container"]):not([class*="bg-primary-container"]) {
+  color: #415A77 !important;
+}
+
+.client-dashboard-shell :is([class*="bg-primary-container"],[class*="bg-tertiary-container"],[class*="bg-primary"],[class*="bg-blue-600"]) {
+  color: #FFFFFF !important;
+}
+
+.client-dashboard-shell :is([class*="bg-primary-container"],[class*="bg-tertiary-container"],[class*="bg-primary"],[class*="bg-blue-600"]) :is(span,p,small,b,strong,h1,h2,h3,h4,h5,h6,label):not(.material-symbols-outlined) {
+  color: inherit !important;
+}
+
+.client-dashboard-shell :is([class*="bg-secondary-container"],[class*="bg-slate-100"],[class*="bg-slate-50"],[class*="bg-[#E0E1DD]"]) {
+  color: #0D1B2A !important;
+}
+
+.client-dashboard-shell :is([class*="bg-secondary-container"],[class*="bg-slate-100"],[class*="bg-slate-50"],[class*="bg-[#E0E1DD]"]) :is(span,p,small,b,strong,h1,h2,h3,h4,h5,h6,label):not(.material-symbols-outlined) {
+  color: inherit !important;
+}
+
+.client-dashboard-shell .client-company-card {
+  background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(248,250,252,.92)) !important;
+  border-color: rgba(65, 90, 119, 0.14) !important;
+  box-shadow: 0 24px 70px rgba(13, 27, 42, 0.08) !important;
+}
+
+.client-top-nav {
+  border-bottom-color: rgba(65, 90, 119, 0.12) !important;
+}
+}
+
+.client-showcase-animated {
+  animation: clientShowcaseEntrance 780ms cubic-bezier(.2,.8,.2,1) both;
+  transition: transform 260ms ease, box-shadow 260ms ease;
+  will-change: transform, opacity;
+}
+
+.client-showcase-animated:hover {
+  transform: translateY(-3px) scale(1.006);
+  box-shadow: 0 38px 100px rgba(13,27,42,.27) !important;
+}
+
+.client-stagger-item {
+  animation: clientContentRise 680ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.client-stagger-item:nth-child(1) { animation-delay: 80ms; }
+.client-stagger-item:nth-child(2) { animation-delay: 160ms; }
+.client-stagger-item:nth-child(3) { animation-delay: 240ms; }
+.client-stagger-item:nth-child(4) { animation-delay: 320ms; }
+
+.client-carousel-stage {
+  position: relative;
+  min-height: 108px;
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.client-carousel-slide {
+  width: 100%;
+  min-height: 92px;
+  transform-origin: center;
+  animation: clientCarouselIn 820ms cubic-bezier(.2,.8,.2,1) both;
+  will-change: transform, opacity, filter;
+}
+
+.client-carousel-slide:hover {
+  transform: translateY(-2px) scale(1.018);
+}
+
+.client-carousel-image {
+  animation: clientImageFocus 900ms cubic-bezier(.2,.8,.2,1) both;
+  transition: transform 820ms cubic-bezier(.2,.8,.2,1);
+}
+
+.client-carousel-slide:hover .client-carousel-image {
+  transform: scale(1.055);
+}
+
+.client-carousel-title,
+.client-carousel-meta {
+  animation: clientTextResolve 720ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.client-carousel-meta {
+  animation-delay: 80ms;
+}
+
+.client-carousel-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.client-carousel-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(224,225,221,.3);
+  transition: width 240ms ease, background-color 240ms ease, transform 240ms ease;
+}
+
+.client-carousel-dots span.is-active {
+  width: 22px;
+  background: rgba(224,225,221,.86);
+}
+
+.client-carousel-loading {
+  animation: clientCarouselIn 700ms cubic-bezier(.2,.8,.2,1) both, clientSoftPulse 1400ms ease-in-out infinite;
+}
+
+.client-entrance-panel {
+  animation: clientContentRise 620ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.client-premium-action:hover,
+.client-theme:not(.company-register-theme) button:hover,
+.client-theme:not(.company-register-theme) a:hover {
+  transform: translateY(-1px);
+}
+
+@keyframes clientShowcaseEntrance {
+  from { opacity: 0; transform: translateY(18px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes clientContentRise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes clientCarouselIn {
+  0% { opacity: 0; transform: translateX(22px) scale(.985); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes clientImageFocus {
+  from { opacity: .5; transform: translateX(8px) scale(1.045); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes clientTextResolve {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes clientCardEntrance {
+  from { opacity: 0; transform: translateY(16px) scale(.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes clientSoftPulse {
+  0%, 100% { opacity: .72; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+
+  .client-carousel-loading {
+    animation: none !important;
+  }
+
+  .client-dashboard-shell .client-company-card:hover,
+  .client-showcase-animated:hover,
+  .client-carousel-slide:hover,
+  .client-premium-action:hover,
+  .client-theme:not(.company-register-theme) button:hover,
+  .client-theme:not(.company-register-theme) a:hover {
+    transform: none !important;
+  }
 }
 
 .company-theme .company-sidebar,
@@ -1445,4 +2139,626 @@ textarea:focus-visible { outline: 3px solid rgba(59, 130, 246, 0.24); outline-of
 .client-theme:not(.company-register-theme) .bg-secondary-container,
 .client-theme:not(.company-register-theme) .bg-tertiary-container {
   color: #0D1B2A !important;
+}
+
+/* Company portal contrast hardening */
+.company-theme main,
+.company-theme main .bg-white,
+.company-theme main [class*="bg-slate-50"],
+.company-theme main [class*="bg-slate-100"],
+.company-theme main [class*="bg-blue-50"],
+.company-theme main [class*="bg-gray-50"] {
+  color: #0D1B2A !important;
+}
+
+.company-theme main .bg-white *,
+.company-theme main [class*="bg-slate-50"] *,
+.company-theme main [class*="bg-slate-100"] *,
+.company-theme main [class*="bg-blue-50"] *,
+.company-theme main [class*="bg-gray-50"] * {
+  color: inherit;
+}
+
+.company-theme main .text-slate-400,
+.company-theme main .text-slate-500,
+.company-theme main .text-slate-600,
+.company-theme main .text-slate-700,
+.company-theme main small,
+.company-theme main p {
+  color: #334155 !important;
+}
+
+.company-theme main h1,
+.company-theme main h2,
+.company-theme main h3,
+.company-theme main h4,
+.company-theme main b,
+.company-theme main strong,
+.company-theme main label,
+.company-theme main td {
+  color: #0D1B2A !important;
+}
+
+.company-theme main [class*="bg-[#0D1B2A]"],
+.company-theme main [class*="bg-[#1B263B]"],
+.company-theme main [class*="bg-blue-600"],
+.company-theme main [class*="bg-slate-900"],
+.company-theme main [class*="bg-slate-950"],
+.company-theme main [class*="bg-emerald-600"],
+.company-theme main [class*="bg-red-600"] {
+  color: #ffffff !important;
+}
+
+.company-theme main [class*="bg-[#0D1B2A]"] *,
+.company-theme main [class*="bg-[#1B263B]"] *,
+.company-theme main [class*="bg-blue-600"] *,
+.company-theme main [class*="bg-slate-900"] *,
+.company-theme main [class*="bg-slate-950"] *,
+.company-theme main [class*="bg-emerald-600"] *,
+.company-theme main [class*="bg-red-600"] * {
+  color: inherit !important;
+}
+
+.company-theme main .bg-red-50,
+.company-theme main .bg-red-50 * {
+  color: #991b1b !important;
+}
+
+.company-theme main .bg-amber-50,
+.company-theme main .bg-amber-50 * {
+  color: #92400e !important;
+}
+
+.company-theme main .bg-emerald-50,
+.company-theme main .bg-emerald-50 * {
+  color: #065f46 !important;
+}
+
+.company-theme main input,
+.company-theme main textarea,
+.company-theme main select {
+  color: #0D1B2A !important;
+}
+
+.company-theme main input::placeholder,
+.company-theme main textarea::placeholder {
+  color: #64748b !important;
+  opacity: 1;
+}
+
+/* FleetOS future-safe contrast utilities.
+   Use these on new components instead of broad palette overrides:
+   - client-on-dark: dark/gradient surface with white text
+   - client-on-light: light surface with navy text
+   - client-text-strong / client-text-muted: explicit readable text */
+.client-dashboard-shell .client-on-dark,
+.client-dashboard-shell .client-on-dark-card,
+.client-dashboard-shell [data-client-surface="dark"] {
+  color: #FFFFFF !important;
+}
+
+.client-dashboard-shell .client-on-dark :is(h1,h2,h3,h4,h5,h6,b,strong,label,span,a,button):not(.material-symbols-outlined),
+.client-dashboard-shell .client-on-dark-card :is(h1,h2,h3,h4,h5,h6,b,strong,label,span,a,button):not(.material-symbols-outlined),
+.client-dashboard-shell [data-client-surface="dark"] :is(h1,h2,h3,h4,h5,h6,b,strong,label,span,a,button):not(.material-symbols-outlined) {
+  color: #FFFFFF !important;
+  opacity: 1 !important;
+}
+
+.client-dashboard-shell .client-on-dark :is(p,small,.client-text-muted),
+.client-dashboard-shell .client-on-dark-card :is(p,small,.client-text-muted),
+.client-dashboard-shell [data-client-surface="dark"] :is(p,small,.client-text-muted) {
+  color: rgba(224, 225, 221, 0.92) !important;
+  opacity: 1 !important;
+}
+
+.client-dashboard-shell .client-on-light,
+.client-dashboard-shell [data-client-surface="light"] {
+  color: #0D1B2A !important;
+}
+
+.client-dashboard-shell .client-on-light :is(h1,h2,h3,h4,h5,h6,b,strong,label,span,a,button):not(.material-symbols-outlined),
+.client-dashboard-shell [data-client-surface="light"] :is(h1,h2,h3,h4,h5,h6,b,strong,label,span,a,button):not(.material-symbols-outlined) {
+  color: #0D1B2A !important;
+  opacity: 1 !important;
+}
+
+.client-dashboard-shell .client-on-light :is(p,small,.client-text-muted),
+.client-dashboard-shell [data-client-surface="light"] :is(p,small,.client-text-muted) {
+  color: #415A77 !important;
+  opacity: 1 !important;
+}
+
+.client-dashboard-shell .client-text-strong {
+  color: #0D1B2A !important;
+  opacity: 1 !important;
+}
+
+.client-dashboard-shell .client-text-muted {
+  color: #415A77 !important;
+  opacity: 1 !important;
+}
+
+/* Absolute final client override: keep the browse hero readable.
+   This sits at EOF so older broad palette rules cannot darken the showcase again. */
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card,
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-showcase-copy,
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-showcase-copy h1,
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-showcase-copy h2,
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-showcase-copy h3,
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-showcase-copy b,
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-showcase-copy strong {
+  color: #FFFFFF !important;
+  opacity: 1 !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-showcase-copy p,
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-showcase-copy small,
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-showcase-copy span:not(.material-symbols-outlined):not(.client-premium-action) {
+  color: rgba(248, 250, 252, 0.9) !important;
+  opacity: 1 !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-premium-action,
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-premium-action *,
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card button.client-premium-action {
+  background: #FFFFFF !important;
+  color: #0D1B2A !important;
+  opacity: 1 !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-carousel-slide {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(255, 255, 255, 0.36) !important;
+  color: #0D1B2A !important;
+  opacity: 1 !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-carousel-slide :is(h1,h2,h3,h4,h5,h6,b,strong,.client-carousel-title) {
+  color: #0D1B2A !important;
+  opacity: 1 !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-carousel-slide :is(p,small,.client-carousel-meta) {
+  color: #415A77 !important;
+  opacity: 1 !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-carousel-slide > span:last-child {
+  background: #FFFFFF !important;
+  color: #0D1B2A !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-entrance-panel {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Client visual correction v2: remove the washed-out white showcase card and prevent pale text on client pages. */
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card {
+  background:
+    radial-gradient(circle at 82% 16%, rgba(119, 141, 169, 0.34), transparent 20rem),
+    radial-gradient(circle at 12% 88%, rgba(65, 90, 119, 0.18), transparent 16rem),
+    linear-gradient(135deg, #0D1B2A 0%, #1B263B 58%, #415A77 100%) !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-carousel-slide {
+  background:
+    linear-gradient(135deg, rgba(13, 27, 42, 0.86), rgba(27, 38, 59, 0.78)),
+    radial-gradient(circle at top right, rgba(119, 141, 169, 0.28), transparent 12rem) !important;
+  border: 1px solid rgba(224, 225, 221, 0.22) !important;
+  box-shadow: 0 24px 70px rgba(13, 27, 42, 0.24) !important;
+  color: #FFFFFF !important;
+  opacity: 1 !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-carousel-slide:hover {
+  background:
+    linear-gradient(135deg, rgba(13, 27, 42, 0.92), rgba(27, 38, 59, 0.84)),
+    radial-gradient(circle at top right, rgba(119, 141, 169, 0.34), transparent 12rem) !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-carousel-slide :is(.client-carousel-title,h1,h2,h3,h4,h5,h6,b,strong,span) {
+  color: #FFFFFF !important;
+  opacity: 1 !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-carousel-slide :is(.client-carousel-meta,p,small) {
+  color: rgba(224, 225, 221, 0.9) !important;
+  opacity: 1 !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-carousel-slide > span:last-child {
+  background: rgba(224, 225, 221, 0.16) !important;
+  border: 1px solid rgba(224, 225, 221, 0.18) !important;
+  color: #FFFFFF !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-carousel-image {
+  border-color: rgba(224, 225, 221, 0.24) !important;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22) !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-stagger-item:not(button),
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-stagger-item:not(button) * {
+  color: rgba(248, 250, 252, 0.94) !important;
+  opacity: 1 !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card h2.client-stagger-item {
+  color: #FFFFFF !important;
+  opacity: 1 !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-premium-action,
+.client-theme:not(.company-register-theme) .client-dashboard-shell .client-showcase-card .client-premium-action * {
+  background: #E0E1DD !important;
+  color: #0D1B2A !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell main > :not(.client-showcase-card) :is([class*="bg-white/"],[class*="bg-surface/"],[class*="bg-white"]) {
+  color: #0D1B2A !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell main > :not(.client-showcase-card) :is([class*="bg-white/"],[class*="bg-surface/"],[class*="bg-white"]) :is(h1,h2,h3,h4,h5,h6,b,strong,label) {
+  color: #0D1B2A !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell main > :not(.client-showcase-card) :is([class*="bg-white/"],[class*="bg-surface/"],[class*="bg-white"]) :is(p,small,.text-slate-400,.text-slate-500,.text-slate-600,.text-on-surface-variant) {
+  color: #415A77 !important;
+  opacity: 1 !important;
+}
+
+.client-theme:not(.company-register-theme) .client-dashboard-shell footer[class*="bg-white"],
+.client-theme:not(.company-register-theme) .client-dashboard-shell header[class*="bg-white"],
+.client-theme:not(.company-register-theme) .client-dashboard-shell footer[class*="bg-surface"],
+.client-theme:not(.company-register-theme) .client-dashboard-shell header[class*="bg-surface"] {
+  color: #0D1B2A !important;
+}
+
+/* FINAL CLIENT HERO + FUTURE COMPONENT CONTRAST LOCK
+   This intentionally avoids requiring .client-theme so it works in dev, build, protected routes,
+   and any future client page that renders inside .client-dashboard-shell. */
+.client-dashboard-shell .client-showcase-card {
+  color: #FFFFFF !important;
+  background:
+    radial-gradient(circle at 82% 16%, rgba(119, 141, 169, 0.34), transparent 20rem),
+    radial-gradient(circle at 12% 88%, rgba(65, 90, 119, 0.18), transparent 16rem),
+    linear-gradient(135deg, #0D1B2A 0%, #1B263B 58%, #415A77 100%) !important;
+}
+
+.client-dashboard-shell .client-showcase-card .client-showcase-title,
+.client-dashboard-shell .client-showcase-card h2.client-showcase-title {
+  color: #FFFFFF !important;
+  opacity: 1 !important;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.22) !important;
+}
+
+.client-dashboard-shell .client-showcase-card .client-showcase-subtitle,
+.client-dashboard-shell .client-showcase-card .client-showcase-badge,
+.client-dashboard-shell .client-showcase-card .client-showcase-badge *,
+.client-dashboard-shell .client-showcase-card .client-showcase-count {
+  color: #F8FAFC !important;
+  opacity: 1 !important;
+}
+
+.client-dashboard-shell .client-showcase-card .client-showcase-subtitle {
+  color: rgba(248, 250, 252, 0.9) !important;
+}
+
+.client-dashboard-shell .client-showcase-card .client-showcase-count {
+  background: rgba(224, 225, 221, 0.14) !important;
+  border-color: rgba(224, 225, 221, 0.22) !important;
+}
+
+.client-dashboard-shell .client-showcase-card .client-premium-action,
+.client-dashboard-shell .client-showcase-card .client-premium-action *,
+.client-dashboard-shell .client-showcase-card button.client-premium-action {
+  background: #E0E1DD !important;
+  color: #0D1B2A !important;
+  opacity: 1 !important;
+}
+
+.client-dashboard-shell .client-showcase-card .client-carousel-slide,
+.client-dashboard-shell .client-showcase-card .client-on-dark-card {
+  background:
+    linear-gradient(135deg, rgba(13, 27, 42, 0.9), rgba(27, 38, 59, 0.82)),
+    radial-gradient(circle at top right, rgba(119, 141, 169, 0.3), transparent 12rem) !important;
+  border: 1px solid rgba(224, 225, 221, 0.24) !important;
+  color: #FFFFFF !important;
+  opacity: 1 !important;
+}
+
+.client-dashboard-shell .client-showcase-card .client-carousel-slide :is(.client-carousel-title,h1,h2,h3,h4,h5,h6,b,strong,span):not(.material-symbols-outlined) {
+  color: #FFFFFF !important;
+  opacity: 1 !important;
+}
+
+.client-dashboard-shell .client-showcase-card .client-carousel-slide :is(.client-carousel-meta,p,small) {
+  color: rgba(224, 225, 221, 0.92) !important;
+  opacity: 1 !important;
+}
+
+.client-dashboard-shell .client-showcase-card .client-carousel-index {
+  background: rgba(224, 225, 221, 0.16) !important;
+  border: 1px solid rgba(224, 225, 221, 0.18) !important;
+  color: #FFFFFF !important;
+}
+
+.client-dashboard-shell [class~="bg-primary"],
+.client-dashboard-shell [class~="bg-primary-container"],
+.client-dashboard-shell [class~="bg-tertiary-container"],
+.client-dashboard-shell [class~="bg-blue-600"],
+.client-dashboard-shell [class~="bg-[#0D1B2A]"],
+.client-dashboard-shell [class~="bg-[#1B263B]"],
+.client-dashboard-shell [class~="bg-[#071f3d]"],
+.client-dashboard-shell [class~="bg-slate-900"],
+.client-dashboard-shell [class~="bg-slate-950"] {
+  color: #FFFFFF !important;
+}
+
+.client-dashboard-shell [class~="bg-primary"] :is(h1,h2,h3,h4,h5,h6,b,strong,span,p,small,label,a,button):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-primary-container"] :is(h1,h2,h3,h4,h5,h6,b,strong,span,p,small,label,a,button):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-tertiary-container"] :is(h1,h2,h3,h4,h5,h6,b,strong,span,p,small,label,a,button):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-blue-600"] :is(h1,h2,h3,h4,h5,h6,b,strong,span,p,small,label,a,button):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-[#0D1B2A]"] :is(h1,h2,h3,h4,h5,h6,b,strong,span,p,small,label,a,button):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-[#1B263B]"] :is(h1,h2,h3,h4,h5,h6,b,strong,span,p,small,label,a,button):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-[#071f3d]"] :is(h1,h2,h3,h4,h5,h6,b,strong,span,p,small,label,a,button):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-slate-900"] :is(h1,h2,h3,h4,h5,h6,b,strong,span,p,small,label,a,button):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-slate-950"] :is(h1,h2,h3,h4,h5,h6,b,strong,span,p,small,label,a,button):not(.material-symbols-outlined) {
+  color: inherit !important;
+  opacity: 1 !important;
+}
+
+.client-dashboard-shell [class~="bg-white"],
+.client-dashboard-shell [class~="bg-surface"],
+.client-dashboard-shell [class~="bg-surface-container-lowest"],
+.client-dashboard-shell [class~="bg-surface-container-low"],
+.client-dashboard-shell [class~="bg-surface-container"],
+.client-dashboard-shell [class~="bg-slate-50"],
+.client-dashboard-shell [class~="bg-slate-100"],
+.client-dashboard-shell [class~="bg-[#E0E1DD]"] {
+  color: #0D1B2A !important;
+}
+
+.client-dashboard-shell [class~="bg-white"] :is(h1,h2,h3,h4,h5,h6,b,strong,label):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-surface"] :is(h1,h2,h3,h4,h5,h6,b,strong,label):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-surface-container-lowest"] :is(h1,h2,h3,h4,h5,h6,b,strong,label):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-surface-container-low"] :is(h1,h2,h3,h4,h5,h6,b,strong,label):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-surface-container"] :is(h1,h2,h3,h4,h5,h6,b,strong,label):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-slate-50"] :is(h1,h2,h3,h4,h5,h6,b,strong,label):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-slate-100"] :is(h1,h2,h3,h4,h5,h6,b,strong,label):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-[#E0E1DD]"] :is(h1,h2,h3,h4,h5,h6,b,strong,label):not(.material-symbols-outlined) {
+  color: #0D1B2A !important;
+  opacity: 1 !important;
+}
+
+.client-dashboard-shell [class~="bg-white"] :is(p,small,.text-slate-400,.text-slate-500,.text-slate-600,.text-on-surface-variant):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-surface"] :is(p,small,.text-slate-400,.text-slate-500,.text-slate-600,.text-on-surface-variant):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-surface-container-lowest"] :is(p,small,.text-slate-400,.text-slate-500,.text-slate-600,.text-on-surface-variant):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-surface-container-low"] :is(p,small,.text-slate-400,.text-slate-500,.text-slate-600,.text-on-surface-variant):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-surface-container"] :is(p,small,.text-slate-400,.text-slate-500,.text-slate-600,.text-on-surface-variant):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-slate-50"] :is(p,small,.text-slate-400,.text-slate-500,.text-slate-600,.text-on-surface-variant):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-slate-100"] :is(p,small,.text-slate-400,.text-slate-500,.text-slate-600,.text-on-surface-variant):not(.material-symbols-outlined),
+.client-dashboard-shell [class~="bg-[#E0E1DD]"] :is(p,small,.text-slate-400,.text-slate-500,.text-slate-600,.text-on-surface-variant):not(.material-symbols-outlined) {
+  color: #415A77 !important;
+  opacity: 1 !important;
+}
+
+/* Shared client navigation: every client route uses the same small, circular account control. */
+.client-nav-brand {
+  width: 132px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+}
+
+.client-nav-brand img { width: 100%; height: 100%; object-fit: contain; object-position: left center; }
+
+.client-nav-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  color: #1B263B !important;
+  background: rgba(224,225,221,.52);
+  transition: transform .18s ease, background-color .18s ease;
+}
+
+.client-nav-icon:hover { background: rgba(119,141,169,.26); transform: translateY(-1px); }
+
+.client-avatar-only {
+  width: 42px !important;
+  height: 42px !important;
+  padding: 0 !important;
+  border-radius: 9999px !important;
+  overflow: visible !important;
+}
+
+.client-avatar-only img { width: 36px !important; height: 36px !important; border-radius: 9999px !important; }
+.client-avatar-halo { inset: 3px !important; border-radius: 9999px !important; }
+
+/* Company workspace follows the same stable left-rail language as the Super Admin portal. */
+.company-theme .company-sidebar,
+.company-theme aside.company-sidebar {
+  background: #FFFFFF !important;
+  color: #1B263B !important;
+  border-right: 1px solid rgba(65,90,119,.12) !important;
+  box-shadow: 4px 0 28px rgba(13,27,42,.05) !important;
+}
+
+.company-theme .company-sidebar .company-brand img { width: 138px; height: 38px; object-fit: contain; object-position: left center; }
+.company-theme .company-sidebar .company-context { display: flex; gap: 11px; align-items: center; padding: 0 4px; }
+.company-theme .company-sidebar .company-context-logo { width: 40px; height: 40px; border-radius: 12px; overflow: hidden; background: #E0E1DD; color: #0D1B2A; display: grid; place-items: center; font-size: 12px; font-weight: 900; flex: 0 0 auto; }
+.company-theme .company-sidebar .company-context b { display: block; color: #0D1B2A !important; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.company-theme .company-sidebar .company-context span { display: block; color: #778DA9 !important; font-size: 11px; font-weight: 700; margin-top: 2px; }
+.company-theme .company-sidebar p { color: #778DA9 !important; }
+.company-theme .company-sidebar nav a:not(.bg-blue-50) { color: #415A77 !important; }
+.company-theme .company-sidebar nav a:not(.bg-blue-50) .material-symbols-outlined { color: #778DA9 !important; }
+.company-theme .company-sidebar nav a.bg-blue-50,
+.company-theme .company-sidebar nav a:hover { background: #E8EEF4 !important; color: #0D1B2A !important; }
+.company-theme .company-sidebar nav a.bg-blue-50 .material-symbols-outlined,
+.company-theme .company-sidebar nav a:hover .material-symbols-outlined { color: #1B4D8D !important; }
+.company-theme .company-sidebar .company-account-card { background: #F4F7FA !important; border-color: rgba(65,90,119,.1) !important; }
+.company-theme .company-sidebar .company-account-card p { color: #0D1B2A !important; }
+.company-theme .company-sidebar .company-account-card button:last-child { border-color: rgba(65,90,119,.16) !important; color: #415A77 !important; }
+.live-tracking-root .client-top-nav { position: absolute !important; inset: 0 0 auto; z-index: 1100; }
+.client-brand-image { width: 142px; height: 38px; object-fit: contain; object-position: left center; display: block; }
+.client-brand { gap: 0 !important; }
+
+/* Client page foundation — spacious content, quiet controls, and predictable contrast. */
+.client-dashboard-shell {
+  background: #F7F9FB !important;
+  color: #0D1B2A;
+}
+
+.client-dashboard-shell > main,
+.client-dashboard-shell main {
+  width: min(100%, 1440px);
+}
+
+.client-dashboard-shell :is(.client-entrance-panel, .client-filter-row, .client-search-row) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.client-dashboard-shell :is(input, select, textarea) {
+  border-color: rgba(65,90,119,.18) !important;
+  background-color: rgba(255,255,255,.86) !important;
+  color: #0D1B2A !important;
+  box-shadow: none !important;
+}
+
+.client-dashboard-shell :is(input, select, textarea):focus {
+  border-color: #415A77 !important;
+  box-shadow: 0 0 0 3px rgba(119,141,169,.18) !important;
+}
+
+/* Keep real content cards distinct, but remove the heavy outline-box look elsewhere. */
+.client-dashboard-shell main :is(section, article, div)[class*="border"]:not(.client-company-card):not(.client-showcase-card):not(.client-profile-menu):not([role="dialog"]) {
+  border-color: transparent !important;
+}
+
+.client-dashboard-shell main :is(section, article)[class*="bg-white"],
+.client-dashboard-shell main :is(section, article)[class*="bg-surface-container-lowest"] {
+  box-shadow: 0 14px 38px rgba(13,27,42,.055) !important;
+}
+
+/* Compact company rail, aligned to the Super Admin information density. */
+.company-theme .company-sidebar { width: 236px !important; }
+.company-theme main { margin-left: 236px !important; }
+.company-theme .company-sidebar .company-brand { height: 70px !important; padding: 0 18px !important; }
+.company-theme .company-sidebar .company-brand img { width: 126px !important; height: 32px !important; }
+.company-theme .company-sidebar-scroll { padding: 14px 14px !important; }
+.company-theme .company-sidebar .company-context { padding: 0 3px !important; margin-bottom: 16px !important; }
+.company-theme .company-sidebar .company-context-logo { width: 34px !important; height: 34px !important; border-radius: 10px !important; }
+.company-theme .company-sidebar .company-context b { font-size: 12px !important; }
+.company-theme .company-sidebar .company-context span,
+.company-theme .company-sidebar p { font-size: 10px !important; }
+.company-theme .company-sidebar nav { display: grid; gap: 3px !important; }
+.company-theme .company-sidebar nav a { min-height: 38px; padding: 8px 10px !important; border-radius: 10px !important; font-size: 12px !important; gap: 10px !important; }
+.company-theme .company-sidebar nav a .material-symbols-outlined { font-size: 18px !important; }
+.company-theme .company-sidebar > .mt-auto { padding: 14px !important; }
+.company-theme .company-sidebar .company-account-card { padding: 11px !important; border-radius: 14px !important; }
+.company-theme .company-sidebar .company-account-card > div { margin-bottom: 9px !important; }
+.company-theme .company-sidebar .company-account-card button { min-height: 34px; padding: 7px 9px !important; border-radius: 9px !important; font-size: 11px !important; }
+
+@media (max-width: 767px) {
+  .company-theme main { margin-left: 0 !important; }
+  .client-dashboard-shell > main,
+  .client-dashboard-shell main { width: 100%; }
+}
+
+/* Explicit action-state pairings. These never depend on generic palette utility names. */
+.client-dashboard-shell .client-showcase-card button.client-hero-primary-button {
+  background: #FFFFFF !important;
+  color: #0D1B2A !important;
+  border: 1px solid rgba(255,255,255,.72) !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,.16) !important;
+}
+.app-shell.client-theme .client-dashboard-shell .client-showcase-card button.client-hero-primary-button { color: #0D1B2A !important; }
+.client-dashboard-shell .client-showcase-card button.client-hero-primary-button:hover { background: #E0E1DD !important; }
+
+.client-dashboard-shell .booking-choice {
+  background: #FFFFFF !important;
+  border-color: rgba(119,141,169,.28) !important;
+  color: #0D1B2A !important;
+  min-height: 112px;
+}
+.client-dashboard-shell .booking-choice :is(span,p,b,strong) { color: #0D1B2A !important; opacity: 1 !important; }
+.client-dashboard-shell .booking-choice .booking-choice-title { color: #0D1B2A !important; }
+.client-dashboard-shell .booking-choice .booking-choice-price { color: #1B4D8D !important; }
+.client-dashboard-shell .booking-choice--active {
+  background: #0D1B2A !important;
+  border-color: #0D1B2A !important;
+  box-shadow: 0 12px 28px rgba(13,27,42,.16) !important;
+}
+.client-dashboard-shell .booking-choice--active :is(span,p,b,strong) { color: #FFFFFF !important; opacity: 1 !important; }
+.client-dashboard-shell .booking-choice--active .booking-choice-title { color: #FFFFFF !important; }
+.client-dashboard-shell .booking-choice--active .booking-choice-price { color: #C8DCF1 !important; }
+
+.client-dashboard-shell .booking-info-callout {
+  background: #1B4D8D !important;
+  color: #FFFFFF !important;
+  border: 0 !important;
+}
+.client-dashboard-shell .booking-info-callout :is(span,p,small,b,strong) { color: #FFFFFF !important; opacity: 1 !important; }
+
+.client-dashboard-shell .tracking-review-action {
+  background: #E8EEF4 !important;
+  border: 1px solid rgba(65,90,119,.18) !important;
+  color: #0D1B2A !important;
+}
+.client-dashboard-shell .tracking-review-action :is(span,p,small,b,strong) { color: #0D1B2A !important; opacity: 1 !important; }
+.client-dashboard-shell .tracking-review-action:hover { background: #D6E0EA !important; }
+
+/* Final company rail ownership. These selectors deliberately match the old
+   fixed-sidebar rules so no legacy dark theme can win the cascade. */
+.app-shell.company-theme aside.company-sidebar[class*="fixed"][class*="inset-y-0"][class*="left-0"] {
+  width: 236px !important;
+  background: #FFFFFF !important;
+  color: #1B263B !important;
+  border-right: 1px solid rgba(65,90,119,.12) !important;
+  box-shadow: 4px 0 28px rgba(13,27,42,.05) !important;
+}
+.app-shell.company-theme aside.company-sidebar[class*="fixed"][class*="inset-y-0"][class*="left-0"] :is(a,button) {
+  color: #415A77 !important;
+}
+.app-shell.company-theme aside.company-sidebar[class*="fixed"][class*="inset-y-0"][class*="left-0"] .company-brand {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid rgba(65,90,119,.08) !important;
+}
+.app-shell.company-theme aside.company-sidebar[class*="fixed"][class*="inset-y-0"][class*="left-0"] .company-brand img { filter: none !important; }
+.app-shell.company-theme aside.company-sidebar[class*="fixed"][class*="inset-y-0"][class*="left-0"] .company-context :is(b,span),
+.app-shell.company-theme aside.company-sidebar[class*="fixed"][class*="inset-y-0"][class*="left-0"] .company-account-card :is(p,span) {
+  color: #0D1B2A !important;
+}
+.app-shell.company-theme aside.company-sidebar[class*="fixed"][class*="inset-y-0"][class*="left-0"] .company-context span,
+.app-shell.company-theme aside.company-sidebar[class*="fixed"][class*="inset-y-0"][class*="left-0"] .company-sidebar-scroll > p {
+  color: #778DA9 !important;
+}
+.app-shell.company-theme aside.company-sidebar[class*="fixed"][class*="inset-y-0"][class*="left-0"] nav a:hover,
+.app-shell.company-theme aside.company-sidebar[class*="fixed"][class*="inset-y-0"][class*="left-0"] nav a.bg-blue-50 {
+  background: #E8EEF4 !important;
+  color: #0D1B2A !important;
+}
+.app-shell.company-theme aside.company-sidebar[class*="fixed"][class*="inset-y-0"][class*="left-0"] nav a:hover :is(span,.material-symbols-outlined),
+.app-shell.company-theme aside.company-sidebar[class*="fixed"][class*="inset-y-0"][class*="left-0"] nav a.bg-blue-50 :is(span,.material-symbols-outlined) {
+  color: #1B4D8D !important;
+}
+.app-shell.company-theme aside.company-sidebar[class*="fixed"][class*="inset-y-0"][class*="left-0"] .company-account-card {
+  background: #F4F7FA !important;
+  border-color: rgba(65,90,119,.1) !important;
+}
+.app-shell.company-theme aside.company-sidebar[class*="fixed"][class*="inset-y-0"][class*="left-0"] .company-account-card .company-profile-action {
+  background: #0D1B2A !important;
+  color: #FFFFFF !important;
+  border: 0 !important;
+}
+.app-shell.company-theme aside.company-sidebar[class*="fixed"][class*="inset-y-0"][class*="left-0"] .company-account-card .company-profile-action * { color: #FFFFFF !important; }
+.app-shell.company-theme aside.company-sidebar[class*="fixed"][class*="inset-y-0"][class*="left-0"] .company-account-card button:last-child {
+  color: #415A77 !important;
+  border-color: rgba(65,90,119,.16) !important;
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES } from '../../../constants';
 import api from '../../../services/api';
+import CustomerTopNav from '../../../components/customer/CustomerTopNav';
 
 function BookingSummary() {
   const navigate = useNavigate();
@@ -90,23 +91,10 @@ function BookingSummary() {
   };
 
   return (
-    <div className="bg-background text-on-surface min-h-screen">
-      {/* TopAppBar */}
-      <header className="fixed top-0 w-full z-50 flex justify-between items-center px-lg h-16 bg-surface shadow-sm transition-colors duration-200 ease-in-out">
-        <div className="flex items-center gap-md">
-          <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-surface-container-low transition-colors">
-            <span className="material-symbols-outlined text-primary">arrow_back</span>
-          </button>
-          <h1 className="font-headline-md text-headline-md font-bold text-primary">Booking Summary</h1>
-        </div>
-        <div className="flex items-center gap-sm">
-          <button onClick={showHelp} className="p-2 rounded-full hover:bg-surface-container-low text-on-surface-variant transition-colors">
-            <span className="material-symbols-outlined">help_outline</span>
-          </button>
-        </div>
-      </header>
+    <div className="client-dashboard-shell bg-background text-on-surface min-h-screen">
+      <CustomerTopNav title="Booking summary" subtitle="Check your request before you send it to the company." backTo="" actions={<button onClick={showHelp} className="client-nav-icon material-symbols-outlined">help_outline</button>} />
 
-      <main className="pt-24 pb-32 max-w-5xl mx-auto px-container-margin grid grid-cols-1 md:grid-cols-12 gap-lg">
+      <main className="pt-10 pb-32 max-w-5xl mx-auto px-container-margin grid grid-cols-1 md:grid-cols-12 gap-lg">
         {/* Left Column: Details & Summary */}
         <div className="md:col-span-7 space-y-lg">
           {/* Company Staff Summary Card */}

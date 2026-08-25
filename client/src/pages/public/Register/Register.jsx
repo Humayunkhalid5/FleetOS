@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { ROUTES } from '../../../constants';
+import fleetosLogoDark from '../../../assets/fleetos-dark.svg';
 
 function Register() {
   const navigate = useNavigate();
@@ -68,10 +69,7 @@ function Register() {
               <div className="h-full w-full" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
             </div>
             <div className="relative z-20">
-              <div className="flex items-center gap-sm mb-lg">
-                <span className="material-symbols-outlined text-[32px]">hub</span>
-                <h1 className="font-headline-lg text-headline-lg font-bold tracking-tight">FleetOS</h1>
-              </div>
+              <img src={fleetosLogoDark} alt="FleetOS" className="h-11 w-auto mb-lg" />
               <h2 className="font-headline-md text-headline-md mb-md">Discover trusted companies and their offers in one place.</h2>
               <p className="font-body-lg text-body-lg opacity-80">Join clients who use FleetOS to find approved companies, compare products and services, chat, book, track, pay, and review.</p>
             </div>

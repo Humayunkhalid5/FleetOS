@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../constants';
 import api from '../../../services/api';
+import CustomerTopNav from '../../../components/customer/CustomerTopNav';
 
 function Bookings() {
   const navigate = useNavigate();
@@ -45,23 +46,10 @@ function Bookings() {
     : bookings.filter(b => b.status === filterMap[filter]);
 
   return (
-    <div className="bg-background text-on-surface min-h-screen pb-32">
-      {/* TopAppBar */}
-      <header className="fixed top-0 w-full z-50 flex justify-between items-center px-lg h-16 bg-surface shadow-sm transition-colors duration-200 ease-in-out">
-        <div className="flex items-center gap-md">
-          <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-surface-container-low transition-colors">
-            <span className="material-symbols-outlined text-primary">arrow_back</span>
-          </button>
-          <h1 className="font-headline-md text-headline-md font-bold text-primary">My Bookings</h1>
-        </div>
-        <div className="flex items-center gap-md">
-          <button onClick={() => navigate(ROUTES.customizeBooking)} className="p-2 rounded-full hover:bg-surface-container-low transition-colors">
-            <span className="material-symbols-outlined text-primary">add</span>
-          </button>
-        </div>
-      </header>
+    <div className="client-dashboard-shell text-[#0D1B2A] min-h-screen pb-32">
+      <CustomerTopNav title="My Bookings" subtitle="Review requests, tracking status, payments, and completed work." backTo={ROUTES.companies} />
 
-      <main className="pt-24 px-container-margin max-w-3xl mx-auto space-y-lg">
+      <main className="pt-10 px-container-margin max-w-3xl mx-auto space-y-lg">
         {/* Filters */}
         <div className="flex gap-sm overflow-x-auto hide-scrollbar -mx-container-margin px-container-margin pb-1">
           {['All', 'In Progress', 'Completed', 'Cancelled'].map((f) => (

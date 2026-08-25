@@ -103,8 +103,11 @@ exports.getCompany = async (req, res) => {
   if (!company) return res.status(404).json({ message: 'Company not found' });
   const owner = await User.findOne({ company: company._id, role: 'company' }, 'status').lean();
   if (!isClientVisible(company, owner)) return res.status(404).json({ message: 'Company not found' });
-  const services = await Service.find({ company: company._id, status: 'Active' }).lean();
-  return res.json({ company: publicCompany(company, services, owner) });
+  const [services, technicians] = await Promise.all([
+    Service.find({ company: company._id, status: 'Active' }).lean(),
+    Technician.find({ company: company._id }).select('name role rating avatar experienceYears status').sort({ name: 1 }).lean(),
+  ]);
+  return res.json({ company: { ...publicCompany(company, services, owner), technicians } });
 };
 
 exports.getCompanyDashboard = async (req, res) => {

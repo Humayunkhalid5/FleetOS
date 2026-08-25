@@ -63,7 +63,7 @@ function RoleGate({ role }) {
             <span className="material-symbols-outlined">hourglass_top</span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900">Approval in progress</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-600">Your company registration is safely stored in MongoDB. FleetOS operations stay locked until a Super Admin approves the company.</p>
+          <p className="mt-3 text-sm leading-6 text-slate-600">Your company registration has been received. Your portal will open as soon as a Super Admin approves the company.</p>
           <div className="mt-6 rounded-xl bg-slate-50 p-4 text-left text-sm">
             <p className="font-semibold text-slate-900">{user.companyName}</p>
             <p className="text-slate-500 mt-1">Status: {user.approvalStatus || 'pending'}</p>

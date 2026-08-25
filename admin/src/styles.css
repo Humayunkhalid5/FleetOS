@@ -69,7 +69,7 @@ button { cursor: pointer; transition: all 0.2s ease; }
   color: var(--text-main);
 }
 
-.brand .mark { 
+.brand .mark {
   width: 32px; 
   height: 32px; 
   border-radius: 8px; 
@@ -766,6 +766,8 @@ tbody tr:hover {
   .hero-card { min-height: auto; }
 }
 
+.brand img { width: 142px; height: 36px; object-fit: contain; object-position: left center; }
+
 /* FleetOS overflow + contrast hardening */
 .metrics {
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -836,4 +838,147 @@ th {
   .status-bars > div {
     grid-template-columns: minmax(0, 92px) minmax(0, 1fr) 32px;
   }
+}
+
+/* FleetOS admin contrast hardening */
+.admin-shell,
+.admin-shell main,
+.content,
+.panel,
+.metric,
+.health,
+.modal-card,
+.topbar,
+.sidebar {
+  color: #0f172a;
+}
+
+.panel *,
+.metric *,
+.health *,
+.modal-card *,
+.topbar *,
+.sidebar * {
+  color: inherit;
+}
+
+.muted,
+.topbar p,
+.admin-user small,
+.metric small,
+.approval small,
+td small,
+.empty-note,
+.modal-card p,
+.health h2,
+.mono {
+  color: #475569 !important;
+}
+
+.panel h1,
+.panel h2,
+.panel h3,
+.panel h4,
+.metric b,
+.health b,
+.topbar h1,
+.approval b,
+td,
+td b,
+label {
+  color: #0f172a !important;
+}
+
+th {
+  color: #334155 !important;
+}
+
+.admin-hero,
+.admin-hero *,
+.hero-card,
+.hero-card * {
+  color: #ffffff !important;
+}
+
+.admin-hero .eyebrow,
+.hero-card small {
+  color: #dbeafe !important;
+}
+
+.admin-hero span,
+.hero-card span {
+  color: rgba(255, 255, 255, 0.82) !important;
+}
+
+.panel button:not(.danger):not(.secondary),
+.modal-actions button:not(.secondary),
+.login-panel form button,
+.settings form button {
+  color: #ffffff !important;
+}
+
+.panel button:not(.danger):not(.secondary) *,
+.modal-actions button:not(.secondary) *,
+.login-panel form button *,
+.settings form button * {
+  color: inherit !important;
+}
+
+.panel button.secondary,
+.modal-actions button.secondary,
+.admin-user button,
+.top-actions button {
+  color: #0f172a !important;
+}
+
+.status.approved,
+.status.active,
+.status.recorded,
+.status.resolved,
+.status.paid,
+.status.completed,
+.status.published,
+.visibility.visible {
+  color: #065f46 !important;
+  background: #d1fae5 !important;
+}
+
+.status.pending,
+.status.open,
+.status.hidden,
+.visibility.hidden {
+  color: #92400e !important;
+  background: #fef3c7 !important;
+}
+
+.status.suspended,
+.status.rejected,
+.status.failed,
+.error {
+  color: #991b1b !important;
+}
+
+.status.suspended,
+.status.rejected,
+.status.failed {
+  background: #fee2e2 !important;
+}
+
+.status.assigned,
+.status.en-route,
+.status.in-progress {
+  color: #075985 !important;
+  background: #e0f2fe !important;
+}
+
+input,
+textarea,
+select {
+  color: #0f172a !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748b !important;
+  opacity: 1;
 }

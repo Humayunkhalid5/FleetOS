@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../constants';
-import { getTechAvatar } from '../../../utils/helpers';
 import api from '../../../services/api';
+import CustomerTopNav from '../../../components/customer/CustomerTopNav';
 
 function Reviews() {
   const navigate = useNavigate();
@@ -30,23 +30,10 @@ function Reviews() {
   };
 
   return (
-    <div className="bg-background text-on-surface min-h-screen pb-32">
-      {/* TopAppBar */}
-      <header className="fixed top-0 w-full z-50 flex justify-between items-center px-lg h-16 bg-surface shadow-sm transition-colors duration-200 ease-in-out">
-        <div className="flex items-center gap-md">
-          <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-surface-container-low transition-colors">
-            <span className="material-symbols-outlined text-primary">arrow_back</span>
-          </button>
-          <h1 className="font-headline-md text-headline-md font-bold text-primary">Reviews</h1>
-        </div>
-        <div className="flex items-center gap-md">
-          <button onClick={() => navigate(ROUTES.bookings)} className="p-2 rounded-full hover:bg-surface-container-low transition-colors">
-            <span className="material-symbols-outlined text-on-surface-variant">notifications</span>
-          </button>
-        </div>
-      </header>
+    <div className="client-dashboard-shell text-[#0D1B2A] min-h-screen pb-32">
+      <CustomerTopNav title="Reviews" subtitle="Review your submitted ratings and share feedback after completed bookings." backTo={ROUTES.companies} />
 
-      <main className="pt-24 px-container-margin max-w-3xl mx-auto space-y-lg">
+      <main className="pt-10 px-container-margin max-w-3xl mx-auto space-y-lg">
         {/* Summary */}
         <section className="bg-surface-container-lowest p-lg rounded-xl shadow-elevation-1 border border-surface-container-low flex items-center gap-md">
           <div className="w-16 h-16 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center">
@@ -71,7 +58,11 @@ function Reviews() {
             <div className="flex items-center justify-between mb-md">
               <div className="flex items-center gap-md">
                 <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary-fixed">
-                  <img className="w-full h-full object-cover" alt={review.company?.name || 'Company'} src={getTechAvatar(review.company?.name)} />
+                  {review.company?.logo ? (
+                    <img className="w-full h-full object-contain bg-white p-1" alt={`${review.company?.name || 'Company'} logo`} src={review.company.logo} />
+                  ) : (
+                    <span className="w-full h-full bg-[#1B263B] text-white font-black grid place-items-center">{String(review.company?.name || 'C').charAt(0)}</span>
+                  )}
                 </div>
                 <div>
                   <h4 className="font-body-lg text-body-lg font-bold text-on-surface">{review.company?.name}</h4>

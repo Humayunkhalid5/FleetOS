@@ -35,6 +35,7 @@ function CompanyTechnicians() {
             role: t.role || 'Specialist',
             phone: t.phone || '',
             rating: Number(t.rating) || 0,
+            reviewCount: Number(t.reviewCount) || 0,
             exp: `${t.experienceYears || 1} Years Exp.`,
             status: t.status || 'Available',
             statusColor: t.status === 'Available' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800',
@@ -59,7 +60,7 @@ function CompanyTechnicians() {
         avatar: newTech.avatar
       });
       const record = res.technician;
-      const created = { id: record.techId, _id: record._id, name: record.name, role: record.role, phone: record.phone, rating: record.rating, exp: `${record.experienceYears} Years Exp.`, status: record.status, statusColor: 'bg-emerald-100 text-emerald-800', avatar: record.avatar || '' };
+      const created = { id: record.techId, _id: record._id, name: record.name, role: record.role, phone: record.phone, rating: record.rating, reviewCount: 0, exp: `${record.experienceYears} Years Exp.`, status: record.status, statusColor: 'bg-emerald-100 text-emerald-800', avatar: record.avatar || '' };
       setTechnicians([created, ...technicians]);
       if (res.technician?._id) {
         created._id = res.technician._id;
@@ -269,8 +270,12 @@ function CompanyTechnicians() {
                     <div className="space-y-2 text-xs text-slate-600 mb-6">
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-amber-500 text-base" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                        <span className="font-bold text-slate-900">{tech.rating > 0 ? tech.rating : 'No Rating Yet'}</span>
-                        <span className="text-slate-400">• {tech.exp}</span>
+                        <span className="font-bold text-slate-900">{tech.rating > 0 ? `${tech.rating}/5` : 'No Rating Yet'}</span>
+                        <span className="text-slate-400">• {tech.reviewCount || 0} client review{Number(tech.reviewCount || 0) === 1 ? '' : 's'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-slate-400 text-base">workspace_premium</span>
+                        <span>{tech.exp}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-slate-400 text-base">call</span>

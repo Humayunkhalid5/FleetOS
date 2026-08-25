@@ -1,11 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../constants';
+import fleetosLogo from '../../../assets/fleetos-light.svg';
 
-const BrandMark = () => (
-  <span className="client-logo-mark" aria-hidden="true">
-    <span className="material-symbols-outlined">hub</span>
-  </span>
-);
+const BrandMark = () => <img className="client-brand-image" src={fleetosLogo} alt="FleetOS" />;
 
 function Home() {
   const navigate = useNavigate();
@@ -56,7 +53,6 @@ function Home() {
       <header className="client-site-header">
         <button onClick={() => navigate(ROUTES.home)} className="client-brand" aria-label="FleetOS home">
           <BrandMark />
-          <span>FleetOS</span>
         </button>
         <nav className="client-nav-links" aria-label="Main navigation">
           <button onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}>How it works</button>
@@ -216,7 +212,7 @@ function Home() {
 
       <footer className="client-footer">
         <div>
-          <button onClick={() => navigate(ROUTES.home)} className="client-brand"><BrandMark /><span>FleetOS</span></button>
+          <button onClick={() => navigate(ROUTES.home)} className="client-brand"><BrandMark /></button>
           <p>Pakistan’s trusted SaaS platform for company discovery, service requests, products, payments, and reviews.</p>
         </div>
         <div>

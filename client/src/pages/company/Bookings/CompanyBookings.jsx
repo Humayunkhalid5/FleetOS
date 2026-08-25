@@ -109,7 +109,7 @@ function CompanyBookings() {
         status: result.booking?.status || 'Paid',
         paymentStatus: result.booking?.paymentStatus || 'paid',
       } : item));
-      setToast('Payment recorded and saved to MongoDB.');
+      setToast('Payment recorded successfully.');
     } catch (err) {
       setToast(err.message || 'Payment could not be recorded.');
     }
@@ -504,5 +504,6 @@ function CompanyBookings() {
 }
 
 export default CompanyBookings;
+
 
 

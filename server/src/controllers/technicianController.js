@@ -1,10 +1,44 @@
 const crypto = require('crypto');
 const Technician = require('../models/Technician');
 const Booking = require('../models/Booking');
+const Review = require('../models/Review');
 const { pick } = require('../utils/http');
 const { validateAvatar } = require('../utils/uploads');
 
-exports.getTechnicians = async (req, res) => res.json({ technicians: await Technician.find({ company: req.company._id }).sort({ name: 1 }).lean() });
+async function updateTechnicianRating(technicianId) {
+  if (!technicianId) return null;
+  const [summary] = await Review.aggregate([
+    { $match: { published: true } },
+    { $lookup: { from: 'bookings', localField: 'booking', foreignField: '_id', as: 'booking' } },
+    { $unwind: '$booking' },
+    { $match: { 'booking.technician': technicianId } },
+    { $group: { _id: '$booking.technician', rating: { $avg: '$rating' }, completedJobs: { $sum: 1 } } },
+  ]);
+  const rating = summary?.rating ? Number(summary.rating.toFixed(1)) : 0;
+  await Technician.updateOne({ _id: technicianId }, { rating });
+  return { rating, reviewCount: summary?.completedJobs || 0 };
+}
+
+async function refreshCompanyTechnicianRatings(companyId) {
+  const summaries = await Review.aggregate([
+    { $match: { company: companyId, published: true } },
+    { $lookup: { from: 'bookings', localField: 'booking', foreignField: '_id', as: 'booking' } },
+    { $unwind: '$booking' },
+    { $match: { 'booking.technician': { $ne: null } } },
+    { $group: { _id: '$booking.technician', rating: { $avg: '$rating' }, reviewCount: { $sum: 1 } } },
+  ]);
+  await Promise.all(summaries.map((summary) => Technician.updateOne(
+    { _id: summary._id, company: companyId },
+    { rating: Number(summary.rating.toFixed(1)) },
+  )));
+  return summaries.reduce((map, summary) => ({ ...map, [String(summary._id)]: summary.reviewCount }), {});
+}
+
+exports.getTechnicians = async (req, res) => {
+  const reviewCounts = await refreshCompanyTechnicianRatings(req.company._id);
+  const technicians = await Technician.find({ company: req.company._id }).sort({ name: 1 }).lean();
+  return res.json({ technicians: technicians.map((technician) => ({ ...technician, reviewCount: reviewCounts[String(technician._id)] || 0 })) });
+};
 
 exports.createTechnician = async (req, res) => {
   const data = pick(req.body, ['name', 'role', 'phone', 'email', 'rating', 'experienceYears', 'status', 'avatar']);
@@ -28,3 +62,6 @@ exports.deleteTechnician = async (req, res) => {
   if (!technician) return res.status(404).json({ message: 'Technician not found' });
   return res.status(204).end();
 };
+
+exports.updateTechnicianRating = updateTechnicianRating;
+exports.refreshCompanyTechnicianRatings = refreshCompanyTechnicianRatings;

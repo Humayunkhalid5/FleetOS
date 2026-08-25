@@ -1,0 +1,10 @@
+<svg width="292" height="72" viewBox="0 0 292 72" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
+  <title id="title">FleetOS</title>
+  <path d="M9 17.2 36.3 5v14.8L9 32V17.2Z" fill="#173EAA"/>
+  <path d="M9 36.6 36.3 24.5v14.7L9 51.4V36.6Z" fill="#17419F"/>
+  <path d="m9 56 27.3-12.1v14.7L9 70.8V56Z" fill="#0AC7ED"/>
+  <path d="M42.8 18.9 68 7.7v14.7L42.8 33.6V18.9Z" fill="#2340A9"/>
+  <path d="M42.8 38.4 68 27.2v14.7L42.8 53.1V38.4Z" fill="#2351B9"/>
+  <text x="82" y="50" fill="#102657" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="400" letter-spacing="-2">FleetOS</text>
+  <text x="272" y="19" fill="#102657" font-family="Arial, Helvetica, sans-serif" font-size="7" font-weight="700">™</text>
+</svg>

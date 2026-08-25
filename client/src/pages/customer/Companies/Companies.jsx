@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ROUTES, CATEGORIES, companyRoute } from '../../../constants';
 import api from '../../../services/api';
+import CustomerTopNav from '../../../components/customer/CustomerTopNav';
 
 function Companies() {
   const navigate = useNavigate();
@@ -21,6 +22,8 @@ function Companies() {
   const [page, setPage]                 = useState(1);
   const [total, setTotal]               = useState(0);
   const [hasMore, setHasMore]           = useState(false);
+  const [carouselCompanies, setCarouselCompanies] = useState([]);
+  const [carouselLoading, setCarouselLoading] = useState(true);
 
   // Sync URL params when filters change
   useEffect(() => {
@@ -73,6 +76,36 @@ function Companies() {
     return () => clearTimeout(timer);
   }, [query, city, area, category, page]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCarouselCompanies = async () => {
+      setCarouselLoading(true);
+      try {
+        const collected = [];
+        let nextPage = 1;
+        let keepGoing = true;
+        while (keepGoing && nextPage <= 8) {
+          const params = new URLSearchParams({ page: String(nextPage), limit: '500' });
+          const response = await api.get(`/companies?${params.toString()}`, { noCache: true });
+          const batch = response.companies || [];
+          const seen = new Set(collected.map((company) => company._id || company.slug));
+          collected.push(...batch.filter((company) => !seen.has(company._id || company.slug)));
+          keepGoing = Boolean(response.hasMore) && batch.length > 0;
+          nextPage += 1;
+        }
+        if (!cancelled) setCarouselCompanies(collected);
+      } catch {
+        if (!cancelled) setCarouselCompanies([]);
+      } finally {
+        if (!cancelled) setCarouselLoading(false);
+      }
+    };
+    fetchCarouselCompanies();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const selectCity = (c) => { setCity(c); setArea('All'); };
   const selectCategory = (c) => setCategory((prev) => (prev === c ? 'All' : c));
 
@@ -106,23 +139,13 @@ function Companies() {
 
   return (
     <div className="client-dashboard-shell text-[#0D1B2A] min-h-screen pb-32">
-      {/* TopAppBar */}
-      <header className="sticky top-0 w-full z-50 flex justify-between items-center px-5 md:px-8 h-20 bg-white/90 backdrop-blur-xl border-b border-[#E0E1DD]">
-        <div className="flex items-center gap-md">
-          <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-slate-100 transition-colors">
-            <span className="material-symbols-outlined text-blue-600">arrow_back</span>
-          </button>
-          <h1 className="text-xl font-black tracking-tight text-[#0D1B2A]">Browse Companies</h1>
-        </div>
-        <button onClick={() => navigate(ROUTES.dashboard)} className="p-2 rounded-full hover:bg-slate-100 transition-colors">
-          <span className="material-symbols-outlined text-slate-600">home</span>
-        </button>
-      </header>
+      <CustomerTopNav title="Browse Companies" subtitle="Discover approved products, services, support, and offers across Pakistan." showBack={false} />
 
       <main className="pt-12 px-5 md:px-8 max-w-7xl mx-auto space-y-8">
+        <ShowcaseCard companies={carouselCompanies.length ? carouselCompanies : companies} loading={carouselLoading && !companies.length} total={total} onExplore={() => document.getElementById('company-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
 
         {/* ── Search bar ── */}
-        <section className="space-y-sm">
+        <section className="space-y-sm client-entrance-panel">
           <div className="relative group">
             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
               <span className="material-symbols-outlined text-slate-600">search</span>
@@ -229,7 +252,7 @@ function Companies() {
         </section>
 
         {/* ── Active filter pills + result count ── */}
-        <div className="flex flex-wrap items-center gap-sm">
+          <div className="flex flex-wrap items-center gap-sm client-entrance-panel">
           <p className="text-sm text-slate-600">
             {loading && page === 1 ? 'Loading…' : `${total || filtered.length} compan${(total || filtered.length) === 1 ? 'y' : 'ies'} found`}
             {filtered.length > 0 && total > filtered.length ? ` · showing ${filtered.length}` : ''}
@@ -293,6 +316,7 @@ function Companies() {
         )}
 
         {/* ── Results ── */}
+        <div id="company-results" />
         {!loading && filtered.length > 0 && (() => {
           // When filtered to a specific city show a flat grid; otherwise group by city
           const showGrouped = city === 'All' && !query.trim() && category === 'All';
@@ -361,27 +385,37 @@ function Companies() {
 function CompanyGrid({ companies, onBook, onDetails, onChat }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-lg">
-      {companies.map((co) => (
-        <CompanyCard key={co._id || co.slug} company={co} onBook={onBook} onDetails={onDetails} onChat={onChat} />
+      {companies.map((co, index) => (
+        <CompanyCard key={co._id || co.slug} company={co} index={index} onBook={onBook} onDetails={onDetails} onChat={onChat} />
       ))}
     </div>
   );
 }
 
-function CompanyCard({ company: co, onBook, onDetails, onChat }) {
+function CompanyCard({ company: co, index = 0, onBook, onDetails, onChat }) {
   const categoryMeta = CATEGORIES.find((c) => c.value === (co.category || '').toLowerCase());
   const serviceCategory = co.services?.[0]?.category || co.category || co.services?.[0]?.name || 'Marketplace Service';
-  const fallbackImage = marketplaceCover(co.name, co.city, serviceCategory);
-  const coverImage = co.heroImage || co.logo || co.gallery?.[0] || fallbackImage;
+  const coverImage = companyBannerImage(co, serviceCategory, index);
   const servicePreview = co.services?.length
     ? co.services.slice(0, 2)
     : [{ name: co.category || 'Company offer' }];
 
   return (
-    <div className="client-company-card bg-white rounded-[30px] shadow-sm overflow-hidden border border-[#E0E1DD] flex flex-col hover:shadow-elevation-2 transition-all">
+    <div className="client-company-card client-motion-card bg-white rounded-[30px] shadow-sm overflow-hidden border border-[#E0E1DD] flex flex-col hover:shadow-elevation-2 transition-all" style={{ '--client-card-delay': `${Math.min(index, 8) * 70}ms` }}>
       {/* Hero */}
       <div className="h-44 w-full bg-[#E0E1DD] overflow-hidden relative">
-        <img className="w-full h-full object-cover" alt={co.name} src={coverImage} />
+        <img
+          className="client-company-cover w-full h-full object-cover"
+          alt={co.name}
+          src={coverImage}
+          onError={(event) => {
+            event.currentTarget.onerror = () => {
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = companyRealPhoto(co, serviceCategory, index, 'general');
+            };
+            event.currentTarget.src = companyRealPhoto(co, serviceCategory, index, 'secondary');
+          }}
+        />
         {/* Category badge */}
         {categoryMeta && (
           <span className="absolute top-2 left-2 inline-flex items-center gap-xs px-2 py-1 rounded-full bg-surface/80 backdrop-blur-sm text-slate-950 text-xs font-semibold">
@@ -460,19 +494,135 @@ function CompanyCard({ company: co, onBook, onDetails, onChat }) {
   );
 }
 
-function marketplaceCover(name = 'Company', city = 'Pakistan', category = 'Marketplace') {
-  const safeCity = String(city || 'Pakistan').replace(/[<>&"]/g, '');
-  const safeCategory = String(category || 'Marketplace').replace(/[<>&"]/g, '');
-  const categoryKey = safeCategory.toLowerCase();
-  const icon = categoryKey.includes('digital') ? '💻'
-    : categoryKey.includes('retail') || categoryKey.includes('product') ? '🛍️'
-    : categoryKey.includes('home') ? '🏠'
-    : categoryKey.includes('business') ? '💼'
-    : categoryKey.includes('repair') || categoryKey.includes('support') ? '🛠️'
-    : '✨';
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#0D1B2A"/><stop offset=".55" stop-color="#1B263B"/><stop offset="1" stop-color="#415A77"/></linearGradient><radialGradient id="r" cx=".78" cy=".18" r=".62"><stop stop-color="#E0E1DD" stop-opacity=".45"/><stop offset="1" stop-color="#E0E1DD" stop-opacity="0"/></radialGradient></defs><rect width="960" height="540" rx="44" fill="url(#g)"/><rect width="960" height="540" rx="44" fill="url(#r)"/><circle cx="770" cy="130" r="126" fill="#778DA9" opacity=".32"/><circle cx="820" cy="218" r="86" fill="#E0E1DD" opacity=".18"/><rect x="64" y="318" width="832" height="122" rx="36" fill="#E0E1DD" opacity=".12"/><text x="76" y="150" font-size="88">${icon}</text><text x="82" y="360" fill="#E0E1DD" font-family="Inter,Arial,sans-serif" font-size="34" font-weight="750">${safeCategory}</text><text x="82" y="406" fill="#778DA9" font-family="Inter,Arial,sans-serif" font-size="26" font-weight="650">${safeCity}</text></svg>`;
-  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+function ShowcaseCard({ companies, loading = false, total, onExplore }) {
+  const featured = useMemo(() => companies.filter(Boolean), [companies]);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [featured.length]);
+
+  useEffect(() => {
+    if (featured.length <= 1) return undefined;
+    const timer = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % featured.length);
+    }, 4200);
+    return () => window.clearInterval(timer);
+  }, [featured.length]);
+
+  const activeCompany = featured[activeIndex];
+  const activeService = activeCompany?.services?.[0]?.name || activeCompany?.category || 'Verified service';
+
+  return (
+    <section className="client-showcase-card client-showcase-animated rounded-[38px] p-6 md:p-8 shadow-[0_32px_90px_rgba(13,27,42,.22)] overflow-hidden relative">
+      <div className="absolute -right-16 -top-20 w-72 h-72 rounded-full bg-[#778DA9]/30 blur-2xl" />
+      <div className="relative grid lg:grid-cols-[1.1fr_.9fr] gap-8 items-center">
+        <div className="client-showcase-copy">
+          <span className="client-showcase-badge client-stagger-item inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs font-black text-[#E0E1DD]">
+            <span className="material-symbols-outlined text-[16px]">verified</span>
+            Verified service marketplace
+          </span>
+          <h2 className="client-showcase-title client-stagger-item mt-5 text-3xl md:text-5xl font-black leading-tight tracking-tight">Find the right company without the messy searching.</h2>
+          <p className="client-showcase-subtitle client-stagger-item mt-4 text-sm md:text-base text-[#E0E1DD]/85 max-w-2xl leading-7">Browse approved Pakistani companies, compare real services, chat before booking, track work, pay, and review from your own client account.</p>
+          <div className="client-stagger-item mt-6 flex flex-wrap gap-3">
+            <button onClick={onExplore} className="client-hero-primary-button px-5 py-3 rounded-2xl text-sm font-black transition-colors">Explore companies</button>
+            <span className="client-showcase-count px-5 py-3 rounded-2xl bg-white/10 border border-white/15 text-sm font-black">{total || companies.length} approved listings</span>
+          </div>
+        </div>
+        <div className="client-carousel-stage" aria-live="polite">
+          {loading ? (
+            <div className="client-carousel-slide client-carousel-loading bg-white/10 border border-white/15 rounded-[26px] p-3 flex items-center gap-4">
+              <span className="w-20 h-16 rounded-2xl bg-white/15 block" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <span className="block h-4 w-3/4 rounded-full bg-white/15" />
+                <span className="block h-3 w-1/2 rounded-full bg-white/10" />
+              </div>
+              <span className="w-8 h-8 rounded-full bg-white/10" />
+            </div>
+          ) : activeCompany ? (
+            <button key={activeCompany._id || activeCompany.slug || activeIndex} onClick={() => onExplore?.()} className="client-carousel-slide client-on-dark-card group text-left bg-white/10 hover:bg-white/15 border border-white/15 rounded-[26px] p-3 flex items-center gap-4 transition-all">
+              <img
+                src={companyBannerImage(activeCompany, activeCompany.services?.[0]?.category, activeIndex)}
+                alt={activeCompany.name}
+                className="client-carousel-image w-20 h-16 rounded-2xl object-cover border border-white/10"
+                onError={(event) => {
+                  event.currentTarget.onerror = () => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = companyRealPhoto(activeCompany, activeService, activeIndex, 'general');
+                  };
+                  event.currentTarget.src = companyRealPhoto(activeCompany, activeService, activeIndex, 'secondary');
+                }}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="client-carousel-title text-sm font-black truncate">{activeCompany.name}</p>
+                <p className="client-carousel-meta text-xs text-[#E0E1DD]/70 truncate">{activeCompany.city || activeCompany.location || 'Pakistan'} · {activeService}</p>
+                <p className="client-carousel-meta mt-1 text-[11px] text-[#E0E1DD]/55 truncate">★ {activeCompany.rating || 4.5} · {activeCompany.areas?.[0] || 'Available for service'}</p>
+              </div>
+              <span className="client-carousel-index w-8 h-8 rounded-full bg-white/10 grid place-items-center text-xs font-black">{activeIndex + 1}</span>
+            </button>
+          ) : (
+            <div className="client-carousel-slide bg-white/10 border border-white/15 rounded-[26px] p-4 text-sm text-[#E0E1DD]/80">
+              Approved companies will appear here.
+            </div>
+          )}
+          {featured.length > 1 && (
+            <div className="client-carousel-dots" aria-hidden="true">
+              {featured.slice(0, 8).map((company, index) => (
+                <span key={company._id || company.slug || index} className={index === activeIndex % 8 ? 'is-active' : ''} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
 }
 
+function companyBannerImage(company, category = 'Marketplace', index = 0) {
+  const existing = company.heroImage || company.gallery?.[0] || '';
+  const existingImage = String(existing);
+  const looksLikeUploadedImage = existingImage
+    && !existingImage.startsWith('data:image/svg')
+    && !existingImage.includes('images.unsplash.com')
+    && !existingImage.includes('lh3.googleusercontent.com/aida-public');
+  if (looksLikeUploadedImage) return existing;
+  return companyRealPhoto(company, category, index);
+}
+
+function companyRealPhoto(company, category = 'Marketplace', index = 0, source = 'primary') {
+  const key = `${company._id || company.slug || company.name || ''} ${company.category || ''} ${category || ''} ${company.services?.map((service) => service.name).join(' ') || ''} ${index}`.toLowerCase();
+  const imageKey = serviceImageKey(key);
+  const hash = Math.abs(Array.from(`${key} ${source}`).reduce((sum, char) => ((sum << 5) - sum + char.charCodeAt(0)) | 0, 0));
+  const query = servicePhotoQueries[imageKey] || servicePhotoQueries.general;
+  if (source === 'secondary') return `https://loremflickr.com/900/540/${query.secondary}?lock=${hash}`;
+  if (source === 'general') return `https://picsum.photos/seed/fleetos-service-${hash}/900/540`;
+  return `https://source.unsplash.com/900x540/?${query.primary}&sig=${hash}`;
+}
+
+function serviceImageKey(value = '') {
+  const key = String(value).toLowerCase();
+  if (key.includes('digital') || key.includes('software') || key.includes('web') || key.includes('app') || key.includes('computer') || key.includes('it')) return 'digital';
+  if (key.includes('retail') || key.includes('product') || key.includes('shop') || key.includes('store') || key.includes('market')) return 'retail';
+  if (key.includes('home') || key.includes('clean') || key.includes('interior') || key.includes('house')) return 'home';
+  if (key.includes('install') || key.includes('construction') || key.includes('setup') || key.includes('fit')) return 'installation';
+  if (key.includes('repair') || key.includes('support') || key.includes('maintenance') || key.includes('fix') || key.includes('tool')) return 'repair';
+  if (key.includes('professional') || key.includes('consult') || key.includes('legal') || key.includes('account') || key.includes('finance')) return 'professional';
+  if (key.includes('business') || key.includes('office') || key.includes('corporate')) return 'business';
+  return 'general';
+}
+
+const servicePhotoQueries = {
+  retail: { primary: 'retail-store,products,shopping', secondary: 'retail,store,shopping' },
+  installation: { primary: 'installation,construction,tools', secondary: 'construction,tools,worker' },
+  repair: { primary: 'repair,tools,workshop', secondary: 'repair,tools,maintenance' },
+  home: { primary: 'home-service,cleaning,interior', secondary: 'home,interior,cleaning' },
+  business: { primary: 'business-office,team,meeting', secondary: 'business,office,team' },
+  digital: { primary: 'software,technology,computer', secondary: 'technology,computer,software' },
+  professional: { primary: 'consulting,professional,meeting', secondary: 'consulting,meeting,office' },
+  general: { primary: 'service-business,company,team', secondary: 'business,service,team' },
+};
+
 export default Companies;
+
+
 

@@ -1,6 +1,7 @@
 const Review = require('../models/Review');
 const Booking = require('../models/Booking');
 const Company = require('../models/Company');
+const { updateTechnicianRating } = require('./technicianController');
 
 async function updateCompanyRating(companyId) {
   const [summary] = await Review.aggregate([
@@ -22,6 +23,7 @@ exports.createReview = async (req, res) => {
     comment: String(req.body.comment || req.body.review || '').trim(),
   });
   await updateCompanyRating(booking.company);
+  if (booking.technician) await updateTechnicianRating(booking.technician);
   return res.status(201).json({ review });
 };
 

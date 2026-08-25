@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ROUTES } from '../../../constants';
 import api from '../../../services/api';
+import CustomerTopNav from '../../../components/customer/CustomerTopNav';
 
 function CompanyDetails() {
   const navigate = useNavigate();
@@ -47,12 +48,12 @@ function CompanyDetails() {
   };
 
   if (loading) {
-    return <div className="p-xl text-center text-on-surface-variant font-body-md min-h-screen bg-background">Loading company details...</div>;
+    return <div className="client-dashboard-shell p-xl text-center text-on-surface-variant font-body-md min-h-screen bg-background">Loading company details...</div>;
   }
 
   if (error || !company) {
     return (
-      <div className="p-xl text-center text-error font-body-md min-h-screen bg-background">
+      <div className="client-dashboard-shell p-xl text-center text-error font-body-md min-h-screen bg-background">
         {error || 'Company not found'}
         <div className="mt-md">
           <button onClick={() => navigate(-1)} className="px-lg py-sm bg-primary text-on-primary rounded-lg font-nav-item">Go Back</button>
@@ -72,14 +73,8 @@ function CompanyDetails() {
   const contactHref = contactNumber ? `tel:${contactNumber.replace(/\s+/g, '')}` : '#';
 
   return (
-    <div className="text-on-surface">
-      {/* Top Navigation Bar */}
-      <header className="fixed top-0 w-full z-50 flex justify-between items-center px-lg h-16 bg-surface shadow-sm transition-colors duration-200 ease-in-out">
-        <div className="flex items-center gap-md">
-          <button onClick={() => navigate(-1)} className="material-symbols-outlined text-primary hover:bg-surface-container-low p-2 rounded-full transition-colors">arrow_back</button>
-          <span className="font-headline-md text-headline-md font-bold text-primary">FleetOS</span>
-        </div>
-        <div className="flex items-center gap-md">
+    <div className="client-dashboard-shell text-on-surface min-h-screen">
+      <CustomerTopNav title={displayName} subtitle={`${company.city || 'Pakistan'} · ${company.location || 'Company details and available services'}`} backTo={ROUTES.companies} actions={<>
           <button
             onClick={() => {
               const shareData = { title: `${displayName} | FleetOS`, url: window.location.href };
@@ -101,10 +96,9 @@ function CompanyDetails() {
             id="company-favorite"
             className="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors"
           >favorite</button>
-        </div>
-      </header>
+      </>} />
 
-      <main className="pt-16 pb-32 max-w-7xl mx-auto">
+      <main className="pb-32 max-w-7xl mx-auto">
         {/* Hero Section */}
         <section className="relative w-full h-[400px] md:h-[500px] overflow-hidden">
           <div className={`w-full h-full bg-cover bg-center ${!heroImage ? 'bg-gradient-to-r from-slate-900 via-primary to-slate-800' : ''}`} style={heroImage ? { backgroundImage: `url('${heroImage}')` } : {}}>

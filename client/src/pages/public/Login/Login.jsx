@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { ROUTES } from '../../../constants';
+import fleetosLogo from '../../../assets/fleetos-light.svg';
 
 function Login() {
   const navigate = useNavigate();
@@ -44,12 +45,7 @@ function Login() {
         <div className="bg-white/95 backdrop-blur-xl rounded-xl p-xl shadow-[0_4px_16px_0_rgba(11,29,45,0.12)] border border-surface-container-high">
           {/* Branding Header */}
           <div className="flex flex-col items-center mb-xl">
-            <div className="flex items-center gap-sm mb-md">
-              <div className="bg-primary p-xs rounded-lg shadow-lg shadow-primary/20">
-                <span className="material-symbols-outlined text-on-primary text-[32px]">hub</span>
-              </div>
-              <span className="font-headline-lg text-headline-lg text-primary tracking-tighter">FleetOS</span>
-            </div>
+            <img src={fleetosLogo} alt="FleetOS" className="h-11 w-auto mb-md" />
             <h1 className="font-headline-md text-headline-md text-on-surface mb-xs">Welcome back to FleetOS</h1>
             <p className="font-body-md text-body-md text-on-surface-variant text-center">Efficiency and reliability at your fingertips.</p>
           </div>
