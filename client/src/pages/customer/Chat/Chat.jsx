@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import api from '../../../services/api';
+import api, { getActiveSessionToken } from '../../../services/api';
 import CustomerTopNav from '../../../components/customer/CustomerTopNav';
 
 function Chat() {
@@ -38,7 +38,7 @@ function Chat() {
   // Real-time socket connection
   useEffect(() => {
     if (!active?._id) return;
-    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', { withCredentials: true });
+    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', { withCredentials: true, auth: { token: getActiveSessionToken() } });
     socket.emit('join-booking', active._id);
     socket.on('chat:message', (message) => {
       setMessages((current) => {

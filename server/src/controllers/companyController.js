@@ -8,6 +8,7 @@ const Inventory = require('../models/Inventory');
 const Payment = require('../models/Payment');
 const City = require('../models/City');
 const { pick } = require('../utils/http');
+const { broadcastMarketplace } = require('../socket');
 
 function isClientVisible(company, owner = null) {
   const ownerStatus = owner?.status || company.ownerStatus || 'active';
@@ -53,10 +54,13 @@ exports.getCompanies = async (req, res) => {
   }
 
   if (category) {
-    const categoryRegex = new RegExp(escapeRegex(category), 'i');
+    // Only return companies with a currently active service in the selected
+    // category.  The escaped, anchored match keeps category filters reliable
+    // even when a company has similarly named offers.
+    const categoryRegex = new RegExp(`^${escapeRegex(category)}$`, 'i');
     const matchingServices = await Service.distinct('company', {
       status: 'Active',
-      $or: [{ category: categoryRegex }, { name: categoryRegex }],
+      category: categoryRegex,
     });
     query._id = { $in: matchingServices };
   }
@@ -156,6 +160,7 @@ exports.updateCompanySettings = async (req, res) => {
   }
   Object.assign(req.company, updates);
   await req.company.save();
+  broadcastMarketplace('company', req.company._id);
   return res.json({ company: publicCompany(req.company) });
 };
 

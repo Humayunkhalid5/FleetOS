@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import CompanyShell from '../../../components/company/CompanyShell';
-import api from '../../../services/api';
+import api, { getActiveSessionToken } from '../../../services/api';
 
 function CompanyChat() {
   const [conversations, setConversations] = useState([]);
@@ -33,7 +33,7 @@ function CompanyChat() {
 
   useEffect(() => {
     if (!active?._id) return undefined;
-    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', { withCredentials: true });
+    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', { withCredentials: true, auth: { token: getActiveSessionToken() } });
     socket.emit('join-booking', active._id);
     socket.on('chat:message', (message) => {
       setMessages((current) => current.some((item) => item._id === message._id) ? current : [...current, message]);

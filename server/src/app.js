@@ -9,6 +9,8 @@ const app = express();
 const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174')
   .split(',')
   .map((origin) => origin.trim());
+const isAllowedOrigin = (origin) => allowedOrigins.includes(origin)
+  || (process.env.NODE_ENV !== 'production' && /^http:\/\/(localhost|127\.0\.0\.1):51\d\d$/.test(String(origin || '')));
 
 app.disable('x-powered-by');
 const rateBuckets = new Map();
@@ -42,7 +44,7 @@ app.use((req, res, next) => {
 app.use(cors({
   credentials: true,
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    if (!origin || isAllowedOrigin(origin)) return callback(null, true);
     return callback(new Error('Origin is not allowed'));
   },
 }));

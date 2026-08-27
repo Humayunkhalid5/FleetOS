@@ -10,6 +10,7 @@ const SupportRequest = require('../models/SupportRequest');
 const AuditEvent = require('../models/AuditEvent');
 const { authenticateCredentials, issueSession, clearSession, publicUser } = require('./authController');
 const { sendCompanyDecisionEmail } = require('../utils/mailer');
+const { broadcastPlatform, broadcastMarketplace } = require('../socket');
 const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{10,}$/;
 
 function companyClientVisible(company) {
@@ -135,6 +136,7 @@ exports.setCompanyStatus = async (req, res) => {
   );
   await audit(req, `company.${status}`, 'Company', company._id, reason, { version: company.approvalVersion });
   const email = await sendCompanyDecisionEmail(company, status).catch((error) => ({ delivered: false, reason: error.message }));
+  broadcastMarketplace('company-status', company._id);
   return res.json({ company, email });
 };
 
@@ -148,6 +150,7 @@ exports.setUserStatus = async (req, res) => {
   const user = await User.findOneAndUpdate({ _id: req.params.id, role: { $ne: 'super-admin' } }, { status, $inc: { sessionVersion: 1 } }, { new: true });
   if (!user) return res.status(404).json({ message: 'User not found' });
   await audit(req, `user.${status}`, 'User', user._id, reason);
+  broadcastPlatform('user');
   return res.json({ user });
 };
 

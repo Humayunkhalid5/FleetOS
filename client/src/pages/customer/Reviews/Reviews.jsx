@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../constants';
-import api from '../../../services/api';
+import api, { getActiveSessionToken } from '../../../services/api';
 import CustomerTopNav from '../../../components/customer/CustomerTopNav';
 
 function Reviews() {
@@ -10,8 +11,7 @@ function Reviews() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
       try {
         const response = await api.get('/reviews');
         setReviews(response.reviews || []);
@@ -20,9 +20,13 @@ function Reviews() {
       } finally {
         setLoading(false);
       }
-    };
-    fetchReviews();
   }, []);
+  useEffect(() => { fetchReviews(); }, [fetchReviews]);
+  useEffect(() => {
+    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', { withCredentials: true, auth: { token: getActiveSessionToken() }, transports: ['websocket', 'polling'] });
+    socket.on('review:created', fetchReviews);
+    return () => socket.disconnect();
+  }, [fetchReviews]);
 
   const formatDate = (iso) => {
     if (!iso) return '';

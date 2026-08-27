@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import CompanyShell from '../../../components/company/CompanyShell';
-import api from '../../../services/api';
+import api, { getActiveSessionToken } from '../../../services/api';
 
 const money = (value) => `PKR ${Number(value || 0).toLocaleString('en-PK')}`;
 const time = (value) => value ? new Intl.DateTimeFormat('en-PK', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
@@ -29,6 +30,16 @@ function CompanyDashboard() {
     return api.get('/company/dashboard', { noCache: true }).then(setData).catch((requestError) => setError(requestError.message));
   }, []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+      withCredentials: true,
+      auth: { token: getActiveSessionToken() },
+      transports: ['websocket', 'polling'],
+    });
+    socket.on('booking:created', load);
+    socket.on('booking:updated', load);
+    return () => socket.disconnect();
+  }, [load]);
 
   const bookings = data?.bookings || [];
   const filtered = useMemo(() => bookings.filter((booking) => [booking.reference, booking.customerName, booking.vehicle?.label, booking.serviceSnapshot?.name, booking.technician?.name, booking.status].some((value) => String(value || '').toLowerCase().includes(query.toLowerCase()))), [bookings, query]);
@@ -50,7 +61,7 @@ function CompanyDashboard() {
       search={query}
       onSearch={setQuery}
       actions={(
-        <button className="w-11 h-11 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm relative">
+        <button onClick={() => navigate('/company/bookings')} aria-label="Open booking notifications" className="w-11 h-11 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm relative">
           <span className="material-symbols-outlined text-[20px]">notifications</span>
           <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-red-500 border-2 border-white" />
         </button>

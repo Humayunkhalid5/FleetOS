@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { io } from 'socket.io-client';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { ROUTES } from '../../../constants';
-import api from '../../../services/api';
+import api, { getActiveSessionToken } from '../../../services/api';
+import CompanyMessageBadge from '../../../components/company/CompanyMessageBadge';
 
 function CompanyReviews() {
   const navigate = useNavigate();
@@ -15,8 +17,7 @@ function CompanyReviews() {
 
   const [replyInputs, setReplyInputs] = useState({});
 
-  useEffect(() => {
-    async function loadReviews() {
+  const loadReviews = useCallback(async () => {
       try {
         const data = await api.get(`/reviews?companyId=${companyId}`);
         if (data && Array.isArray(data.reviews)) {
@@ -33,9 +34,13 @@ function CompanyReviews() {
           setReviews(mapped);
         }
       } catch (err) {}
-    }
-    loadReviews();
   }, [companyId]);
+  useEffect(() => { loadReviews(); }, [loadReviews]);
+  useEffect(() => {
+    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', { withCredentials: true, auth: { token: getActiveSessionToken() }, transports: ['websocket', 'polling'] });
+    socket.on('review:created', loadReviews);
+    return () => socket.disconnect();
+  }, [loadReviews]);
 
   const handleReplySubmit = async (id) => {
     const text = replyInputs[id];
@@ -98,6 +103,7 @@ function CompanyReviews() {
           <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyChat}>
             <span className="material-symbols-outlined" data-icon="chat">chat</span>
             <span className="text-xs font-bold">Client Messages</span>
+            <CompanyMessageBadge />
           </Link>
           <Link className="flex items-center gap-3 bg-blue-50 text-blue-700 px-6 py-3 transition-all rounded-2xl mx-4" to={ROUTES.companyReviews}>
             <span className="material-symbols-outlined" data-icon="rate_review">rate_review</span>

@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Service = require('../models/Service');
 const Company = require('../models/Company');
 const { pick } = require('../utils/http');
+const { broadcastMarketplace } = require('../socket');
 
 exports.getServices = async (req, res) => {
   if (req.user?.role === 'company' && req.user.company?.approvalStatus !== 'approved') {
@@ -24,6 +25,7 @@ exports.getServices = async (req, res) => {
 exports.createService = async (req, res) => {
   const data = pick(req.body, ['name', 'category', 'price', 'durationMinutes', 'status', 'description']);
   const service = await Service.create({ ...data, company: req.company._id, serviceId: `SVC-${crypto.randomInt(100000, 999999)}` });
+  broadcastMarketplace('service', req.company._id);
   return res.status(201).json({ service });
 };
 
@@ -31,11 +33,13 @@ exports.updateService = async (req, res) => {
   const updates = pick(req.body, ['name', 'category', 'price', 'durationMinutes', 'status', 'description']);
   const service = await Service.findOneAndUpdate({ _id: req.params.id, company: req.company._id }, updates, { new: true, runValidators: true });
   if (!service) return res.status(404).json({ message: 'Service not found' });
+  broadcastMarketplace('service', req.company._id);
   return res.json({ service });
 };
 
 exports.deleteService = async (req, res) => {
   const service = await Service.findOneAndDelete({ _id: req.params.id, company: req.company._id });
   if (!service) return res.status(404).json({ message: 'Service not found' });
+  broadcastMarketplace('service', req.company._id);
   return res.status(204).end();
 };

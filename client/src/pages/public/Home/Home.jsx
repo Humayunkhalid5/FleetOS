@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { ROUTES } from '../../../constants';
 import fleetosLogo from '../../../assets/fleetos-light.svg';
 
@@ -6,6 +7,7 @@ const BrandMark = () => <img className="client-brand-image" src={fleetosLogo} al
 
 function Home() {
   const navigate = useNavigate();
+  const [openFaq, setOpenFaq] = useState('');
 
   const serviceCards = [
     ['storefront', 'Product Showcase', 'Pitch products to ready clients'],
@@ -205,7 +207,10 @@ function Home() {
             <button onClick={() => navigate(ROUTES.contact)}>View all <span>→</span></button>
           </div>
           <div className="client-faq-grid">
-            {faqs.map((faq) => <button key={faq}>{faq}<span>＋</span></button>)}
+            {faqs.map((faq) => <article key={faq} className="client-faq-item">
+              <button type="button" onClick={() => setOpenFaq((current) => current === faq ? '' : faq)} aria-expanded={openFaq === faq}>{faq}<span>{openFaq === faq ? '−' : '＋'}</span></button>
+              {openFaq === faq && <p className="px-5 pb-4 text-sm leading-6 text-[#415A77]">{faq === 'How do I send a request?' ? 'Choose an approved company, select its service or product, add your requirements, then submit the request.' : faq === 'Are the companies verified?' ? 'Companies become visible only after Super Admin approval and can be removed if their access is suspended.' : faq === 'What payment methods do you accept?' ? 'Companies can record cash payments and card payments can be enabled through the online checkout configuration.' : faq === 'Can companies list products and services?' ? 'Yes. Each company manages its own services, inventory items, pricing, descriptions, and public profile.' : faq === 'Can I reschedule or cancel my booking?' ? 'You can cancel an eligible request before work begins; contact the company in chat for scheduling changes.' : 'Use the Help page to send a support request to the FleetOS team.'}</p>}
+            </article>)}
           </div>
         </section>
       </main>

@@ -6,6 +6,7 @@ const Company = require('../models/Company');
 const { getJwtSecret } = require('../config/security');
 const { pick, slugify } = require('../utils/http');
 const { validateLogo, validateBusinessLicense } = require('../utils/uploads');
+const { broadcastPlatform } = require('../socket');
 
 const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{10,}$/;
 
@@ -144,6 +145,7 @@ exports.register = async (req, res) => {
     }
   }
 
+  if (role === 'company') broadcastPlatform('company-request');
   const token = issueSession(res, user);
   return res.status(201).json({ token, user: publicUser(user) });
 };

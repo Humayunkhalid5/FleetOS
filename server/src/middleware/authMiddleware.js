@@ -12,7 +12,10 @@ function readCookie(req, name) {
 async function protectWithCookie(req, res, next, cookieName, allowBearer = true) {
   try {
     const bearer = allowBearer && req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null;
-    const token = readCookie(req, cookieName) || bearer;
+    // Prefer the explicit Authorization token. This lets a customer and a
+    // company use the two FleetOS portal routes side-by-side in one browser
+    // without the most recent HttpOnly cookie replacing the other identity.
+    const token = bearer || readCookie(req, cookieName);
     if (!token) return res.status(401).json({ message: 'Authentication required' });
 
     const payload = jwt.verify(token, getJwtSecret());

@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ROUTES, CATEGORIES, companyRoute } from '../../../constants';
 import api from '../../../services/api';
+import { io } from 'socket.io-client';
+import { getActiveSessionToken } from '../../../services/api';
 import CustomerTopNav from '../../../components/customer/CustomerTopNav';
 
 function Companies() {
@@ -24,6 +26,20 @@ function Companies() {
   const [hasMore, setHasMore]           = useState(false);
   const [carouselCompanies, setCarouselCompanies] = useState([]);
   const [carouselLoading, setCarouselLoading] = useState(true);
+  const [marketplaceRevision, setMarketplaceRevision] = useState(0);
+
+  useEffect(() => {
+    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+      withCredentials: true,
+      auth: { token: getActiveSessionToken() },
+      transports: ['websocket', 'polling'],
+    });
+    socket.on('marketplace:updated', () => {
+      setPage(1);
+      setMarketplaceRevision((value) => value + 1);
+    });
+    return () => socket.disconnect();
+  }, []);
 
   // Sync URL params when filters change
   useEffect(() => {
@@ -74,7 +90,7 @@ function Companies() {
     fetchCompanies();
     }, query.trim() ? 250 : 0);
     return () => clearTimeout(timer);
-  }, [query, city, area, category, page]);
+  }, [query, city, area, category, page, marketplaceRevision]);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,10 +120,12 @@ function Companies() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [marketplaceRevision]);
 
   const selectCity = (c) => { setCity(c); setArea('All'); };
-  const selectCategory = (c) => setCategory((prev) => (prev === c ? 'All' : c));
+  // A service chip is a filter, not a toggle: clicking an already selected
+  // service keeps that filter active. "All Services" is the single clear action.
+  const selectCategory = (selectedCategory) => setCategory(selectedCategory);
 
   const availableAreas = city === 'All' ? [] : (areasByCity[city] || []);
 
@@ -170,6 +188,7 @@ function Companies() {
             <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
               <button
                 onClick={() => setCategory('All')}
+                aria-pressed={category === 'All'}
                 className={`shrink-0 px-4 py-2 rounded-full font-nav-item text-nav-item transition-all flex items-center gap-xs ${
                   category === 'All'
                     ? 'bg-blue-600 text-white'
@@ -183,6 +202,7 @@ function Companies() {
                 <button
                   key={cat.value}
                   onClick={() => selectCategory(cat.value)}
+                  aria-pressed={category === cat.value}
                   className={`shrink-0 px-4 py-2 rounded-full font-nav-item text-nav-item transition-all flex items-center gap-xs ${
                     category === cat.value
                       ? 'bg-blue-600 text-white'
@@ -393,12 +413,20 @@ function CompanyGrid({ companies, onBook, onDetails, onChat }) {
 }
 
 function CompanyCard({ company: co, index = 0, onBook, onDetails, onChat }) {
-  const categoryMeta = CATEGORIES.find((c) => c.value === (co.category || '').toLowerCase());
-  const serviceCategory = co.services?.[0]?.category || co.category || co.services?.[0]?.name || 'Marketplace Service';
-  const coverImage = companyBannerImage(co, serviceCategory, index);
+  const primaryService = co.services?.[0];
+  const companyDescription = String(co.description || '').trim();
+  // The company record is the source of truth for client discovery.  If a
+  // company has not added services yet, its own description still determines
+  // the listing's visual context instead of a static marketplace category.
+  const listingContext = [primaryService?.category, primaryService?.name, co.category, companyDescription]
+    .filter(Boolean)
+    .join(' ');
+  const serviceCategory = primaryService?.category || co.category || companyDescription || 'Marketplace Service';
+  const categoryMeta = CATEGORIES.find((c) => c.value === String(serviceCategory).toLowerCase());
+  const coverImage = companyBannerImage(co, listingContext, index);
   const servicePreview = co.services?.length
     ? co.services.slice(0, 2)
-    : [{ name: co.category || 'Company offer' }];
+    : [];
 
   return (
     <div className="client-company-card client-motion-card bg-white rounded-[30px] shadow-sm overflow-hidden border border-[#E0E1DD] flex flex-col hover:shadow-elevation-2 transition-all" style={{ '--client-card-delay': `${Math.min(index, 8) * 70}ms` }}>
@@ -409,11 +437,14 @@ function CompanyCard({ company: co, index = 0, onBook, onDetails, onChat }) {
           alt={co.name}
           src={coverImage}
           onError={(event) => {
-            event.currentTarget.onerror = () => {
-              event.currentTarget.onerror = null;
-              event.currentTarget.src = companyRealPhoto(co, serviceCategory, index, 'general');
+            const image = event.currentTarget;
+            if (image.dataset.fallback === 'secondary') {
+              image.onerror = null;
+              image.src = companyRealPhoto(co, serviceCategory, index, 'general');
+              return;
             };
-            event.currentTarget.src = companyRealPhoto(co, serviceCategory, index, 'secondary');
+            image.dataset.fallback = 'secondary';
+            image.src = companyRealPhoto(co, serviceCategory, index, 'secondary');
           }}
         />
         {/* Category badge */}
@@ -439,7 +470,9 @@ function CompanyCard({ company: co, index = 0, onBook, onDetails, onChat }) {
           </span>
         </div>
 
-        <p className="mt-sm text-sm text-[#415A77] line-clamp-2 flex-1">{co.description || `${co.name} offers verified products and services in ${co.city || 'Pakistan'}.`}</p>
+        <p className="mt-sm text-sm leading-6 text-[#415A77] line-clamp-4 flex-1" title={companyDescription}>
+          {companyDescription || 'This company has not added a public description yet.'}
+        </p>
 
         {/* Areas served */}
         {co.areas?.length > 0 && (

@@ -766,7 +766,13 @@ tbody tr:hover {
   .hero-card { min-height: auto; }
 }
 
-.brand img { width: 142px; height: 36px; object-fit: contain; object-position: left center; }
+.brand img { width: 172px; height: 42px; flex: 0 0 172px; object-fit: contain; object-position: left center; }
+
+/* The full navy FleetOS wordmark needs its own fixed space in the Super
+   Admin sidebar.  The old ADMIN badge was shrinking the image to its symbol. */
+.sidebar .brand { min-width: 0; }
+.sidebar .brand em { display: none; }
+.sidebar .brand img { max-width: 100%; }
 
 /* FleetOS overflow + contrast hardening */
 .metrics {

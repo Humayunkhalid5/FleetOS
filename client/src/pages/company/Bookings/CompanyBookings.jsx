@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import { useAuth } from '../../../hooks/useAuth';
 import { ROUTES } from '../../../constants';
-import api from '../../../services/api';
+import api, { getActiveSessionToken } from '../../../services/api';
+import CompanyMessageBadge from '../../../components/company/CompanyMessageBadge';
 
 function CompanyBookings() {
   const navigate = useNavigate();
@@ -26,47 +28,51 @@ function CompanyBookings() {
     tech: 'Unassigned'
   });
 
-  const companyId = user?.companyId || user?._id || 'company-1';
-
   const [companyTechs, setCompanyTechs] = useState([]);
 
-  useEffect(() => {
-    async function loadTechs() {
-      try {
-        const data = await api.get(`/technicians?companyId=${companyId}`);
-        if (data && Array.isArray(data.technicians)) {
-          setCompanyTechs(data.technicians);
-        }
-      } catch (err) {}
-    }
-    loadTechs();
-  }, [companyId]);
+  const loadTechs = useCallback(async () => {
+    try {
+      const data = await api.get('/technicians', { noCache: true });
+      if (Array.isArray(data?.technicians)) setCompanyTechs(data.technicians);
+    } catch (err) { setToast(err.message); }
+  }, []);
 
+  const loadBookings = useCallback(async () => {
+    try {
+      const data = await api.get('/bookings', { noCache: true });
+      if (!Array.isArray(data?.bookings)) return;
+      setBookings(data.bookings.map((b) => ({
+        id: b.reference,
+        _id: b._id,
+        customer: b.customerName || b.user?.name || b.customer || 'Direct Client',
+        customerPhone: b.customerPhone || b.user?.phone || '',
+        customerEmail: b.customerEmail || b.user?.email || '',
+        service: b.serviceSnapshot?.name || b.service?.name || 'Basic Service Request',
+        date: b.scheduledAt ? new Date(b.scheduledAt).toLocaleString() : new Date(b.createdAt).toLocaleDateString(),
+        status: b.status || 'Pending',
+        paymentStatus: b.paymentStatus || 'unpaid',
+        tech: b.technician?.name || 'Unassigned',
+        amount: `PKR ${Number(b.pricing?.finalTotal || 0).toLocaleString('en-PK')}`,
+        address: b.location?.address || b.location || b.address || 'On-site Client Location',
+      })));
+    } catch (err) { setToast(err.message); }
+  }, []);
+
+  useEffect(() => { loadTechs(); }, [loadTechs]);
+  useEffect(() => { loadBookings(); }, [loadBookings]);
+
+  // A company joins its own Socket.IO room on connection. A client-created
+  // booking therefore refreshes this request list immediately without reload.
   useEffect(() => {
-    async function loadBookings() {
-      try {
-        const data = await api.get(`/bookings?companyId=${companyId}`);
-        if (data && Array.isArray(data.bookings)) {
-          const mapped = data.bookings.map(b => ({
-            id: b.reference,
-            _id: b._id,
-            customer: b.customerName || b.user?.name || b.customer || 'Direct Client',
-            customerPhone: b.customerPhone || b.user?.phone || '',
-            customerEmail: b.customerEmail || b.user?.email || '',
-            service: b.serviceSnapshot?.name || b.service?.name || 'Basic Service Request',
-            date: b.scheduledAt ? new Date(b.scheduledAt).toLocaleString() : new Date(b.createdAt).toLocaleDateString(),
-            status: b.status || 'Pending',
-            paymentStatus: b.paymentStatus || 'unpaid',
-            tech: b.technician?.name || 'Unassigned',
-            amount: `PKR ${Number(b.pricing?.finalTotal || 0).toLocaleString('en-PK')}`,
-            address: b.location?.address || b.location || b.address || 'On-site Client Location'
-          }));
-          setBookings(mapped);
-        }
-      } catch (err) { setToast(err.message); }
-    }
-    loadBookings();
-  }, [companyId]);
+    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+      withCredentials: true,
+      auth: { token: getActiveSessionToken() },
+      transports: ['websocket', 'polling'],
+    });
+    socket.on('booking:created', loadBookings);
+    socket.on('booking:updated', loadBookings);
+    return () => socket.disconnect();
+  }, [loadBookings]);
 
   const updateStatus = async (id, newStatus) => {
     const target = bookings.find(b => b.id === id || b._id === id);
@@ -220,6 +226,7 @@ function CompanyBookings() {
           <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyChat}>
             <span className="material-symbols-outlined" data-icon="chat">chat</span>
             <span className="text-xs font-bold">Client Messages</span>
+            <CompanyMessageBadge />
           </Link>
           <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyReviews}>
             <span className="material-symbols-outlined" data-icon="rate_review">rate_review</span>

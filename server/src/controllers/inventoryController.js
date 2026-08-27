@@ -5,6 +5,7 @@ const Company = require('../models/Company');
 const Service = require('../models/Service');
 const User = require('../models/User');
 const { pick } = require('../utils/http');
+const { broadcastMarketplace } = require('../socket');
 
 exports.getPublicInventory = async (req, res) => {
   const identifier = req.query.companyId || req.query.company || req.params.companyId;
@@ -66,6 +67,7 @@ exports.createInventoryItem = async (req, res) => {
   if (req.body.qty !== undefined) data.quantity = req.body.qty;
   if (req.body.threshold !== undefined) data.reorderLevel = req.body.threshold;
   const inventory = await Inventory.create({ ...data, company: req.company._id, sku: data.sku || `SKU-${crypto.randomInt(10000, 99999)}` });
+  broadcastMarketplace('inventory', req.company._id);
   return res.status(201).json({ inventory });
 };
 
@@ -75,11 +77,13 @@ exports.updateInventoryItem = async (req, res) => {
   if (req.body.threshold !== undefined) updates.reorderLevel = req.body.threshold;
   const inventory = await Inventory.findOneAndUpdate({ _id: req.params.id, company: req.company._id }, updates, { new: true, runValidators: true });
   if (!inventory) return res.status(404).json({ message: 'Inventory item not found' });
+  broadcastMarketplace('inventory', req.company._id);
   return res.json({ inventory });
 };
 
 exports.deleteInventoryItem = async (req, res) => {
   const inventory = await Inventory.findOneAndDelete({ _id: req.params.id, company: req.company._id });
   if (!inventory) return res.status(404).json({ message: 'Inventory item not found' });
+  broadcastMarketplace('inventory', req.company._id);
   return res.status(204).end();
 };

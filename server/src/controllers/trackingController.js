@@ -54,6 +54,10 @@ exports.updateTracking = async (req, res) => {
   };
   await booking.save();
   const io = req.app.get('io');
-  if (io) io.to(`booking:${booking._id}`).emit('tracking:update', { bookingId: booking._id, tracking: booking.tracking, status: booking.status });
+  if (io) io.to(`booking:${booking._id}`).emit('tracking:update', {
+    bookingId: booking._id,
+    tracking: { ...(booking.tracking?.toObject?.() || booking.tracking || {}), reference: booking.reference, location: booking.location },
+    status: booking.status,
+  });
   return res.json({ tracking: booking.tracking });
 };

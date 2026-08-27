@@ -5,6 +5,7 @@ const Company = require('../models/Company');
 const Service = require('../models/Service');
 const Technician = require('../models/Technician');
 const Customer = require('../models/Customer');
+const { broadcastBooking } = require('../socket');
 
 const nextStatus = {
   Pending: 'Assigned',
@@ -106,7 +107,9 @@ exports.createBooking = async (req, res) => {
     { $set: { name: customerName, phone: req.body.customerPhone || req.user.phone || '' }, $setOnInsert: { customerId: `CUST-${crypto.randomInt(100000, 999999)}` } },
     { upsert: Boolean(customerEmail), new: true, setDefaultsOnInsert: true }
   );
-  return res.status(201).json({ booking: await booking.populate(['company', 'service']) });
+  const populatedBooking = await booking.populate(['company', 'service']);
+  broadcastBooking(populatedBooking, 'booking:created');
+  return res.status(201).json({ booking: populatedBooking });
 };
 
 exports.getMyBookings = async (req, res) => {
@@ -155,7 +158,9 @@ exports.updateBooking = async (req, res) => {
     await Technician.updateOne({ _id: booking.technician, company: booking.company }, { status: 'Available' });
   }
   await booking.save();
-  return res.json({ booking: await booking.populate('technician', 'name status') });
+  const populatedBooking = await booking.populate('technician', 'name status');
+  broadcastBooking(populatedBooking, 'booking:updated');
+  return res.json({ booking: populatedBooking });
 };
 
 exports.nextStatus = nextStatus;

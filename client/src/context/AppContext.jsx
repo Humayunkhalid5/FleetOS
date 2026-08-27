@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import api from '../services/api';
+import api, { clearSessionToken, saveSessionToken } from '../services/api';
 
 const AppContext = createContext(null);
 
@@ -13,7 +13,7 @@ export function AppProvider({ children }) {
     api.get('/auth/me', { noCache: true })
       .then(({ user: currentUser }) => { if (active) setUser(currentUser); })
       .catch(() => {
-        localStorage.removeItem('fleetos-token');
+        clearSessionToken();
         if (active) setUser(null);
       })
       .finally(() => { if (active) setLoading(false); });
@@ -25,7 +25,7 @@ export function AppProvider({ children }) {
     setError('');
     try {
       const response = await api.post('/auth/login', { email, password });
-      if (response.token) localStorage.setItem('fleetos-token', response.token);
+      if (response.token) saveSessionToken(response.user.role, response.token);
       setUser(response.user);
       return response.user;
     } catch (requestError) {
@@ -41,7 +41,7 @@ export function AppProvider({ children }) {
     setError('');
     try {
       const response = await api.post('/auth/register', userData);
-      if (response.token) localStorage.setItem('fleetos-token', response.token);
+      if (response.token) saveSessionToken(response.user.role, response.token);
       setUser(response.user);
       return response.user;
     } catch (requestError) {
@@ -62,7 +62,7 @@ export function AppProvider({ children }) {
   const logout = useCallback(async () => {
     try { await api.post('/auth/logout', {}); } finally {
       api.clearCache();
-      localStorage.removeItem('fleetos-token');
+      clearSessionToken();
       setUser(null);
     }
   }, []);

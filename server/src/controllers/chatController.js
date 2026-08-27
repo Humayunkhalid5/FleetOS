@@ -88,6 +88,13 @@ exports.sendChatMessage = async (req, res) => {
   });
   await Booking.updateOne({ _id: booking._id }, { $set: { updatedAt: new Date() } });
   const io = req.app.get('io');
-  if (io) io.to(`booking:${booking._id}`).emit('chat:message', message);
+  if (io) {
+    // A portal shell is subscribed at account level, while an open chat is
+    // subscribed at booking level. Send to both so unread badges and open
+    // conversations stay current without a page refresh.
+    io.to(`booking:${booking._id}`).emit('chat:message', message);
+    io.to(`company:${booking.company}`).emit('chat:message', message);
+    io.to(`customer:${booking.customer}`).emit('chat:message', message);
+  }
   return res.status(201).json({ message });
 };

@@ -159,11 +159,23 @@ async function bootstrap() {
     providerMap.set(provider.slug, provider);
   }
 
-  const existingApprovedProviders = await Company.countDocuments({
-    slug: { $in: [...providerMap.keys()] },
-    approvalStatus: 'approved',
-  });
-  const canReuseSeed = existingApprovedProviders >= providerMap.size && process.env.FORCE_BOOTSTRAP !== 'true';
+  const [existingApprovedProviders, categoryCoverage] = await Promise.all([
+    Company.countDocuments({
+      slug: { $in: [...providerMap.keys()] },
+      approvalStatus: 'approved',
+    }),
+    Service.countDocuments({
+      status: 'Active',
+      category: { $in: ['Home Service', 'Business Service'] },
+    }),
+  ]);
+  // Older development databases were created before Home and Business
+  // services existed. Run the idempotent service upserts once so each visible
+  // marketplace filter has real database-backed results.
+  const hasCategoryCoverage = categoryCoverage >= providerMap.size * 2;
+  const canReuseSeed = existingApprovedProviders >= providerMap.size
+    && hasCategoryCoverage
+    && process.env.FORCE_BOOTSTRAP !== 'true';
   if (canReuseSeed) {
     const mainCompany = await Company.findOne({ slug: 'pak-fleet-mobility' });
     const owner = mainCompany ? await User.findOne({ company: mainCompany._id, role: 'company' }) : null;
@@ -206,6 +218,8 @@ async function bootstrap() {
     ['Product Demo Session', 'Retail Product', 7500, 75],
     ['Digital Setup Service', 'Digital Service', 6000, 60],
     ['Basic Service Request', 'Professional Service', 4500, 45],
+    ['Home Visit Service', 'Home Service', 8500, 90],
+    ['Business Operations Service', 'Business Service', 15000, 120],
   ];
   for (const company of createdProviders) {
     for (let index = 0; index < serviceBlueprints.length; index += 1) {

@@ -58,7 +58,7 @@ function CompanyDetails() {
       const payload = { ...company, areas: previewAreas };
       const result = await api.put('/company/settings', payload);
       setCompany({ areas: [], ...(result.company || payload) });
-      setMessage('Company details saved. Clients will see the updated profile after refresh.');
+      setMessage('Company details saved. Client discovery updates immediately.');
     } catch (error) {
       setMessage(error.message);
     } finally {

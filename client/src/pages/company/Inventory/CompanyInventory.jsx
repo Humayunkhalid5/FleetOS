@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { ROUTES } from '../../../constants';
 import api from '../../../services/api';
+import CompanyMessageBadge from '../../../components/company/CompanyMessageBadge';
 
 function CompanyInventory() {
   const navigate = useNavigate();
@@ -139,6 +140,7 @@ function CompanyInventory() {
           <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyChat}>
             <span className="material-symbols-outlined" data-icon="chat">chat</span>
             <span className="text-xs font-bold">Client Messages</span>
+            <CompanyMessageBadge />
           </Link>
           <Link className="flex items-center gap-3 text-slate-500 px-6 py-3 hover:bg-slate-50 hover:text-slate-900 transition-all rounded-2xl mx-4" to={ROUTES.companyReviews}>
             <span className="material-symbols-outlined" data-icon="rate_review">rate_review</span>

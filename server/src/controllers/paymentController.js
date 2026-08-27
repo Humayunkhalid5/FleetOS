@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
+const { broadcastBooking } = require('../socket');
 
 const stripeApiVersion = '2026-02-25.clover';
 
@@ -53,6 +54,7 @@ exports.recordPayment = async (req, res) => {
   booking.paymentStatus = 'paid';
   booking.statusHistory.push({ status: 'Paid', at: new Date(), byRole: 'company', note: 'Payment recorded' });
   await booking.save();
+  broadcastBooking(booking, 'booking:updated');
   return res.json({ payment, booking });
 };
 

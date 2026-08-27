@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import CompanyShell from '../../../components/company/CompanyShell';
 import { useAuth } from '../../../hooks/useAuth';
-import api from '../../../services/api';
+import api, { saveSessionToken } from '../../../services/api';
 
 function CompanySettings() {
   const { user, updateProfile } = useAuth();
@@ -24,7 +24,8 @@ function CompanySettings() {
     event.preventDefault();
     setMessage('');
     try {
-      await api.post('/auth/change-password', password);
+      const response = await api.post('/auth/change-password', password);
+      if (response.token) saveSessionToken('company', response.token);
       setPassword({ currentPassword: '', newPassword: '' });
       setMessage('Password updated successfully.');
     } catch (error) { setMessage(error.message); }

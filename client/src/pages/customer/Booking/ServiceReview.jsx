@@ -8,7 +8,7 @@ function ServiceReview() {
   const navigate = useNavigate();
   const location = useLocation();
   const selectedTech = location.state?.selectedTech?.name || location.state?.selectedTech || 'Assigned staff member';
-  const bookingId = location.state?.bookingId || null;
+  const bookingId = location.state?.bookingId || new URLSearchParams(location.search).get('bookingId') || null;
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [submitting, setSubmitting] = useState(false);

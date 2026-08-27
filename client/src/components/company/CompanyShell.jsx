@@ -2,7 +2,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { ROUTES } from '../../constants';
 import { useAuth } from '../../hooks/useAuth';
-import api from '../../services/api';
+import api, { getActiveSessionToken } from '../../services/api';
+import { io } from 'socket.io-client';
 import fleetosLogo from '../../assets/fleetos-light.svg';
 
 export const COMPANY_NAV = [
@@ -42,6 +43,24 @@ function CompanyShell({ title, subtitle, actions, search, onSearch, children }) 
       });
     return () => { mounted = false; };
   }, [location.pathname]);
+
+  useEffect(() => {
+    const refreshUnreadCount = async () => {
+      try {
+        const result = await api.get('/chats/conversations', { noCache: true });
+        setMessageCount((result.conversations || []).reduce((sum, item) => sum + Number(item.unreadCount || 0), 0));
+      } catch {
+        // Navigation stays usable if a transient live connection fails.
+      }
+    };
+    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+      withCredentials: true,
+      auth: { token: getActiveSessionToken() },
+      transports: ['websocket', 'polling'],
+    });
+    socket.on('chat:message', refreshUnreadCount);
+    return () => socket.disconnect();
+  }, []);
 
   const signOut = () => {
     logout();
@@ -122,11 +141,12 @@ function CompanyShell({ title, subtitle, actions, search, onSearch, children }) 
         <div className="p-5 md:p-8 max-w-[1600px] mx-auto">
           <div className="md:hidden mb-5 bg-white border border-slate-200 rounded-3xl p-3 overflow-x-auto shadow-sm">
             <div className="flex gap-2 min-w-max">
-              {COMPANY_NAV.map(([icon, label, to]) => {
+              {COMPANY_NAV.map(([icon, label, to, badge]) => {
                 const active = location.pathname === to;
                 return (
                   <Link key={label} to={to} className={`inline-flex items-center gap-2 px-3 py-2 rounded-2xl text-xs font-bold ${active ? 'bg-blue-50 text-blue-700' : 'text-slate-500 bg-slate-50'}`}>
                     <span className="material-symbols-outlined text-[17px]">{icon}</span>{label}
+                    {badge === 'messages' && messageCount > 0 && <span className="min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-black grid place-items-center">{messageCount > 9 ? '9+' : messageCount}</span>}
                   </Link>
                 );
               })}

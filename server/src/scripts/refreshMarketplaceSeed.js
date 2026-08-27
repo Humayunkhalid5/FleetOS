@@ -14,6 +14,8 @@ const services = [
   ['Product Demo Session', 'Retail Product', 7500, 75],
   ['Digital Setup Service', 'Digital Service', 6000, 60],
   ['Basic Service Request', 'Professional Service', 4500, 45],
+  ['Home Visit Service', 'Home Service', 8500, 90],
+  ['Business Operations Service', 'Business Service', 15000, 120],
 ];
 
 const inventoryItems = [

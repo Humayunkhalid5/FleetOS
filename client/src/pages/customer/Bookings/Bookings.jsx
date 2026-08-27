@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import { ROUTES } from '../../../constants';
-import api from '../../../services/api';
+import api, { getActiveSessionToken } from '../../../services/api';
 import CustomerTopNav from '../../../components/customer/CustomerTopNav';
 
 function Bookings() {
@@ -11,19 +12,30 @@ function Bookings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetchBookings = async () => {
-      try {
-        const response = await api.get('/bookings');
-        setBookings(response.bookings || []);
-      } catch (err) {
-        setError(err.message || 'Failed to load bookings');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchBookings();
+  const fetchBookings = useCallback(async () => {
+    try {
+      const response = await api.get('/bookings', { noCache: true });
+      setBookings(response.bookings || []);
+      setError('');
+    } catch (err) {
+      setError(err.message || 'Failed to load bookings');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { fetchBookings(); }, [fetchBookings]);
+
+  useEffect(() => {
+    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+      withCredentials: true,
+      auth: { token: getActiveSessionToken() },
+      transports: ['websocket', 'polling'],
+    });
+    socket.on('booking:created', fetchBookings);
+    socket.on('booking:updated', fetchBookings);
+    return () => socket.disconnect();
+  }, [fetchBookings]);
 
   const statusClass = (status) => {
     const map = {
@@ -102,12 +114,12 @@ function Bookings() {
               {['Assigned', 'En Route', 'Arrived', 'In Progress'].includes(booking.status) ? (
                 <>
                   <button
-                    onClick={() => navigate(ROUTES.liveTracking, { state: { selectedTech: booking.technician, bookingId: booking._id } })}
+                    onClick={() => navigate(`${ROUTES.liveTracking}?bookingId=${booking._id}`, { state: { selectedTech: booking.technician, bookingId: booking._id } })}
                     className="flex-1 py-2 rounded-lg bg-secondary-container text-on-secondary-container font-medium text-body-md hover:bg-surface-container-high transition-colors"
                   >
                     Track Progress
                   </button>
-                  <button onClick={() => navigate(ROUTES.serviceReview, { state: { selectedTech: booking.technician, bookingId: booking._id } })} className="flex-1 py-2 rounded-lg bg-surface-container-low text-on-surface-variant font-medium text-body-md hover:bg-surface-container-high transition-colors">
+                  <button onClick={() => navigate(`${ROUTES.serviceReview}?bookingId=${booking._id}`, { state: { selectedTech: booking.technician, bookingId: booking._id } })} className="flex-1 py-2 rounded-lg bg-surface-container-low text-on-surface-variant font-medium text-body-md hover:bg-surface-container-high transition-colors">
                     Leave Review
                   </button>
                 </>
@@ -116,7 +128,7 @@ function Bookings() {
                   <button onClick={() => navigate(ROUTES.customizeBooking)} className="flex-1 py-2 rounded-lg bg-secondary-container text-on-secondary-container font-medium text-body-md hover:bg-surface-container-high transition-colors">
                     Book Again
                   </button>
-                  <button onClick={() => navigate(ROUTES.serviceReview, { state: { selectedTech: booking.technician, bookingId: booking._id } })} className="flex-1 py-2 rounded-lg bg-surface-container-low text-on-surface-variant font-medium text-body-md hover:bg-surface-container-high transition-colors">
+                  <button onClick={() => navigate(`${ROUTES.serviceReview}?bookingId=${booking._id}`, { state: { selectedTech: booking.technician, bookingId: booking._id } })} className="flex-1 py-2 rounded-lg bg-surface-container-low text-on-surface-variant font-medium text-body-md hover:bg-surface-container-high transition-colors">
                     Leave Review
                   </button>
                 </>

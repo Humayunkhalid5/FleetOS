@@ -2,6 +2,22 @@ const cache = new Map();
 const CACHE_TTL_MS = 3000;
 const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
+// Client and company portal pages share the same React host, so a single
+// localStorage token would make the latest login replace the other portal's
+// identity. Keep the two role sessions isolated and select one by route.
+const activeRole = () => (typeof window !== 'undefined' && window.location.pathname.startsWith('/company') ? 'company' : 'customer');
+const tokenKey = (role = activeRole()) => `fleetos-${role}-token`;
+export const getActiveSessionToken = () => localStorage.getItem(tokenKey()) || '';
+export const saveSessionToken = (role, token) => {
+  if (token) localStorage.setItem(tokenKey(role), token);
+  // Remove the legacy shared token so it can never override a role session.
+  localStorage.removeItem('fleetos-token');
+};
+export const clearSessionToken = (role = activeRole()) => {
+  localStorage.removeItem(tokenKey(role));
+  localStorage.removeItem('fleetos-token');
+};
+
 const buildUrl = (endpoint) => {
   const path = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
   if (!API_BASE_URL) return path;
@@ -24,7 +40,7 @@ async function request(endpoint, options = {}) {
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(localStorage.getItem('fleetos-token') ? { Authorization: `Bearer ${localStorage.getItem('fleetos-token')}` } : {}),
+      ...(getActiveSessionToken() ? { Authorization: `Bearer ${getActiveSessionToken()}` } : {}),
       ...(options.headers || {}),
     },
   });

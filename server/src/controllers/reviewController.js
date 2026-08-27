@@ -2,6 +2,7 @@ const Review = require('../models/Review');
 const Booking = require('../models/Booking');
 const Company = require('../models/Company');
 const { updateTechnicianRating } = require('./technicianController');
+const { broadcastPlatform } = require('../socket');
 
 async function updateCompanyRating(companyId) {
   const [summary] = await Review.aggregate([
@@ -24,6 +25,12 @@ exports.createReview = async (req, res) => {
   });
   await updateCompanyRating(booking.company);
   if (booking.technician) await updateTechnicianRating(booking.technician);
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`company:${booking.company}`).emit('review:created', { reviewId: String(review._id), bookingId: String(booking._id) });
+    io.to(`customer:${booking.customer}`).emit('review:created', { reviewId: String(review._id), bookingId: String(booking._id) });
+  }
+  broadcastPlatform('review');
   return res.status(201).json({ review });
 };
 

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import fleetosAdminLogo from '../../client/src/assets/fleetos-dark.svg';
+// The root development launcher shares the client dependency runtime with the
+// standalone admin Vite app, so resolve Socket.IO from that runtime as well.
+import { io } from '../../client/node_modules/socket.io-client/dist/socket.io.esm.min.js';
+import fleetosAdminLogo from '../../client/src/assets/fleetos-light.svg';
 
 const sections = [
   ['overview', 'space_dashboard', 'Platform overview'],
@@ -79,6 +82,16 @@ function App() {
     finally { setBusy(false); }
   }, [user, endpoint, section]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!user) return undefined;
+    const socket = io(import.meta.env.VITE_ADMIN_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+      withCredentials: true,
+      auth: { token: localStorage.getItem('fleetos-admin-token') || '' },
+      transports: ['websocket', 'polling'],
+    });
+    socket.on('platform:updated', load);
+    return () => socket.disconnect();
+  }, [user, load]);
   const current = data[section] || {};
 
   const requestMutation = (path, body, label) => { setAction({ path, body, label }); setReason(''); setError(''); };

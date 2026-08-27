@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { ROUTES, companyRoute } from '../../../constants';
-import api from '../../../services/api';
+import api, { saveSessionToken } from '../../../services/api';
 import CustomerTopNav from '../../../components/customer/CustomerTopNav';
 
 // Default fallback avatar
@@ -224,6 +224,7 @@ function Profile() {
         currentPassword: pwdForm.currentPassword,
         newPassword: pwdForm.newPassword
       });
+      if (response.token) saveSessionToken('customer', response.token);
       setPwdStatus({ error: '', success: response.message || 'Password changed successfully!', submitting: false });
       setPwdForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setTimeout(() => setShowPasswordModal(false), 2000);

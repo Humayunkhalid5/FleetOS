@@ -50,7 +50,7 @@ function BookingSummary() {
       setIsProcessing(false);
       setIsSuccess(true);
       setTimeout(() => {
-        navigate(ROUTES.liveTracking, {
+        navigate(`${ROUTES.liveTracking}?bookingId=${bookingId}`, {
           replace: true,
           state: { selectedTech: 'Company will assign', bookingId },
         });

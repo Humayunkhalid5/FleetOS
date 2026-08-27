@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import L from 'leaflet';
 import { io } from 'socket.io-client';
 import { ROUTES } from '../../../constants';
-import api from '../../../services/api';
+import api, { getActiveSessionToken } from '../../../services/api';
 import CustomerTopNav from '../../../components/customer/CustomerTopNav';
 import 'leaflet/dist/leaflet.css';
 
@@ -88,7 +88,10 @@ const haversineKm = (a, b) => {
 function LiveTracking() {
   const navigate = useNavigate();
   const location = useLocation();
-  const bookingId = location.state?.bookingId || null;
+  // Keep the selected booking in the URL as well as route state. Route state
+  // disappears after a browser refresh, which previously left the tracking
+  // screen detached from the company's live updates.
+  const bookingId = location.state?.bookingId || new URLSearchParams(location.search).get('bookingId') || null;
   const [selectedTech, setSelectedTech] = useState(location.state?.selectedTech || 'Assigned staff member');
 
   // Map state
@@ -300,6 +303,7 @@ function LiveTracking() {
     try {
       socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
         withCredentials: true,
+        auth: { token: getActiveSessionToken() },
         transports: ['websocket', 'polling'],
       });
     } catch {
@@ -328,6 +332,15 @@ function LiveTracking() {
       if (normalized.currentPosition) moveTechMarker(normalized.currentPosition);
     });
 
+    // A company changes the job lifecycle (Assigned → En Route → Arrived,
+    // etc.) through the booking API. That is a booking event rather than a
+    // GPS event, so refresh the persisted tracking snapshot on either update.
+    // The client remains read-only: it can view progress or cancel an eligible
+    // request, but it cannot mark technician stages.
+    socket.on('booking:updated', (data) => {
+      if (String(data?.bookingId || '') === String(id)) fetchTracking(id);
+    });
+
     socket.on('tracking:error', (err) => {
       setError(err?.message || 'Tracking connection error');
     });
@@ -338,7 +351,7 @@ function LiveTracking() {
       socketRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookingId]);
+  }, [bookingId, fetchTracking, moveTechMarker]);
 
   const shareBooking = () => {
     const shareData = { title: 'FleetOS Live Tracking', text: `Track your service request with ${selectedTech}`, url: window.location.href };
@@ -532,7 +545,7 @@ function LiveTracking() {
                 <h3 className="font-headline-md text-headline-md text-primary font-bold">Journey Status</h3>
                 <span className="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-[10px] font-bold uppercase tracking-wider">{primaryStage}</span>
               </div>
-              <StageTimeline stageIndex={stageIndex} onComplete={() => navigate(ROUTES.serviceReview, { state: { selectedTech, bookingId } })} />
+              <StageTimeline stageIndex={stageIndex} onComplete={() => navigate(`${ROUTES.serviceReview}?bookingId=${bookingId}`, { state: { selectedTech, bookingId } })} />
             </div>
           </div>
         </div>
@@ -633,7 +646,7 @@ function LiveTracking() {
                     <h3 className="font-headline-md text-headline-md text-primary font-bold">Journey Status</h3>
                     <span className="px-2 py-0.5 bg-secondary-container text-on-secondary-container rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0">{primaryStage}</span>
                   </div>
-                  <StageTimeline stageIndex={stageIndex} onComplete={() => navigate(ROUTES.serviceReview, { state: { selectedTech, bookingId } })} />
+                  <StageTimeline stageIndex={stageIndex} onComplete={() => navigate(`${ROUTES.serviceReview}?bookingId=${bookingId}`, { state: { selectedTech, bookingId } })} />
                 </div>
               </div>
             </div>
