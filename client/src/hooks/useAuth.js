@@ -1,7 +1,8 @@
-import { useAppContext } from '../context/AppContext';
+import { useContext } from 'react';
+import AppContext from '../context/appContextValue';
 
 export function useAuth() {
-  return useAppContext();
+  return useContext(AppContext);
 }
 
 export default useAuth;

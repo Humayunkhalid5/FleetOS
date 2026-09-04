@@ -24,7 +24,10 @@ function Bookings() {
     }
   }, []);
 
-  useEffect(() => { fetchBookings(); }, [fetchBookings]);
+  useEffect(() => {
+    const timer = window.setTimeout(fetchBookings, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchBookings]);
 
   useEffect(() => {
     const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {

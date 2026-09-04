@@ -528,6 +528,39 @@ td.empty { height: 160px; text-align: center; color: var(--text-muted); font-siz
 .modal-actions button.secondary { background: #f8fafc; color: var(--text-muted); border: 1px solid #e2e8f0; }
 .modal-actions button:disabled { opacity: 0.65; cursor: not-allowed; }
 
+/* Submitted registration documents are reviewed inside the control panel.
+   There is deliberately no download control in this flow. */
+.document-backdrop { z-index: 560; padding: 20px; }
+.document-viewer {
+  width: min(1100px, 100%);
+  max-height: calc(100dvh - 40px);
+  display: grid;
+  grid-template-rows: auto minmax(320px, 1fr) auto;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 22px;
+  box-shadow: 0 28px 90px rgba(15, 23, 42, .36);
+}
+.document-viewer header, .document-viewer footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+  background: #fff;
+}
+.document-viewer header { border-bottom: 1px solid var(--border-color); }
+.document-viewer footer { border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 13px; font-weight: 600; }
+.document-viewer header p, .document-viewer header h2, .document-viewer header span { margin: 0; display: block; }
+.document-viewer header p, .document-viewer header span { color: var(--text-muted); font-size: 12px; font-weight: 600; }
+.document-viewer header h2 { color: var(--text-main); font-size: 18px; margin: 3px 0; }
+.document-viewer header > button { width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 12px; background: #f1f5f9; color: #334155; }
+.document-viewer footer > span { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.document-viewer footer > button { border: 0; border-radius: 10px; background: #0D1B2A; color: #fff; padding: 10px 14px; font-weight: 750; white-space: nowrap; }
+.document-canvas { min-height: 0; overflow: auto; background: #e2e8f0; display: grid; place-items: center; }
+.document-canvas iframe { width: 100%; height: 100%; min-height: 560px; border: 0; background: #fff; }
+.document-canvas img { display: block; max-width: 100%; max-height: calc(100dvh - 210px); object-fit: contain; }
+
 /* Health Section */
 .health-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
 .health { padding: 40px; display: grid; gap: 12px; text-align: center; justify-items: center; background: var(--bg-panel); border-radius: 24px; box-shadow: var(--shadow-soft); border: 1px solid var(--border-color);}
@@ -773,6 +806,36 @@ tbody tr:hover {
 .sidebar .brand { min-width: 0; }
 .sidebar .brand em { display: none; }
 .sidebar .brand img { max-width: 100%; }
+
+/* Keep the full Super Admin workspace usable in one desktop viewport instead
+   of making the navigation feel enlarged or forcing a sidebar scroll. */
+.admin-shell { grid-template-columns: 232px minmax(0, 1fr); }
+.sidebar { width: 232px; padding: 0 14px; }
+.sidebar .brand img { width: 154px; height: 38px; flex-basis: 154px; }
+.sidebar nav { gap: 4px; padding-top: 10px; }
+.sidebar nav button { min-height: 38px; padding: 8px 11px; gap: 10px; font-size: 13px; }
+.sidebar nav .material-symbols-outlined { font-size: 18px; }
+.admin-user { padding: 14px 2px; }
+.admin-user button { margin-top: 8px; padding: 8px; }
+.topbar { height: 72px; padding: 0 28px; }
+.content { padding: 24px 28px; max-width: 1520px; }
+.metrics { gap: 16px; margin-bottom: 20px; }
+.metric { padding: 18px; border-radius: 18px; }
+.metric-icon { width: 42px; height: 42px; margin-bottom: 12px; }
+.panel { margin-bottom: 20px; border-radius: 18px; }
+.panel > header { padding: 18px 22px; }
+@media (max-height: 760px) and (min-width: 861px) {
+  .sidebar nav button { min-height: 34px; padding-block: 6px; }
+  .sidebar nav { gap: 2px; }
+  .admin-user { padding-block: 8px; }
+}
+@media (max-width: 680px) {
+  .document-backdrop { padding: 10px; }
+  .document-viewer { max-height: calc(100dvh - 20px); grid-template-rows: auto minmax(250px, 1fr) auto; border-radius: 16px; }
+  .document-viewer header, .document-viewer footer { padding: 14px; }
+  .document-viewer footer > span { display: none; }
+  .document-canvas iframe { min-height: 420px; }
+}
 
 /* FleetOS overflow + contrast hardening */
 .metrics {

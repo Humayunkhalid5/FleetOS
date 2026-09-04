@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import CompanyShell from '../../../components/company/CompanyShell';
 import api, { getActiveSessionToken } from '../../../services/api';
 
 function CompanyChat() {
+  const location = useLocation();
+  const requestedBookingId = location.state?.bookingId || '';
   const [conversations, setConversations] = useState([]);
   const [active, setActive] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -13,10 +16,14 @@ function CompanyChat() {
   const loadConversations = useCallback(async () => {
     try {
       const result = await api.get('/chats/conversations', { noCache: true });
-      setConversations(result.conversations || []);
-      setActive((current) => current || result.conversations?.[0]?.booking || null);
+      const items = result.conversations || [];
+      const requestedConversation = requestedBookingId
+        ? items.find(({ booking }) => booking._id === requestedBookingId)?.booking
+        : null;
+      setConversations(items);
+      setActive((current) => requestedConversation || current || items[0]?.booking || null);
     } catch (requestError) { setError(requestError.message); }
-  }, []);
+  }, [requestedBookingId]);
 
   const loadMessages = useCallback(async () => {
     if (!active?._id) return;
@@ -26,10 +33,16 @@ function CompanyChat() {
       setConversations((current) => current.map((item) => item.booking._id === active._id ? { ...item, unreadCount: 0 } : item));
     }
     catch (requestError) { setError(requestError.message); }
-  }, [active?._id]);
+  }, [active]);
 
-  useEffect(() => { loadConversations(); }, [loadConversations]);
-  useEffect(() => { loadMessages(); }, [loadMessages]);
+  useEffect(() => {
+    const timer = window.setTimeout(loadConversations, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadConversations]);
+  useEffect(() => {
+    const timer = window.setTimeout(loadMessages, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadMessages]);
 
   useEffect(() => {
     if (!active?._id) return undefined;
@@ -110,7 +123,7 @@ function CompanyChat() {
               </div>
               <form onSubmit={send} className="shrink-0 sticky bottom-0 p-4 border-t border-slate-100 bg-white flex gap-3">
                 <input value={text} onChange={(event) => setText(event.target.value)} className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" placeholder="Type an operational update…" />
-                <button className="px-6 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-sm">Send</button>
+                <button type="submit" className="px-6 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-sm">Send</button>
               </form>
             </>
           ) : <div className="m-auto text-slate-500 text-sm font-semibold">Select a customer conversation.</div>}

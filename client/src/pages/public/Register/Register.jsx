@@ -22,14 +22,6 @@ function Register() {
   const update = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   const toggleAcceptedTerms = () => setAcceptedTerms((current) => !current);
 
-  const pwd = form.password;
-  const checks = {
-    length: pwd.length >= 10,
-    lowercase: /[a-z]/.test(pwd),
-    uppercase: /[A-Z]/.test(pwd),
-    number: /[0-9]/.test(pwd),
-    special: /[!@#$%^&*(),.?":{}|<>]/.test(pwd),
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -50,13 +42,6 @@ function Register() {
       setSubmitting(false);
     }
   };
-
-  const reqItem = (id, label) => (
-    <li className={`flex items-center gap-xs font-body-md text-body-md ${checks[id] ? 'text-tertiary' : 'text-outline'}`}>
-      <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: checks[id] ? "'FILL' 1" : "'FILL' 0" }}>check_circle</span>
-      {label}
-    </li>
-  );
 
   return (
     <div className="bg-background text-on-surface font-body-md min-h-screen">
@@ -182,17 +167,7 @@ function Register() {
                 </div>
               </div>
 
-              {/* Password Requirements Checklist */}
-              <div className="bg-surface-container p-md rounded-xl space-y-sm">
-                <p className="font-label-sm text-label-sm text-on-surface-variant">Security Requirements:</p>
-                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-xs">
-                  {reqItem('length', '10+ Characters')}
-                  {reqItem('lowercase', 'One Lowercase')}
-                  {reqItem('uppercase', 'One Uppercase')}
-                  {reqItem('number', 'One Number')}
-                  {reqItem('special', 'Special Character')}
-                </ul>
-              </div>
+              <p className="text-xs text-on-surface-variant">Choose a password you will remember. It is securely hashed before it is stored.</p>
 
               {/* Address */}
               <div className="space-y-xs">

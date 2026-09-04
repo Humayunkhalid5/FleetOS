@@ -58,10 +58,12 @@ export function ClientMap({
 
   useEffect(() => {
     if (!('geolocation' in navigator)) {
-      setGeoError('Location is unavailable in this browser. Showing an approximate Pakistan location.');
-      setLocating(false);
-      if (!userPos) setUserPos(toPoint(center) || LAHORE);
-      return;
+      const timer = window.setTimeout(() => {
+        setGeoError('Location is unavailable in this browser. Showing an approximate Pakistan location.');
+        setLocating(false);
+        setUserPos((current) => current || toPoint(center) || LAHORE);
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
 
     navigator.geolocation.getCurrentPosition(
@@ -75,7 +77,7 @@ export function ClientMap({
       () => {
         setGeoError('Location permission is off. Showing the nearest known service area.');
         setLocating(false);
-        if (!userPos) setUserPos(toPoint(center) || destinationPoint || LAHORE);
+        setUserPos((current) => current || toPoint(center) || destinationPoint || LAHORE);
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 },
     );

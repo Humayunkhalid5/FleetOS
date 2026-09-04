@@ -7,12 +7,13 @@ const Technician = require('../models/Technician');
 const Inventory = require('../models/Inventory');
 const Payment = require('../models/Payment');
 const City = require('../models/City');
+const { BUSINESS_CATEGORIES, getWorkspace, hasBusinessCategory } = require('../config/companyWorkspace');
 const { pick } = require('../utils/http');
 const { broadcastMarketplace } = require('../socket');
 
 function isClientVisible(company, owner = null) {
   const ownerStatus = owner?.status || company.ownerStatus || 'active';
-  return company.approvalStatus === 'approved' && ownerStatus !== 'suspended';
+  return company.approvalStatus === 'approved' && company.clientListed !== false && ownerStatus !== 'suspended';
 }
 
 function publicCompany(company, services = [], owner = null) {
@@ -20,7 +21,7 @@ function publicCompany(company, services = [], owner = null) {
   delete data.owner;
   delete data.approvalVersion;
   delete data.businessLicense;
-  return { ...data, verified: data.approvalStatus === 'approved', ownerStatus: owner?.status || data.ownerStatus || 'active', clientVisible: isClientVisible(data, owner), services };
+  return { ...data, workspace: getWorkspace(data), verified: data.approvalStatus === 'approved', ownerStatus: owner?.status || data.ownerStatus || 'active', clientVisible: isClientVisible(data, owner), services };
 }
 
 function escapeRegex(value) {
@@ -100,6 +101,11 @@ exports.getCompanies = async (req, res) => {
   });
 };
 
+exports.getCities = async (req, res) => {
+  const cities = await City.find({ country: 'Pakistan' }, 'name province').sort({ name: 1 }).lean();
+  return res.json({ cities, businessCategories: BUSINESS_CATEGORIES.map(({ value, label }) => ({ value, label })) });
+};
+
 exports.getCompany = async (req, res) => {
   const identifier = req.params.id;
   const filter = mongoose.isValidObjectId(identifier) ? { _id: identifier } : { slug: identifier };
@@ -149,7 +155,14 @@ exports.getCompanyDashboard = async (req, res) => {
 };
 
 exports.updateCompanySettings = async (req, res) => {
-  const updates = pick(req.body, ['name', 'description', 'phone', 'location', 'city', 'province', 'areas']);
+  const updates = pick(req.body, ['name', 'description', 'phone', 'location', 'city', 'province', 'areas', 'businessCategory']);
+  if (updates.businessCategory && !hasBusinessCategory(updates.businessCategory)) return res.status(400).json({ message: 'Invalid business category' });
+  if (updates.city) {
+    const selectedCity = await City.findOne({ name: new RegExp(`^${String(updates.city).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'), country: 'Pakistan' }).lean();
+    if (!selectedCity) return res.status(400).json({ message: 'Choose a valid Pakistani city from the list' });
+    updates.city = selectedCity.name;
+    updates.province = selectedCity.province;
+  }
   if (req.body.logo && req.body.logo !== req.company.logo) {
     const { validateLogo } = require('../utils/uploads');
     updates.logo = validateLogo(req.body.logo).data;

@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import api from '../../../services/api';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { ROUTES } from '../../../constants';
@@ -16,6 +17,8 @@ function CompanyRegister() {
     registrationNumber: '',
     phone: '',
     city: '',
+    businessCategory: '',
+    description: '',
     address: '',
     email: '',
     password: '',
@@ -29,6 +32,19 @@ function CompanyRegister() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
   const [submittedCompany, setSubmittedCompany] = useState(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [cities, setCities] = useState([]);
+  const [businessCategories, setBusinessCategories] = useState([]);
+
+  useEffect(() => {
+    api.get('/cities', { noCache: true })
+      .then((result) => {
+        setCities(result.cities || []);
+        setBusinessCategories(result.businessCategories || []);
+      })
+      .catch(() => setFormError('Unable to load the Pakistan city list. Please refresh and try again.'));
+  }, []);
 
   const update = (key) => (e) => {
     const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -143,6 +159,8 @@ function CompanyRegister() {
         companyName: form.companyName || targetName,
         registrationNumber: form.registrationNumber,
         city: form.city.trim(),
+        businessCategory: form.businessCategory,
+        description: form.description.trim(),
         logo: readyLogoDataUrl,
         businessLicense: { name: selectedLicenseFile.name, data: readyLicenseDataUrl },
       };
@@ -206,12 +224,19 @@ function CompanyRegister() {
             <Link className="text-on-surface-variant text-xs font-semibold hover:bg-surface-container-high transition-colors px-3 py-1 rounded" to={ROUTES.about}>About</Link>
             <Link className="text-on-surface-variant text-xs font-semibold hover:bg-surface-container-high transition-colors px-3 py-1 rounded" to={ROUTES.contact}>Contact</Link>
           </nav>
-          <button className="bg-secondary text-on-secondary px-4 py-2 rounded-lg text-xs font-semibold active:scale-95 transition-transform">Support</button>
+          <button type="button" onClick={() => navigate(ROUTES.contact)} className="bg-secondary text-on-secondary px-4 py-2 rounded-lg text-xs font-semibold active:scale-95 transition-transform">Support</button>
         </div>
-        <div className="md:hidden">
-          <span className="material-symbols-outlined text-on-surface-variant">menu</span>
-        </div>
+        <button type="button" className="md:hidden grid h-10 w-10 place-items-center rounded-xl text-on-surface-variant hover:bg-surface-container-high" onClick={() => setMobileNavOpen((open) => !open)} aria-expanded={mobileNavOpen} aria-label="Toggle navigation">
+          <span className="material-symbols-outlined">{mobileNavOpen ? 'close' : 'menu'}</span>
+        </button>
       </header>
+      {mobileNavOpen && (
+        <nav className="sticky top-16 z-40 grid gap-1 border-b border-outline-variant bg-background p-3 shadow-lg md:hidden">
+          <Link className="rounded-xl px-4 py-3 text-sm font-semibold text-on-surface hover:bg-surface-container-high" to={ROUTES.home}>Solutions</Link>
+          <Link className="rounded-xl px-4 py-3 text-sm font-semibold text-on-surface hover:bg-surface-container-high" to={ROUTES.about}>About</Link>
+          <Link className="rounded-xl px-4 py-3 text-sm font-semibold text-on-surface hover:bg-surface-container-high" to={ROUTES.contact}>Contact &amp; Support</Link>
+        </nav>
+      )}
 
       <main className="flex-grow flex flex-col lg:flex-row">
         {/* Visual Column (Desktop) */}
@@ -330,14 +355,26 @@ function CompanyRegister() {
                   <label className="block text-on-surface text-xs font-semibold uppercase">Service City</label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">location_city</span>
-                    <input
+                    <select
                       required
-                      type="text"
                       className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
-                      placeholder="Lahore"
                       value={form.city}
                       onChange={update('city')}
-                    />
+                    >
+                      <option value="">Select a Pakistan city</option>
+                      {cities.map((city) => <option key={`${city.name}-${city.province}`} value={city.name}>{city.name} — {city.province}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-on-surface text-xs font-semibold uppercase">Business Category</label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">storefront</span>
+                    <select required className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary" value={form.businessCategory} onChange={update('businessCategory')}>
+                      <option value="">Select what your company does</option>
+                      {businessCategories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
+                    </select>
                   </div>
                 </div>
 
@@ -379,16 +416,22 @@ function CompanyRegister() {
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg" data-icon="lock">lock</span>
                     <input 
                       required
-                      type="password"
-                      className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
+                      type={showPassword ? 'text' : 'password'}
+                      className="w-full pl-10 pr-10 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
                       placeholder="••••••••"
                       value={form.password}
                       onChange={update('password')}
                     />
+                    <button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)} className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface"><span className="material-symbols-outlined text-lg">{showPassword ? 'visibility_off' : 'visibility'}</span></button>
                   </div>
                   <p className="text-[11px] leading-4 text-on-surface-variant">
-                    Use 10+ characters with uppercase, lowercase, number, and symbol. Example: CompanyTest1!
+                    Choose a password you will remember. It is securely hashed before it is stored.
                   </p>
+                </div>
+
+                <div className="md:col-span-2 space-y-1">
+                  <label className="block text-on-surface text-xs font-semibold uppercase">What do you offer?</label>
+                  <textarea required rows="3" className="w-full px-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary resize-none" placeholder="Describe your products, services, or offers. This controls how clients discover your company." value={form.description} onChange={update('description')} />
                 </div>
               </div>
 

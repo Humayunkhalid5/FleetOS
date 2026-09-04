@@ -115,7 +115,7 @@ function CompanyDetails() {
               <h2 className="text-xl font-bold text-slate-900">Public company record</h2>
               <p className="text-sm text-slate-500 mt-1">These details are used in client discovery and location results.</p>
             </div>
-            <button disabled={saving} className="px-5 py-2.5 bg-blue-600 text-white rounded-2xl text-sm font-bold hover:bg-blue-700 disabled:opacity-60 shadow-sm">{saving ? 'Saving...' : 'Save details'}</button>
+            <button type="submit" disabled={saving} className="px-5 py-2.5 bg-blue-600 text-white rounded-2xl text-sm font-bold hover:bg-blue-700 disabled:opacity-60 shadow-sm">{saving ? 'Saving...' : 'Save details'}</button>
           </div>
 
           <div className="grid md:grid-cols-2 gap-5">

@@ -5,6 +5,10 @@ const companySchema = new mongoose.Schema({
   slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   description: { type: String, default: '', maxlength: 1200 },
+  businessCategory: { type: String, default: 'field-services', index: true },
+  // Used only by the built-in demonstration catalogue migration. It is never
+  // applied to a company created by a real owner.
+  seedProfileVersion: { type: Number, default: 0, select: false },
   registrationNumber: { type: String, default: '', trim: true },
   email: { type: String, required: true, lowercase: true, trim: true },
   phone: { type: String, default: '', trim: true },
@@ -26,6 +30,7 @@ const companySchema = new mongoose.Schema({
   rating: { type: Number, default: 0, min: 0, max: 5 },
   reviewCount: { type: Number, default: 0, min: 0 },
   approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected', 'suspended'], default: 'pending', index: true },
+  clientListed: { type: Boolean, default: true, index: true },
   approvalVersion: { type: Number, default: 1 },
   approvedAt: { type: Date, default: null },
 }, { timestamps: true });

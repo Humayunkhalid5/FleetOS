@@ -21,10 +21,14 @@ function Reviews() {
         setLoading(false);
       }
   }, []);
-  useEffect(() => { fetchReviews(); }, [fetchReviews]);
+  useEffect(() => {
+    const timer = window.setTimeout(fetchReviews, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchReviews]);
   useEffect(() => {
     const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', { withCredentials: true, auth: { token: getActiveSessionToken() }, transports: ['websocket', 'polling'] });
     socket.on('review:created', fetchReviews);
+    socket.on('review:updated', fetchReviews);
     return () => socket.disconnect();
   }, [fetchReviews]);
 

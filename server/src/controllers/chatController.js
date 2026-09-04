@@ -2,6 +2,7 @@ const Booking = require('../models/Booking');
 const ChatMessage = require('../models/ChatMessage');
 const Company = require('../models/Company');
 const Service = require('../models/Service');
+const { broadcastBooking } = require('../socket');
 
 async function authorizedBooking(req, bookingId) {
   const filter = req.user.role === 'customer'
@@ -37,6 +38,7 @@ exports.startCompanyConversation = async (req, res) => {
     status: 'Pending',
   }).sort({ createdAt: -1 });
 
+  let created = false;
   if (!booking) {
     const service = await Service.findOne({ company: company._id, status: 'Active' }).sort({ name: 1 }).lean();
     booking = await Booking.create({
@@ -45,9 +47,9 @@ exports.startCompanyConversation = async (req, res) => {
       company: company._id,
       service: service?._id || null,
       serviceSnapshot: {
-        name: service?.name || 'General company inquiry',
-        category: service?.category || 'Inquiry',
-        price: Number(service?.price || 0),
+        name: 'General company inquiry',
+        category: 'Inquiry',
+        price: 0,
       },
       customerName: req.user.name,
       customerPhone: req.user.phone || '',
@@ -60,8 +62,10 @@ exports.startCompanyConversation = async (req, res) => {
       location: req.user.address || req.user.city || company.city || 'Pakistan',
       paymentMethod: 'cash',
     });
+    created = true;
   }
 
+  if (created) broadcastBooking(booking, 'booking:created');
   return res.status(201).json({ booking });
 };
 

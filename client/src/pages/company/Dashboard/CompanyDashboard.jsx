@@ -29,7 +29,10 @@ function CompanyDashboard() {
     setError('');
     return api.get('/company/dashboard', { noCache: true }).then(setData).catch((requestError) => setError(requestError.message));
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(load, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
   useEffect(() => {
     const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
       withCredentials: true,
@@ -41,7 +44,9 @@ function CompanyDashboard() {
     return () => socket.disconnect();
   }, [load]);
 
-  const bookings = data?.bookings || [];
+  const bookings = useMemo(() => data?.bookings || [], [data?.bookings]);
+  const workspace = data?.company?.workspace || {};
+  const modules = { workforce: true, inventory: true, ...workspace.modules };
   const filtered = useMemo(() => bookings.filter((booking) => [booking.reference, booking.customerName, booking.vehicle?.label, booking.serviceSnapshot?.name, booking.technician?.name, booking.status].some((value) => String(value || '').toLowerCase().includes(query.toLowerCase()))), [bookings, query]);
   const maxRevenue = Math.max(...(data?.revenue || []).map((item) => item.amount), 1);
 
@@ -81,7 +86,9 @@ function CompanyDashboard() {
                   ['fact_check', 'Total Bookings', data.metrics.totalBookings, 'text-blue-600 bg-blue-50'],
                   ['pending_actions', 'Pending Requests', data.metrics.pendingDispatch, 'text-orange-600 bg-orange-50'],
                   ['task_alt', 'Completed Work', data.metrics.completedJobs, 'text-cyan-600 bg-cyan-50'],
-                  ['groups', 'Available Staff', `${data.metrics.availableTechnicians}/${data.metrics.technicianTotal}`, 'text-purple-600 bg-purple-50'],
+                  modules.workforce
+                    ? ['groups', `Available ${workspace.workforceLabel || 'Staff'}`, `${data.metrics.availableTechnicians}/${data.metrics.technicianTotal}`, 'text-purple-600 bg-purple-50']
+                    : ['inventory_2', 'Stock alerts', data.metrics.lowStock, 'text-purple-600 bg-purple-50'],
                 ].map(([icon, label, value, colorClass]) => (
                   <div key={label} className="bg-white rounded-3xl p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100 hover:-translate-y-1 transition-transform">
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${colorClass}`}>
@@ -147,8 +154,8 @@ function CompanyDashboard() {
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-3xl p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100">
-                    <h3 className="font-bold text-lg text-slate-900 mb-4 flex justify-between items-center">Top Staff <Link to="/company/technicians" className="text-sm text-blue-600 hover:underline">Manage</Link></h3>
+                  {modules.workforce && <div className="bg-white rounded-3xl p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100">
+                    <h3 className="font-bold text-lg text-slate-900 mb-4 flex justify-between items-center">Top {workspace.workforceLabel || 'Staff'} <Link to="/company/technicians" className="text-sm text-blue-600 hover:underline">Manage</Link></h3>
                     <div className="space-y-4">
                       {data.technicians.slice(0, 4).map((tech) => (
                         <div key={tech._id} className="flex items-center gap-4">
@@ -158,7 +165,7 @@ function CompanyDashboard() {
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </div>}
                 </div>
               </div>
             </>

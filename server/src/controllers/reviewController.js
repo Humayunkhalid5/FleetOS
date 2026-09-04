@@ -2,7 +2,7 @@ const Review = require('../models/Review');
 const Booking = require('../models/Booking');
 const Company = require('../models/Company');
 const { updateTechnicianRating } = require('./technicianController');
-const { broadcastPlatform } = require('../socket');
+const { broadcastMarketplace, broadcastPlatform } = require('../socket');
 
 async function updateCompanyRating(companyId) {
   const [summary] = await Review.aggregate([
@@ -30,6 +30,7 @@ exports.createReview = async (req, res) => {
     io.to(`company:${booking.company}`).emit('review:created', { reviewId: String(review._id), bookingId: String(booking._id) });
     io.to(`customer:${booking.customer}`).emit('review:created', { reviewId: String(review._id), bookingId: String(booking._id) });
   }
+  broadcastMarketplace('review', booking.company);
   broadcastPlatform('review');
   return res.status(201).json({ review });
 };
@@ -50,5 +51,11 @@ exports.replyToReview = async (req, res) => {
   if (!text) return res.status(400).json({ message: 'Reply is required' });
   const review = await Review.findOneAndUpdate({ _id: req.params.id, company: req.company._id }, { reply: { text, repliedAt: new Date() } }, { new: true });
   if (!review) return res.status(404).json({ message: 'Review not found' });
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`customer:${review.customer}`).emit('review:updated', { reviewId: String(review._id) });
+    io.to(`company:${review.company}`).emit('review:updated', { reviewId: String(review._id) });
+  }
+  broadcastPlatform('review');
   return res.json({ review });
 };

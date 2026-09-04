@@ -54,7 +54,9 @@ function RoleGate({ role }) {
   const { user, loading, logout } = useAuth()
   if (loading) return <PageLoader />
   if (!user) return <Navigate to="/login" replace />
-  if (user.role !== role) return <Navigate to={user.role === 'company' ? '/company/dashboard' : '/customer/companies'} replace />
+  // A route must never silently switch a visitor into a different portal.
+  // Asking them to sign in keeps customer and company workspaces isolated.
+  if (user.role !== role) return <Navigate to="/login" replace />
   if (role === 'company' && user.approvalStatus !== 'approved') {
     return (
       <main className="min-h-screen bg-[#f7f9fc] flex items-center justify-center p-6">
@@ -95,7 +97,7 @@ function RoutedApp() {
   const companyRegisterSurface = location.pathname === '/company/register'
 
   return (
-    <AppProvider>
+    <AppProvider key={companySurface ? 'company' : 'customer'} expectedRole={companySurface ? 'company' : 'customer'}>
       <RouteScrollManager />
       <div className={`app-shell ${companySurface && !companyRegisterSurface ? 'company-theme' : 'client-theme'} ${companyRegisterSurface ? 'company-register-theme' : ''}`}>
           <Suspense fallback={<PageLoader />}>

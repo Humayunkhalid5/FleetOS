@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
-import { ROUTES, companyRoute } from '../../../constants';
+import { ROUTES } from '../../../constants';
 import api, { saveSessionToken } from '../../../services/api';
 import CustomerTopNav from '../../../components/customer/CustomerTopNav';
 
@@ -71,7 +71,7 @@ const cropProfileImage = (source, { zoom = 1, offsetX = 0, offsetY = 0 } = {}, s
 function Profile() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, updateProfile, logout } = useAuth();
+  const { user, updateProfile } = useAuth();
   const fileInputRef = useRef(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -99,14 +99,6 @@ function Profile() {
     plan: 'Fleet Member',
     avatar: DEFAULT_AVATAR,
   };
-
-  const menuItems = [
-    { label: 'My Bookings', icon: 'calendar_today', to: ROUTES.bookings },
-    { label: 'Browse Services', icon: 'category', to: ROUTES.customizeBooking },
-    { label: 'Browse Companies', icon: 'business', to: companyRoute() },
-    { label: 'Reviews', icon: 'rate_review', to: ROUTES.reviews },
-    { label: 'Payment Methods', icon: 'credit_card', to: ROUTES.bookings },
-  ];
 
   const update = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 

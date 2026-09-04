@@ -161,15 +161,18 @@ function LiveTracking() {
   }, []);
 
   useEffect(() => {
-    fetchTracking(bookingId);
+    const timer = window.setTimeout(() => fetchTracking(bookingId), 0);
+    return () => window.clearTimeout(timer);
   }, [bookingId, fetchTracking]);
 
   // ------------- 2. Get user's REAL location -------------
   useEffect(() => {
     if (!('geolocation' in navigator)) {
-      setGeoError('Geolocation not supported by this browser.');
-      setLocating(false);
-      return;
+      const timer = window.setTimeout(() => {
+        setGeoError('Geolocation not supported by this browser.');
+        setLocating(false);
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -350,7 +353,6 @@ function LiveTracking() {
       socket.disconnect();
       socketRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingId, fetchTracking, moveTechMarker]);
 
   const shareBooking = () => {

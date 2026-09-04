@@ -24,7 +24,10 @@ async function start() {
     await connectDB();
     await bootstrap();
     server = http.createServer(app);
-    initSocket(server);
+    const socketServer = initSocket(server);
+    // Controllers that emit chat, tracking, and review events read the live
+    // Socket.IO instance from Express. Attach it before accepting requests.
+    app.set('io', socketServer);
     await new Promise((resolve, reject) => {
       const onError = (error) => reject(error);
       server.once('error', onError);

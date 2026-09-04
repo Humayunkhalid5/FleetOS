@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import CompanyShell from '../../../components/company/CompanyShell';
 import { useAuth } from '../../../hooks/useAuth';
 import api, { saveSessionToken } from '../../../services/api';
@@ -8,10 +8,6 @@ function CompanySettings() {
   const [owner, setOwner] = useState({ name: user?.name || '', phone: user?.phone || '', address: user?.address || '', city: user?.city || '' });
   const [password, setPassword] = useState({ currentPassword: '', newPassword: '' });
   const [message, setMessage] = useState('');
-
-  useEffect(() => {
-    setOwner({ name: user?.name || '', phone: user?.phone || '', address: user?.address || '', city: user?.city || '' });
-  }, [user]);
 
   const saveOwner = async (event) => {
     event.preventDefault();
@@ -46,17 +42,17 @@ function CompanySettings() {
               <input value={owner[key] || ''} onChange={(event) => setOwner({ ...owner, [key]: event.target.value })} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" />
             </label>
           ))}
-          <button className="px-5 py-2.5 bg-blue-600 text-white rounded-2xl text-sm font-bold hover:bg-blue-700 shadow-sm">Save profile</button>
+          <button type="submit" className="px-5 py-2.5 bg-blue-600 text-white rounded-2xl text-sm font-bold hover:bg-blue-700 shadow-sm">Save profile</button>
         </form>
 
         <form onSubmit={changePassword} className="bg-white rounded-3xl border border-slate-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] p-6 md:p-8 space-y-5 h-fit">
           <div className="border-b border-slate-100 pb-5">
-            <h2 className="text-xl font-bold text-slate-900">Password security</h2>
+            <h2 className="text-xl font-bold text-slate-900">Password</h2>
             <p className="text-sm text-slate-500 mt-1">Rotate the login password for this company account.</p>
           </div>
           <label className="grid gap-2 text-xs font-bold text-slate-500 uppercase tracking-wide">Current password<input type="password" value={password.currentPassword} onChange={(event) => setPassword({ ...password, currentPassword: event.target.value })} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" required /></label>
-          <label className="grid gap-2 text-xs font-bold text-slate-500 uppercase tracking-wide">New strong password<input type="password" value={password.newPassword} onChange={(event) => setPassword({ ...password, newPassword: event.target.value })} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" required /></label>
-          <button className="px-5 py-2.5 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-slate-800 shadow-sm">Update password</button>
+          <label className="grid gap-2 text-xs font-bold text-slate-500 uppercase tracking-wide">New password<input type="password" value={password.newPassword} onChange={(event) => setPassword({ ...password, newPassword: event.target.value })} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" required /></label>
+          <button type="submit" className="px-5 py-2.5 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-slate-800 shadow-sm">Update password</button>
         </form>
       </div>
     </CompanyShell>

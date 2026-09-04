@@ -4,6 +4,7 @@ const { protect, requireApprovedCompany } = require('../middleware/authMiddlewar
 const { asyncHandler } = require('../utils/http');
 
 router.get('/companies', asyncHandler(controller.getCompanies));
+router.get('/cities', asyncHandler(controller.getCities));
 router.get('/company/dashboard', protect, requireApprovedCompany, asyncHandler(controller.getCompanyDashboard));
 router.put('/company/settings', protect, requireApprovedCompany, asyncHandler(controller.updateCompanySettings));
 router.get('/companies/:id', asyncHandler(controller.getCompany));

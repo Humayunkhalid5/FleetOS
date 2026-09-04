@@ -39,9 +39,9 @@ function CustomerProfileButton() {
   ];
 
   return (
-    <div className="relative customer-profile-control" onMouseEnter={openMenu} onMouseLeave={closeMenu}>
+    <div className="relative customer-profile-control" onMouseLeave={closeMenu}>
       <button
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => (open ? setOpen(false) : openMenu())}
         className="client-profile-trigger client-avatar-only relative w-10 h-10 rounded-full bg-white shadow-sm grid place-items-center hover:shadow-md hover:-translate-y-0.5 transition-all"
         aria-label="Open client profile menu"
       >

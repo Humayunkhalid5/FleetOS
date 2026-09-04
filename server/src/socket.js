@@ -67,10 +67,6 @@ function initSocket(httpServer) {
     socket.on('leave-booking', (bookingId) => socket.leave(`booking:${bookingId}`));
   });
 
-  httpServer.on('listening', () => {
-    const app = httpServer.listeners('request')[0];
-    if (app?.set) app.set('io', io);
-  });
   return io;
 }
 

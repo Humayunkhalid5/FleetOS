@@ -14,12 +14,12 @@ const Customer = require('../models/Customer');
 const City = require('../models/City');
 
 const providers = [
-  { name: 'Lahore Home Solutions', slug: 'pak-fleet-mobility', city: 'Lahore', province: 'Punjab', location: 'Gulberg III, Lahore', email: 'company@fleetos.local', phone: '+92 42 35781234', description: 'Verified home, installation, and repair services for Lahore clients.', rating: 4.8 },
-  { name: 'Karachi Product Hub', slug: 'karachi-fleet-care', city: 'Karachi', province: 'Sindh', location: 'Korangi Industrial Area, Karachi', email: 'hello@karachifleetcare.pk', phone: '+92 21 35124880', description: 'Retail products, add-ons, and client service packages across Karachi.', rating: 4.7 },
-  { name: 'Capital Business Services', slug: 'capital-auto-response', city: 'Islamabad', province: 'Islamabad Capital Territory', location: 'I-9 Industrial Area, Islamabad', email: 'ops@capitalresponse.pk', phone: '+92 51 4439821', description: 'Professional business support, digital setup, and service fulfillment in Islamabad.', rating: 4.6 },
-  { name: 'Multan Smart Services', slug: 'multan-commercial-motors', city: 'Multan', province: 'Punjab', location: 'Bosan Road, Multan', email: 'service@multanmotors.pk', phone: '+92 61 6512210', description: 'Local product, home service, and customer support packages in South Punjab.', rating: 4.5 },
-  { name: 'Peshawar Service Market', slug: 'peshawar-roadworks', city: 'Peshawar', province: 'Khyber Pakhtunkhwa', location: 'Hayatabad, Peshawar', email: 'dispatch@roadworks.pk', phone: '+92 91 5812234', description: 'Trusted company offers, client requests, and staff assignment workflows.', rating: 4.6 },
-  { name: 'Quetta Digital & Retail', slug: 'quetta-fleet-support', city: 'Quetta', province: 'Balochistan', location: 'Airport Road, Quetta', email: 'care@quettafleet.pk', phone: '+92 81 2821440', description: 'Digital services, retail product offers, and verified local support in Quetta.', rating: 4.4 },
+  { name: 'Lahore Home Solutions', slug: 'pak-fleet-mobility', city: 'Lahore', province: 'Punjab', location: 'Gulberg III, Lahore', email: 'company@fleetos.local', phone: '+92 42 35781234', description: 'Verified home, installation, and repair services for Lahore clients.', businessCategory: 'field-services', rating: 4.8 },
+  { name: 'Karachi Product Hub', slug: 'karachi-fleet-care', city: 'Karachi', province: 'Sindh', location: 'Korangi Industrial Area, Karachi', email: 'hello@karachifleetcare.pk', phone: '+92 21 35124880', description: 'Retail products, add-ons, and client service packages across Karachi.', businessCategory: 'retail-products', rating: 4.7 },
+  { name: 'Capital Business Services', slug: 'capital-auto-response', city: 'Islamabad', province: 'Islamabad Capital Territory', location: 'I-9 Industrial Area, Islamabad', email: 'ops@capitalresponse.pk', phone: '+92 51 4439821', description: 'Professional business support, digital setup, and service fulfillment in Islamabad.', businessCategory: 'professional-services', rating: 4.6 },
+  { name: 'Multan Smart Services', slug: 'multan-commercial-motors', city: 'Multan', province: 'Punjab', location: 'Bosan Road, Multan', email: 'service@multanmotors.pk', phone: '+92 61 6512210', description: 'Local product, home service, and customer support packages in South Punjab.', businessCategory: 'digital-technology', rating: 4.5 },
+  { name: 'Peshawar Service Market', slug: 'peshawar-roadworks', city: 'Peshawar', province: 'Khyber Pakhtunkhwa', location: 'Hayatabad, Peshawar', email: 'dispatch@roadworks.pk', phone: '+92 91 5812234', description: 'Trusted company offers, client requests, and staff assignment workflows.', businessCategory: 'oil-energy', rating: 4.6 },
+  { name: 'Quetta Digital & Retail', slug: 'quetta-fleet-support', city: 'Quetta', province: 'Balochistan', location: 'Airport Road, Quetta', email: 'care@quettafleet.pk', phone: '+92 81 2821440', description: 'Digital services, retail product offers, and verified local support in Quetta.', businessCategory: 'digital-technology', rating: 4.4 },
 ];
 
 const cityGroups = {
@@ -53,12 +53,12 @@ function companyHeroImage(name, city) {
 
 function generatedCityProviders(cities) {
   const brands = [
-    ['Home Solutions', 'Verified home, repair, and installation services for local clients.'],
-    ['Product Hub', 'Retail products, add-ons, and transparent client request handling.'],
-    ['Business Services', 'Professional service packages, support staff, and city-wise fulfilment.'],
-    ['Digital & Retail', 'Digital setup, retail offers, and client support under one company portal.'],
+    ['Home Solutions', 'Verified home, repair, and installation services for local clients.', 'field-services'],
+    ['Product Hub', 'Retail products, add-ons, and transparent client request handling.', 'retail-products'],
+    ['Business Services', 'Professional service packages, support staff, and city-wise fulfilment.', 'professional-services'],
+    ['Digital & Retail', 'Digital setup, retail offers, and client support under one company portal.', 'digital-technology'],
   ];
-  return cities.flatMap((city, cityIndex) => brands.map(([brand, description], brandIndex) => {
+  return cities.flatMap((city, cityIndex) => brands.map(([brand, description, businessCategory], brandIndex) => {
     const slug = `${slugify(city.name)}-${slugify(brand)}`;
     return {
       name: `${city.name} ${brand}`,
@@ -71,6 +71,7 @@ function generatedCityProviders(cities) {
       ownerEmail: `owner.${slug}@fleetos.local`,
       phone: phoneForSeed(cityIndex * brands.length + brandIndex),
       description,
+      businessCategory,
       rating: Number((4.2 + ((cityIndex + brandIndex) % 7) / 10).toFixed(1)),
     };
   }));
@@ -131,7 +132,16 @@ async function bootstrap() {
       if (error.codeName !== 'IndexNotFound') throw error;
     }),
   ]);
-  await Promise.all([Company.syncIndexes(), Booking.syncIndexes(), Payment.syncIndexes(), Service.syncIndexes(), Technician.syncIndexes(), Inventory.syncIndexes(), Review.syncIndexes()]);
+  try {
+    await Promise.all([Company.syncIndexes(), Booking.syncIndexes(), Payment.syncIndexes(), Service.syncIndexes(), Technician.syncIndexes(), Inventory.syncIndexes(), Review.syncIndexes()]);
+  } catch (error) {
+    // MongoDB rejects index maintenance when the host drive is critically low.
+    // Existing indexes and all application CRUD stay usable, so do not take the
+    // whole SaaS offline during a development restart. Any other index error is
+    // still fatal and visible immediately.
+    if (!/available disk space.*required minimum/i.test(String(error.message || ''))) throw error;
+    console.warn(`Skipping index maintenance until disk space is available: ${error.message}`);
+  }
 
   if (process.env.NODE_ENV === 'production') {
     const admin = await User.findOne({ role: 'super-admin' }).select('email').lean();
@@ -157,6 +167,25 @@ async function bootstrap() {
   const providerMap = new Map();
   for (const provider of [...providers, ...generatedCityProviders(cities)]) {
     providerMap.set(provider.slug, provider);
+  }
+
+  // Earlier demo records predate business categories. Migrate only the
+  // reserved built-in catalogue once; owner-created companies are never
+  // touched. This lets the existing demonstration catalogue exercise the
+  // different workspace capabilities without changing real registrations.
+  // Keep this intentionally small: these are the six named demo accounts
+  // that can be signed into during a presentation. The wider city catalogue
+  // remains a discovery fixture and is not rewritten on every server start.
+  const seedWorkspaceProfiles = providers;
+  const pendingSeedWorkspaceMigration = { $or: [{ seedProfileVersion: { $exists: false } }, { seedProfileVersion: { $lt: 1 } }] };
+  const seedWorkspaceTargets = await Company.countDocuments({ slug: { $in: seedWorkspaceProfiles.map((provider) => provider.slug) }, ...pendingSeedWorkspaceMigration });
+  if (seedWorkspaceTargets) {
+    await Company.bulkWrite(seedWorkspaceProfiles.map((provider) => ({
+      updateOne: {
+        filter: { slug: provider.slug, ...pendingSeedWorkspaceMigration },
+        update: { $set: { businessCategory: provider.businessCategory || 'field-services', seedProfileVersion: 1 } },
+      },
+    })), { ordered: false });
   }
 
   const [existingApprovedProviders, categoryCoverage] = await Promise.all([

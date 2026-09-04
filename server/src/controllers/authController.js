@@ -3,12 +3,14 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
 const Company = require('../models/Company');
+const City = require('../models/City');
+const { hasBusinessCategory } = require('../config/companyWorkspace');
 const { getJwtSecret } = require('../config/security');
 const { pick, slugify } = require('../utils/http');
 const { validateLogo, validateBusinessLicense } = require('../utils/uploads');
 const { broadcastPlatform } = require('../socket');
 
-const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{10,}$/;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function publicUser(user) {
   const data = user.toJSON ? user.toJSON() : { ...user };
@@ -84,16 +86,22 @@ async function authenticateCredentials(email, password) {
 }
 
 exports.register = async (req, res) => {
-  const { name, ownerName, email, password, phone, address, city, role = 'customer', companyName, registrationNumber } = req.body;
+  const { name, ownerName, email, password, phone, address, city, role = 'customer', companyName, registrationNumber, businessCategory, description } = req.body;
   if (!['customer', 'company'].includes(role)) return res.status(400).json({ message: 'Only customer and company accounts can register publicly' });
   if (!email || !password || !(name || ownerName)) return res.status(400).json({ message: 'Name, email and password are required' });
-  if (!passwordPattern.test(password)) return res.status(400).json({ message: 'Password must be at least 10 characters and include uppercase, lowercase, number and symbol' });
+  if (!emailPattern.test(String(email).trim())) return res.status(400).json({ message: 'Enter a valid email address' });
   if (await User.exists({ email: String(email).toLowerCase().trim() })) return res.status(409).json({ message: 'An account with this email already exists' });
 
   let logo = null;
   let businessLicense = null;
+  let selectedCity = null;
   if (role === 'company') {
     if (!req.body.logo || !req.body.businessLicense?.data) return res.status(400).json({ message: 'Company logo and business license are required' });
+    if (!companyName || !city) return res.status(400).json({ message: 'Company name and a Pakistan service city are required' });
+    if (!hasBusinessCategory(businessCategory)) return res.status(400).json({ message: 'Choose a business category from the company registration form' });
+    selectedCity = await City.findOne({ name: new RegExp(`^${String(city).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'), country: 'Pakistan' }).lean();
+    if (!selectedCity) return res.status(400).json({ message: 'Choose a valid Pakistani city from the list' });
+    req.body.city = selectedCity.name;
     logo = validateLogo(req.body.logo);
     businessLicense = validateBusinessLicense(req.body.businessLicense.data);
   }
@@ -110,10 +118,6 @@ exports.register = async (req, res) => {
   });
 
   if (role === 'company') {
-    if (!companyName || !city) {
-      await User.deleteOne({ _id: user._id });
-      return res.status(400).json({ message: 'Company name and city are required' });
-    }
     let slug = slugify(companyName);
     if (await Company.exists({ slug })) slug = `${slug}-${String(user._id).slice(-6)}`;
     try {
@@ -125,7 +129,10 @@ exports.register = async (req, res) => {
         email,
         phone: phone || '',
         location: address || '',
-        city,
+        city: req.body.city,
+        province: selectedCity.province,
+        description: String(description || '').trim(),
+        businessCategory,
         logo: logo.data,
         businessLicense: {
           name: String(req.body.businessLicense.name || 'business-license').slice(0, 180),
@@ -242,7 +249,7 @@ exports.updateProfile = async (req, res) => {
 
 exports.changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body;
-  if (!passwordPattern.test(String(newPassword || ''))) return res.status(400).json({ message: 'New password does not meet the security requirements' });
+  if (!String(newPassword || '').length) return res.status(400).json({ message: 'Enter a new password' });
   const user = await User.findById(req.user._id).select('+password');
   if (!(await bcrypt.compare(String(currentPassword || ''), user.password))) return res.status(400).json({ message: 'Current password is incorrect' });
   user.password = await bcrypt.hash(newPassword, 12);

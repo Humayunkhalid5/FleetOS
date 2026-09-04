@@ -7,31 +7,19 @@ const Payment = require('../models/Payment');
 const Review = require('../models/Review');
 const Technician = require('../models/Technician');
 const SupportRequest = require('../models/SupportRequest');
-const AuditEvent = require('../models/AuditEvent');
 const { authenticateCredentials, issueSession, clearSession, publicUser } = require('./authController');
 const { sendCompanyDecisionEmail } = require('../utils/mailer');
 const { broadcastPlatform, broadcastMarketplace } = require('../socket');
 const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{10,}$/;
 
 function companyClientVisible(company) {
-  return company?.approvalStatus === 'approved' && (company.owner?.status || 'active') !== 'suspended';
+  return company?.approvalStatus === 'approved'
+    && company?.clientListed !== false
+    && (company.owner?.status || 'active') !== 'suspended';
 }
 
 function annotateCompany(company) {
   return { ...company, clientVisible: companyClientVisible(company), ownerStatus: company.owner?.status || 'unknown' };
-}
-
-async function audit(req, action, targetType, targetId, reason, metadata = {}) {
-  return AuditEvent.create({ actor: req.user._id, action, targetType, targetId, reason, metadata, requestId: req.requestId });
-}
-
-function requireReason(req, res) {
-  const reason = String(req.body.reason || '').trim();
-  if (reason.length < 8) {
-    res.status(400).json({ message: 'An audit reason of at least 8 characters is required' });
-    return null;
-  }
-  return reason;
 }
 
 exports.adminLogin = async (req, res) => {
@@ -120,8 +108,6 @@ exports.getCompanyDocument = async (req, res) => {
 };
 
 exports.setCompanyStatus = async (req, res) => {
-  const reason = requireReason(req, res);
-  if (!reason) return;
   const status = req.body.status;
   if (!['approved', 'rejected', 'suspended'].includes(status)) return res.status(400).json({ message: 'Status must be approved, rejected or suspended' });
   const company = await Company.findOneAndUpdate(
@@ -134,7 +120,6 @@ exports.setCompanyStatus = async (req, res) => {
     { company: company._id, role: 'company' },
     { status: status === 'approved' ? 'active' : 'suspended', $inc: { sessionVersion: 1 } },
   );
-  await audit(req, `company.${status}`, 'Company', company._id, reason, { version: company.approvalVersion });
   const email = await sendCompanyDecisionEmail(company, status).catch((error) => ({ delivered: false, reason: error.message }));
   broadcastMarketplace('company-status', company._id);
   return res.json({ company, email });
@@ -143,13 +128,10 @@ exports.setCompanyStatus = async (req, res) => {
 exports.listUsers = async (req, res) => res.json({ users: await User.find({ role: { $ne: 'super-admin' } }).populate('company', 'name').sort({ createdAt: -1 }).lean() });
 
 exports.setUserStatus = async (req, res) => {
-  const reason = requireReason(req, res);
-  if (!reason) return;
   const status = req.body.status;
   if (!['active', 'suspended'].includes(status)) return res.status(400).json({ message: 'Invalid user status' });
   const user = await User.findOneAndUpdate({ _id: req.params.id, role: { $ne: 'super-admin' } }, { status, $inc: { sessionVersion: 1 } }, { new: true });
   if (!user) return res.status(404).json({ message: 'User not found' });
-  await audit(req, `user.${status}`, 'User', user._id, reason);
   broadcastPlatform('user');
   return res.json({ user });
 };
@@ -170,23 +152,25 @@ exports.listPayments = async (req, res) => {
   ]);
   return res.json({ payments, companyRevenue });
 };
-exports.listSupport = async (req, res) => res.json({ requests: await SupportRequest.find().populate('createdBy', 'name email role').sort({ createdAt: -1 }).lean() });
-exports.listAudit = async (req, res) => res.json({ events: await AuditEvent.find().populate('actor', 'name email').sort({ createdAt: -1 }).limit(500).lean() });
 
+exports.setCompanyListing = async (req, res) => {
+  if (typeof req.body.clientListed !== 'boolean') return res.status(400).json({ message: 'clientListed must be true or false' });
+  const company = await Company.findByIdAndUpdate(req.params.id, { clientListed: req.body.clientListed }, { new: true });
+  if (!company) return res.status(404).json({ message: 'Company not found' });
+  broadcastMarketplace('company-listing', company._id);
+  broadcastPlatform('company-listing');
+  return res.json({ company });
+};
+exports.listSupport = async (req, res) => res.json({ requests: await SupportRequest.find().populate('createdBy', 'name email role').sort({ createdAt: -1 }).lean() });
 exports.setSupportStatus = async (req, res) => {
-  const reason = requireReason(req, res);
-  if (!reason) return;
   const status = req.body.status;
   if (!['open', 'resolved'].includes(status)) return res.status(400).json({ message: 'Invalid support status' });
-  const request = await SupportRequest.findByIdAndUpdate(req.params.id, { status, resolution: status === 'resolved' ? reason : '' }, { new: true });
+  const request = await SupportRequest.findByIdAndUpdate(req.params.id, { status, resolution: '' }, { new: true });
   if (!request) return res.status(404).json({ message: 'Support request not found' });
-  await audit(req, `support.${status}`, 'SupportRequest', request._id, reason);
   return res.json({ request });
 };
 
 exports.updateAdminProfile = async (req, res) => {
-  const reason = requireReason(req, res);
-  if (!reason) return;
   const admin = await User.findById(req.user._id).select('+password');
   if (!admin) return res.status(404).json({ message: 'Super Admin account not found' });
 
@@ -210,7 +194,6 @@ exports.updateAdminProfile = async (req, res) => {
   if (identityChanged) admin.sessionVersion += 1;
   await admin.save();
   req.user = admin;
-  await audit(req, 'admin.settings', 'User', admin._id, reason, { emailChanged, passwordChanged: wantsPasswordChange });
   const token = issueSession(res, admin, 'fleetos_admin_session');
   return res.json({ token, user: publicUser(admin) });
 };

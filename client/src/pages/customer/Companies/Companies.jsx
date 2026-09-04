@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ROUTES, CATEGORIES, companyRoute } from '../../../constants';
 import api from '../../../services/api';
@@ -26,6 +26,8 @@ function Companies() {
   const [hasMore, setHasMore]           = useState(false);
   const [carouselCompanies, setCarouselCompanies] = useState([]);
   const [carouselLoading, setCarouselLoading] = useState(true);
+  const [carouselPage, setCarouselPage] = useState(1);
+  const [carouselHasMore, setCarouselHasMore] = useState(false);
   const [marketplaceRevision, setMarketplaceRevision] = useState(0);
 
   useEffect(() => {
@@ -50,10 +52,6 @@ function Companies() {
     if (category !== 'All') params.category = category;
     setSearchParams(params, { replace: true });
   }, [query, city, area, category, setSearchParams]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [query, city, area, category]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -97,19 +95,12 @@ function Companies() {
     const fetchCarouselCompanies = async () => {
       setCarouselLoading(true);
       try {
-        const collected = [];
-        let nextPage = 1;
-        let keepGoing = true;
-        while (keepGoing && nextPage <= 8) {
-          const params = new URLSearchParams({ page: String(nextPage), limit: '500' });
-          const response = await api.get(`/companies?${params.toString()}`, { noCache: true });
-          const batch = response.companies || [];
-          const seen = new Set(collected.map((company) => company._id || company.slug));
-          collected.push(...batch.filter((company) => !seen.has(company._id || company.slug)));
-          keepGoing = Boolean(response.hasMore) && batch.length > 0;
-          nextPage += 1;
+        const response = await api.get('/companies?page=1&limit=120', { noCache: true });
+        if (!cancelled) {
+          setCarouselCompanies(response.companies || []);
+          setCarouselPage(1);
+          setCarouselHasMore(Boolean(response.hasMore));
         }
-        if (!cancelled) setCarouselCompanies(collected);
       } catch {
         if (!cancelled) setCarouselCompanies([]);
       } finally {
@@ -122,10 +113,39 @@ function Companies() {
     };
   }, [marketplaceRevision]);
 
-  const selectCity = (c) => { setCity(c); setArea('All'); };
+  const loadMoreCarouselCompanies = useCallback(async () => {
+    if (carouselLoading || !carouselHasMore) return;
+    const nextPage = carouselPage + 1;
+    setCarouselLoading(true);
+    try {
+      const response = await api.get(`/companies?page=${nextPage}&limit=120`, { noCache: true });
+      const batch = response.companies || [];
+      setCarouselCompanies((current) => {
+        const seen = new Set(current.map((company) => company._id || company.slug));
+        return [...current, ...batch.filter((company) => !seen.has(company._id || company.slug))];
+      });
+      setCarouselPage(nextPage);
+      setCarouselHasMore(Boolean(response.hasMore));
+    } catch {
+      // Keep the already loaded slideshow available if a later page fails.
+    } finally {
+      setCarouselLoading(false);
+    }
+  }, [carouselHasMore, carouselLoading, carouselPage]);
+
+  const updateQuery = (value) => { setQuery(value); setPage(1); };
+  const selectCity = (value) => { setCity(value); setArea('All'); setPage(1); };
+  const selectArea = (value) => { setArea(value); setPage(1); };
   // A service chip is a filter, not a toggle: clicking an already selected
   // service keeps that filter active. "All Services" is the single clear action.
-  const selectCategory = (selectedCategory) => setCategory(selectedCategory);
+  const selectCategory = (selectedCategory) => { setCategory(selectedCategory); setPage(1); };
+  const resetFilters = () => {
+    setQuery('');
+    setCity('All');
+    setArea('All');
+    setCategory('All');
+    setPage(1);
+  };
 
   const availableAreas = city === 'All' ? [] : (areasByCity[city] || []);
 
@@ -160,7 +180,7 @@ function Companies() {
       <CustomerTopNav title="Browse Companies" subtitle="Discover approved products, services, support, and offers across Pakistan." showBack={false} />
 
       <main className="pt-12 px-5 md:px-8 max-w-7xl mx-auto space-y-8">
-        <ShowcaseCard companies={carouselCompanies.length ? carouselCompanies : companies} loading={carouselLoading && !companies.length} total={total} onExplore={() => document.getElementById('company-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
+        <ShowcaseCard companies={carouselCompanies.length ? carouselCompanies : companies} loading={carouselLoading && !companies.length} total={total} onNeedMore={loadMoreCarouselCompanies} onExplore={() => document.getElementById('company-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
 
         {/* ── Search bar ── */}
         <section className="space-y-sm client-entrance-panel">
@@ -170,13 +190,13 @@ function Companies() {
             </div>
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => updateQuery(e.target.value)}
               className="w-full h-14 pl-12 pr-4 bg-white border border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-50 rounded-xl text-sm font-semibold transition-all shadow-sm outline-none"
               placeholder="Search by name, city, area or service…"
               type="text"
             />
             {query && (
-              <button onClick={() => setQuery('')} className="absolute inset-y-0 right-4 flex items-center text-slate-600 hover:text-slate-950">
+              <button onClick={() => updateQuery('')} className="absolute inset-y-0 right-4 flex items-center text-slate-600 hover:text-slate-950">
                 <span className="material-symbols-outlined">close</span>
               </button>
             )}
@@ -187,7 +207,7 @@ function Companies() {
             <p className="font-label-sm text-label-sm text-slate-600 uppercase tracking-wider mb-sm">Filter by service</p>
             <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
               <button
-                onClick={() => setCategory('All')}
+                onClick={() => selectCategory('All')}
                 aria-pressed={category === 'All'}
                 className={`shrink-0 px-4 py-2 rounded-full font-nav-item text-nav-item transition-all flex items-center gap-xs ${
                   category === 'All'
@@ -244,7 +264,7 @@ function Companies() {
               </p>
               <div className="flex gap-2 flex-wrap">
                 <button
-                  onClick={() => setArea('All')}
+                  onClick={() => selectArea('All')}
                   className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-nav-item transition-all border ${
                     area === 'All'
                       ? 'bg-tertiary-container text-on-tertiary-container border-tertiary-container'
@@ -256,7 +276,7 @@ function Companies() {
                 {availableAreas.map((a) => (
                   <button
                     key={a}
-                    onClick={() => setArea(a)}
+                    onClick={() => selectArea(a)}
                     className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-nav-item transition-all border ${
                       area === a
                         ? 'bg-tertiary-container text-on-tertiary-container border-tertiary-container'
@@ -282,8 +302,8 @@ function Companies() {
               {f}
               <button onClick={() => {
                 if (f === city)        selectCity('All');
-                else if (f === area)   setArea('All');
-                else                   setCategory('All');
+                else if (f === area)   selectArea('All');
+                else                   selectCategory('All');
               }}>
                 <span className="material-symbols-outlined text-[12px]">close</span>
               </button>
@@ -291,7 +311,7 @@ function Companies() {
           ))}
           {activeFilters.length > 0 && (
             <button
-              onClick={() => { selectCity('All'); setArea('All'); setCategory('All'); setQuery(''); }}
+              onClick={resetFilters}
               className="text-xs text-blue-600 hover:underline"
             >
               Clear all
@@ -327,7 +347,7 @@ function Companies() {
             <p className="font-body-lg text-slate-950">No companies found</p>
             <p className="font-body-md text-slate-600 mt-xs">Approved, unblocked companies appear here. Try clearing filters or approving the company in Super Admin if it is hidden.</p>
             <button
-              onClick={() => { selectCity('All'); setArea('All'); setCategory('All'); setQuery(''); }}
+              onClick={resetFilters}
               className="mt-lg px-xl py-sm bg-blue-600 text-white rounded-xl font-nav-item hover:bg-primary-container transition-colors"
             >
               Reset filters
@@ -527,13 +547,10 @@ function CompanyCard({ company: co, index = 0, onBook, onDetails, onChat }) {
   );
 }
 
-function ShowcaseCard({ companies, loading = false, total, onExplore }) {
+function ShowcaseCard({ companies, loading = false, total, onExplore, onNeedMore }) {
   const featured = useMemo(() => companies.filter(Boolean), [companies]);
   const [activeIndex, setActiveIndex] = useState(0);
-
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [featured.length]);
+  const safeActiveIndex = featured.length ? activeIndex % featured.length : 0;
 
   useEffect(() => {
     if (featured.length <= 1) return undefined;
@@ -543,7 +560,11 @@ function ShowcaseCard({ companies, loading = false, total, onExplore }) {
     return () => window.clearInterval(timer);
   }, [featured.length]);
 
-  const activeCompany = featured[activeIndex];
+  useEffect(() => {
+    if (featured.length > 1 && featured.length - safeActiveIndex <= 8) onNeedMore?.();
+  }, [safeActiveIndex, featured.length, onNeedMore]);
+
+  const activeCompany = featured[safeActiveIndex];
   const activeService = activeCompany?.services?.[0]?.name || activeCompany?.category || 'Verified service';
 
   return (
@@ -573,17 +594,17 @@ function ShowcaseCard({ companies, loading = false, total, onExplore }) {
               <span className="w-8 h-8 rounded-full bg-white/10" />
             </div>
           ) : activeCompany ? (
-            <button key={activeCompany._id || activeCompany.slug || activeIndex} onClick={() => onExplore?.()} className="client-carousel-slide client-on-dark-card group text-left bg-white/10 hover:bg-white/15 border border-white/15 rounded-[26px] p-3 flex items-center gap-4 transition-all">
+            <button key={activeCompany._id || activeCompany.slug || safeActiveIndex} onClick={() => onExplore?.()} className="client-carousel-slide client-on-dark-card group text-left bg-white/10 hover:bg-white/15 border border-white/15 rounded-[26px] p-3 flex items-center gap-4 transition-all">
               <img
-                src={companyBannerImage(activeCompany, activeCompany.services?.[0]?.category, activeIndex)}
+                src={companyBannerImage(activeCompany, activeCompany.services?.[0]?.category, safeActiveIndex)}
                 alt={activeCompany.name}
                 className="client-carousel-image w-20 h-16 rounded-2xl object-cover border border-white/10"
                 onError={(event) => {
                   event.currentTarget.onerror = () => {
                     event.currentTarget.onerror = null;
-                    event.currentTarget.src = companyRealPhoto(activeCompany, activeService, activeIndex, 'general');
+                    event.currentTarget.src = companyRealPhoto(activeCompany, activeService, safeActiveIndex, 'general');
                   };
-                  event.currentTarget.src = companyRealPhoto(activeCompany, activeService, activeIndex, 'secondary');
+                  event.currentTarget.src = companyRealPhoto(activeCompany, activeService, safeActiveIndex, 'secondary');
                 }}
               />
               <div className="min-w-0 flex-1">
@@ -591,7 +612,7 @@ function ShowcaseCard({ companies, loading = false, total, onExplore }) {
                 <p className="client-carousel-meta text-xs text-[#E0E1DD]/70 truncate">{activeCompany.city || activeCompany.location || 'Pakistan'} · {activeService}</p>
                 <p className="client-carousel-meta mt-1 text-[11px] text-[#E0E1DD]/55 truncate">★ {activeCompany.rating || 4.5} · {activeCompany.areas?.[0] || 'Available for service'}</p>
               </div>
-              <span className="client-carousel-index w-8 h-8 rounded-full bg-white/10 grid place-items-center text-xs font-black">{activeIndex + 1}</span>
+              <span className="client-carousel-index w-8 h-8 rounded-full bg-white/10 grid place-items-center text-xs font-black">{safeActiveIndex + 1}</span>
             </button>
           ) : (
             <div className="client-carousel-slide bg-white/10 border border-white/15 rounded-[26px] p-4 text-sm text-[#E0E1DD]/80">
@@ -601,7 +622,7 @@ function ShowcaseCard({ companies, loading = false, total, onExplore }) {
           {featured.length > 1 && (
             <div className="client-carousel-dots" aria-hidden="true">
               {featured.slice(0, 8).map((company, index) => (
-                <span key={company._id || company.slug || index} className={index === activeIndex % 8 ? 'is-active' : ''} />
+                <span key={company._id || company.slug || index} className={index === safeActiveIndex % 8 ? 'is-active' : ''} />
               ))}
             </div>
           )}

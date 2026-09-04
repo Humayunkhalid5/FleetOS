@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
-const { broadcastBooking } = require('../socket');
+const { broadcastBooking, broadcastPlatform } = require('../socket');
 
 const stripeApiVersion = '2026-02-25.clover';
 
@@ -55,6 +55,7 @@ exports.recordPayment = async (req, res) => {
   booking.statusHistory.push({ status: 'Paid', at: new Date(), byRole: 'company', note: 'Payment recorded' });
   await booking.save();
   broadcastBooking(booking, 'booking:updated');
+  broadcastPlatform('payment');
   return res.json({ payment, booking });
 };
 
@@ -119,6 +120,8 @@ exports.stripeWebhook = async (req, res) => {
       );
       booking.paymentStatus = 'paid';
       await booking.save();
+      broadcastBooking(booking, 'booking:updated');
+      broadcastPlatform('payment');
     }
   }
   if (event.type === 'checkout.session.async_payment_failed') {
@@ -127,6 +130,8 @@ exports.stripeWebhook = async (req, res) => {
       booking.paymentStatus = 'failed';
       await booking.save();
       await Payment.updateOne({ booking: booking._id }, { status: 'failed' });
+      broadcastBooking(booking, 'booking:updated');
+      broadcastPlatform('payment');
     }
   }
   return res.json({ received: true });

@@ -1,6 +1,7 @@
 const Booking = require('../models/Booking');
 const Technician = require('../models/Technician');
 const { coordsForLocation, offsetCoords } = require('../utils/geo');
+const { broadcastBooking } = require('../socket');
 
 exports.assignTechnician = async (req, res) => {
   const bookingId = req.params.id || req.body.bookingId;
@@ -32,5 +33,7 @@ exports.assignTechnician = async (req, res) => {
   };
   booking.statusHistory.push({ status: 'Assigned', at: new Date(), byRole: 'company', note: `Assigned to ${technician.name}` });
   await booking.save();
-  return res.json({ booking: await booking.populate('technician', 'name status phone') });
+  const populatedBooking = await booking.populate('technician', 'name status phone');
+  broadcastBooking(populatedBooking, 'booking:updated');
+  return res.json({ booking: populatedBooking });
 };

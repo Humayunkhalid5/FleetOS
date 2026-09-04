@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SIDEBAR_LINKS, SIDEBAR_FOOTER_LINKS, ROUTES } from '../../constants';
-import { useAppContext } from '../../context/AppContext';
+import { useAuth } from '../../hooks/useAuth';
 import api from '../../services/api';
 
 /**
@@ -14,7 +14,7 @@ import api from '../../services/api';
 function Sidebar({ open, onClose }) {
   const navigate   = useNavigate();
   const location   = useLocation();
-  const { user, logout } = useAppContext();
+  const { user, logout } = useAuth();
   const [messageCount, setMessageCount] = useState(0);
 
   useEffect(() => {
