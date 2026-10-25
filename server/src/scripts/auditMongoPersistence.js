@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const bcrypt = require('bcryptjs');
+const { hashPassword } = require('../utils/passwords');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 const connectDB = require('../config/db');
@@ -63,7 +63,7 @@ async function cleanup() {
 async function run() {
   const connection = await connectDB();
   try {
-    const password = await bcrypt.hash('AuditTest1!', 12);
+    const password = await hashPassword('AuditTest1!');
 
     const customer = await User.create({
       name: `${marker} Client`,

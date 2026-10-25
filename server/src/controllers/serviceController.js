@@ -4,6 +4,10 @@ const Service = require('../models/Service');
 const Company = require('../models/Company');
 const { pick } = require('../utils/http');
 const { broadcastMarketplace } = require('../socket');
+const { categoryOf } = require('../config/companyWorkspace');
+
+const FIELDS = ['name', 'category', 'price', 'durationMinutes', 'status', 'description', 'kind', 'unit'];
+const starterRow = ([name, category, price, durationMinutes, kind, unit, description]) => ({ name, category, price, durationMinutes, kind, unit, description });
 
 exports.getServices = async (req, res) => {
   if (req.user?.role === 'company' && req.user.company?.approvalStatus !== 'approved') {
@@ -23,14 +27,14 @@ exports.getServices = async (req, res) => {
 };
 
 exports.createService = async (req, res) => {
-  const data = pick(req.body, ['name', 'category', 'price', 'durationMinutes', 'status', 'description']);
+  const data = pick(req.body, FIELDS);
   const service = await Service.create({ ...data, company: req.company._id, serviceId: `SVC-${crypto.randomInt(100000, 999999)}` });
   broadcastMarketplace('service', req.company._id);
   return res.status(201).json({ service });
 };
 
 exports.updateService = async (req, res) => {
-  const updates = pick(req.body, ['name', 'category', 'price', 'durationMinutes', 'status', 'description']);
+  const updates = pick(req.body, FIELDS);
   const service = await Service.findOneAndUpdate({ _id: req.params.id, company: req.company._id }, updates, { new: true, runValidators: true });
   if (!service) return res.status(404).json({ message: 'Service not found' });
   broadcastMarketplace('service', req.company._id);
@@ -42,4 +46,22 @@ exports.deleteService = async (req, res) => {
   if (!service) return res.status(404).json({ message: 'Service not found' });
   broadcastMarketplace('service', req.company._id);
   return res.status(204).end();
+};
+
+// Suggested offerings for the company's business category.
+exports.getTemplates = async (req, res) => {
+  const category = categoryOf(req.company.businessCategory);
+  const existing = new Set((await Service.find({ company: req.company._id }, 'name').lean()).map((service) => service.name.toLowerCase()));
+  return res.json({ category: category.label, templates: category.starter.map(starterRow).map((row) => ({ ...row, added: existing.has(row.name.toLowerCase()) })) });
+};
+
+// Adds the chosen suggestions (all of them by default) that the company does not have yet.
+exports.applyTemplates = async (req, res) => {
+  const category = categoryOf(req.company.businessCategory);
+  const wanted = Array.isArray(req.body.names) ? new Set(req.body.names.map((name) => String(name).toLowerCase())) : null;
+  const existing = new Set((await Service.find({ company: req.company._id }, 'name').lean()).map((service) => service.name.toLowerCase()));
+  const rows = category.starter.map(starterRow).filter((row) => !existing.has(row.name.toLowerCase()) && (!wanted || wanted.has(row.name.toLowerCase())));
+  const services = rows.length ? await Service.insertMany(rows.map((row) => ({ ...row, company: req.company._id, status: 'Active', serviceId: `SVC-${crypto.randomInt(100000, 999999)}` }))) : [];
+  if (services.length) broadcastMarketplace('service', req.company._id);
+  return res.status(201).json({ services });
 };

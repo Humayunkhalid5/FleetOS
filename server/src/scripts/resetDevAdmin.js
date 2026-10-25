@@ -2,7 +2,7 @@ require('dotenv').config();
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const bcrypt = require('bcryptjs');
+const { hashPassword } = require('../utils/passwords');
 const connectDB = require('../config/db');
 const User = require('../models/User');
 
@@ -13,7 +13,7 @@ async function reset() {
   const admin = await User.findOneAndUpdate(
     { role: 'super-admin' },
     {
-      $set: { password: await bcrypt.hash(password, 12), status: 'active' },
+      $set: { password: await hashPassword(password), status: 'active' },
       $inc: { sessionVersion: 1 },
     },
     { new: true },

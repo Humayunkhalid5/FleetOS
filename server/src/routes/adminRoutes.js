@@ -4,6 +4,7 @@ const { protectAdmin, requireRole } = require('../middleware/authMiddleware');
 const { asyncHandler } = require('../utils/http');
 
 router.post('/auth/login', asyncHandler(controller.adminLogin));
+router.post('/auth/change-password', asyncHandler(controller.adminChangePassword));
 router.post('/auth/logout', asyncHandler(controller.adminLogout));
 router.use(protectAdmin, requireRole('super-admin'));
 router.get('/auth/me', asyncHandler(controller.adminMe));
@@ -16,6 +17,7 @@ router.patch('/companies/:id/status', asyncHandler(controller.setCompanyStatus))
 router.patch('/companies/:id/listing', asyncHandler(controller.setCompanyListing));
 router.get('/users', asyncHandler(controller.listUsers));
 router.patch('/users/:id/status', asyncHandler(controller.setUserStatus));
+router.patch('/users/:id/password', asyncHandler(controller.setUserPassword));
 router.get('/bookings', asyncHandler(controller.listBookings));
 router.get('/payments', asyncHandler(controller.listPayments));
 router.get('/support', asyncHandler(controller.listSupport));

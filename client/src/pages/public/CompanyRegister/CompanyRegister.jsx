@@ -1,569 +1,244 @@
-import { useEffect, useRef, useState } from 'react';
-import api from '../../../services/api';
-import { useNavigate, Link } from 'react-router-dom';
+import { useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
+import { useLiveQuery } from '../../../hooks/useLiveQuery';
 import { ROUTES } from '../../../constants';
-import fleetosLogo from '../../../assets/fleetos-light.svg';
+import AuthShell from '../../../components/public/AuthShell';
+import { Alert, Spinner } from '../../../components/ui';
+import { LogoMark } from '../../../components/ui/Logo';
+
+const STEPS = [
+  ['domain', 'Company', 'What your business does and where'],
+  ['person', 'Owner account', 'How your team signs in'],
+  ['verified_user', 'Verification', 'Documents the Super Admin reviews'],
+];
+
+const MAX_LICENSE = 5 * 1024 * 1024;
+const MAX_LOGO = 1.5 * 1024 * 1024;
+
+function mimeFromFile(file, fallback = 'application/octet-stream') {
+  const extension = String(file?.name || '').split('.').pop()?.toLowerCase();
+  const byExtension = { pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', svg: 'image/svg+xml' };
+  return file?.type || byExtension[extension] || fallback;
+}
+
+function readUpload(file, maxBytes) {
+  return new Promise((resolve, reject) => {
+    if (!file) { resolve(''); return; }
+    if (file.size > maxBytes) { reject(new Error(`“${file.name}” is larger than ${Math.round((maxBytes / 1024 / 1024) * 10) / 10} MB.`)); return; }
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || '').replace(/^data:[^;,]*;base64,/, `data:${mimeFromFile(file)};base64,`));
+    reader.onerror = () => reject(new Error(`Could not read “${file.name}”.`));
+    reader.readAsDataURL(file);
+  });
+}
+
+function UploadBox({ icon, title, hint, accept, file, preview, onChange, inputRef }) {
+  return (
+    <button type="button" onClick={() => inputRef.current?.click()} className={`group flex w-full items-center gap-4 rounded-2xl border border-dashed p-4 text-left transition-colors ${file ? 'border-success-line bg-success-soft/50' : 'border-line-strong hover:border-brand hover:bg-brand-soft/40'}`}>
+      <span className={`grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl ${file ? 'bg-surface' : 'bg-sunken text-subtle group-hover:text-brand-fg'}`}>
+        {preview ? <img src={preview} alt="" className="h-full w-full object-cover" /> : <span className="material-symbols-outlined">{file ? 'task' : icon}</span>}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[14px] font-semibold text-ink">{title}</span>
+        <span className="block truncate text-[12.5px] text-muted">{file ? file.name : hint}</span>
+      </span>
+      <span className="btn btn-secondary btn-sm pointer-events-none">{file ? 'Replace' : 'Choose file'}</span>
+      <input ref={inputRef} type="file" accept={accept} className="sr-only" onChange={onChange} tabIndex={-1} />
+    </button>
+  );
+}
 
 function CompanyRegister() {
   const navigate = useNavigate();
   const { register, error } = useAuth();
   const licenseInputRef = useRef(null);
   const logoInputRef = useRef(null);
-  
-  const [form, setForm] = useState({
-    companyName: '',
-    ownerName: '',
-    registrationNumber: '',
-    phone: '',
-    city: '',
-    businessCategory: '',
-    description: '',
-    address: '',
-    email: '',
-    password: '',
-    agreeTerms: false
-  });
-
+  const [step, setStep] = useState(0);
+  const [form, setForm] = useState({ companyName: '', ownerName: '', registrationNumber: '', phone: '', city: '', businessCategory: '', description: '', address: '', email: '', password: '', agreeTerms: false });
   const [licenseFile, setLicenseFile] = useState(null);
   const [licenseDataUrl, setLicenseDataUrl] = useState('');
   const [logoFile, setLogoFile] = useState(null);
   const [logoDataUrl, setLogoDataUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
-  const [submittedCompany, setSubmittedCompany] = useState(null);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [submitted, setSubmitted] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [cities, setCities] = useState([]);
-  const [businessCategories, setBusinessCategories] = useState([]);
+  const { data: catalogue, error: catalogueError } = useLiveQuery('/cities');
+  const cities = useMemo(() => catalogue?.cities || [], [catalogue]);
+  const categories = catalogue?.businessCategories || [];
+  const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.type === 'checkbox' ? event.target.checked : event.target.value }));
 
-  useEffect(() => {
-    api.get('/cities', { noCache: true })
-      .then((result) => {
-        setCities(result.cities || []);
-        setBusinessCategories(result.businessCategories || []);
-      })
-      .catch(() => setFormError('Unable to load the Pakistan city list. Please refresh and try again.'));
-  }, []);
-
-  const update = (key) => (e) => {
-    const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setForm({ ...form, [key]: val });
-  };
-
-  const mimeFromFile = (file, fallback = 'application/octet-stream') => {
-    const extension = String(file?.name || '').split('.').pop()?.toLowerCase();
-    const byExtension = {
-      pdf: 'application/pdf',
-      png: 'image/png',
-      jpg: 'image/jpeg',
-      jpeg: 'image/jpeg',
-      webp: 'image/webp',
-      svg: 'image/svg+xml',
-    };
-    return file?.type || byExtension[extension] || fallback;
-  };
-
-  const normalizeDataUrlMime = (dataUrl, file) => {
-    const mimeType = mimeFromFile(file);
-    return String(dataUrl || '').replace(/^data:[^;,]*;base64,/, `data:${mimeType};base64,`);
-  };
-
-  const readUpload = (file, maxBytes) => new Promise((resolve, reject) => {
-    if (!file) {
-      resolve('');
-      return;
-    }
-    if (file.size > maxBytes) {
-      reject(new Error(`“${file.name}” exceeds the ${Math.round(maxBytes / 1024 / 1024)} MB limit.`));
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => resolve(normalizeDataUrlMime(reader.result, file));
-    reader.onerror = () => reject(new Error(`Could not read “${file.name}”.`));
-    reader.readAsDataURL(file);
-  });
-
-  const handleLicenseChange = (e) => {
-    const file = e.target.files?.[0] || null;
-    if (file) {
-      setFormError('');
-      setLicenseFile(file);
-      setLicenseDataUrl('');
-      readUpload(file, 5 * 1024 * 1024)
-        .then(setLicenseDataUrl)
-        .catch((uploadError) => {
-          setLicenseFile(null);
-          setFormError(uploadError.message);
-        });
-    } else {
-      setLicenseFile(null);
-      setLicenseDataUrl('');
-    }
-  };
-
-  const handleLogoChange = (e) => {
-    const file = e.target.files?.[0] || null;
-    if (file) {
-      setFormError('');
-      setLogoFile(file);
-      setLogoDataUrl('');
-      readUpload(file, 1.5 * 1024 * 1024)
-        .then(setLogoDataUrl)
-        .catch((uploadError) => {
-          setLogoFile(null);
-          setFormError(uploadError.message);
-        });
-    } else {
-      setLogoFile(null);
-      setLogoDataUrl('');
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const selectFile = (kind) => (event) => {
+    const file = event.target.files?.[0] || null;
+    const [setFile, setData, max] = kind === 'logo' ? [setLogoFile, setLogoDataUrl, MAX_LOGO] : [setLicenseFile, setLicenseDataUrl, MAX_LICENSE];
     setFormError('');
+    setFile(file);
+    setData('');
+    if (!file) return;
+    readUpload(file, max).then(setData).catch((uploadError) => { setFile(null); setFormError(uploadError.message); });
+  };
 
-    if (!form.agreeTerms) {
-      setFormError('You must agree to the Terms of Service and Data Protection Agreement.');
-      return;
-    }
-    const selectedLogoFile = logoFile || logoInputRef.current?.files?.[0] || null;
-    const selectedLicenseFile = licenseFile || licenseInputRef.current?.files?.[0] || null;
+  const stepValid = [
+    form.companyName.trim() && form.city && form.businessCategory && form.description.trim() && form.address.trim(),
+    form.ownerName.trim() && form.email.trim() && form.phone.trim() && form.password.length >= 8,
+    logoFile && licenseFile && form.agreeTerms,
+  ];
 
-    if (!selectedLogoFile || !selectedLicenseFile) {
-      setFormError('Company logo and business license are required for Admin verification.');
-      return;
-    }
+  const next = (event) => {
+    event.preventDefault();
+    if (!event.currentTarget.reportValidity?.()) return;
+    if (!stepValid[step]) { setFormError('Complete the required fields to continue.'); return; }
+    setFormError('');
+    setStep((value) => Math.min(value + 1, STEPS.length - 1));
+  };
 
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setFormError('');
+    if (!logoFile || !licenseFile) { setFormError('Add your company logo and business license for verification.'); return; }
+    if (!form.agreeTerms) { setFormError('Accept the Terms of Service and Data Protection Agreement to continue.'); return; }
     setSubmitting(true);
     try {
-      const [readyLogoDataUrl, readyLicenseDataUrl] = await Promise.all([
-        logoDataUrl ? Promise.resolve(logoDataUrl) : readUpload(selectedLogoFile, 1.5 * 1024 * 1024),
-        licenseDataUrl ? Promise.resolve(licenseDataUrl) : readUpload(selectedLicenseFile, 5 * 1024 * 1024),
-      ]);
-      if (!readyLogoDataUrl || !readyLicenseDataUrl) {
-        throw new Error('Please choose both company logo and business license again, then submit.');
-      }
-      setLogoDataUrl(readyLogoDataUrl);
-      setLicenseDataUrl(readyLicenseDataUrl);
-
-      const targetName = form.companyName || form.ownerName;
-      const regPayload = {
-        name: targetName,
+      const [logo, license] = await Promise.all([logoDataUrl || readUpload(logoFile, MAX_LOGO), licenseDataUrl || readUpload(licenseFile, MAX_LICENSE)]);
+      const companyName = form.companyName.trim() || form.ownerName.trim();
+      const user = await register({
+        name: form.ownerName.trim() || companyName,
         email: form.email,
         password: form.password,
         phone: form.phone,
         address: form.address,
         role: 'company',
-        companyName: form.companyName || targetName,
+        companyName,
         registrationNumber: form.registrationNumber,
         city: form.city.trim(),
         businessCategory: form.businessCategory,
         description: form.description.trim(),
-        logo: readyLogoDataUrl,
-        businessLicense: { name: selectedLicenseFile.name, data: readyLicenseDataUrl },
-      };
-
-      const res = await register(regPayload);
-
-      if (res) {
-        setSubmittedCompany({
-          name: res.companyName || regPayload.companyName,
-          email: regPayload.email,
-          status: res.approvalStatus || 'pending',
-        });
-      }
-    } catch (err) {
-      setFormError(err.message || 'Registration failed');
+        logo,
+        businessLicense: { name: licenseFile.name, data: license },
+      });
+      if (user) setSubmitted({ name: user.companyName || companyName, email: form.email, status: user.approvalStatus || 'pending' });
+    } catch (requestError) {
+      setFormError(requestError.message || 'Registration failed');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (submittedCompany) {
+  if (submitted) {
     return (
-      <div className="bg-surface-container-low min-h-screen flex items-center justify-center px-4 py-10">
-        <section className="w-full max-w-xl rounded-3xl border border-outline-variant bg-white p-8 text-center shadow-xl">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-amber-600">
-            <span className="material-symbols-outlined text-4xl">hourglass_top</span>
+      <div className="grid min-h-[calc(100vh-64px)] place-items-center px-4 py-10">
+        <section className="card w-full max-w-lg p-8 text-center animate-rise-in">
+          <div className="mx-auto mb-6 w-fit"><LogoMark size={44} animated /></div>
+          <h1 className="text-2xl font-bold">Registration received</h1>
+          <p className="mx-auto mt-3 max-w-sm text-[14px] text-muted">{submitted.name} is now with a Super Admin for review. Your workspace opens automatically as soon as it is approved.</p>
+          <div className="well mt-6 grid gap-1 p-4 text-left text-[13.5px]">
+            <p><span className="text-subtle">Company</span> <span className="float-right font-semibold">{submitted.name}</span></p>
+            <p><span className="text-subtle">Owner email</span> <span className="float-right font-semibold">{submitted.email}</span></p>
+            <p><span className="text-subtle">Status</span> <span className="badge badge-warning float-right"><span className="material-symbols-outlined">hourglass_top</span>{submitted.status}</span></p>
           </div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-secondary">Registration submitted</p>
-          <h1 className="mt-3 text-3xl font-black text-primary">Your company is waiting for Super Admin approval</h1>
-          <p className="mt-4 text-sm leading-6 text-on-surface-variant">
-            {submittedCompany.name} has been submitted with your logo and business license. It will appear to clients after the Super Admin approves it.
-          </p>
-          <div className="mt-6 rounded-2xl bg-surface-container-low p-4 text-left text-sm">
-            <p><span className="font-bold">Company:</span> {submittedCompany.name}</p>
-            <p className="mt-1"><span className="font-bold">Email:</span> {submittedCompany.email}</p>
-            <p className="mt-1"><span className="font-bold">Status:</span> {submittedCompany.status}</p>
-          </div>
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <button onClick={() => navigate(ROUTES.home)} className="rounded-xl border border-outline-variant px-5 py-3 text-sm font-bold text-on-surface hover:bg-surface-container-low">
-              Go to public site
-            </button>
-            <button onClick={() => navigate(ROUTES.companyDashboard)} className="rounded-xl bg-secondary px-5 py-3 text-sm font-bold text-on-secondary hover:bg-secondary-container">
-              Check approval status
-            </button>
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            <Link to="/" className="btn btn-secondary">Back to website</Link>
+            <button type="button" onClick={() => navigate(ROUTES.companyDashboard)} className="btn btn-primary">Open my workspace</button>
           </div>
         </section>
       </div>
     );
   }
 
+  const last = step === STEPS.length - 1;
+
   return (
-    <div className="bg-background text-on-background min-h-screen flex flex-col font-sans">
-      {/* TopAppBar */}
-      <header className="bg-background dark:bg-inverse-surface border-b border-outline-variant dark:border-outline flex justify-between items-center w-full px-4 md:px-8 h-16 sticky top-0 z-50">
-        <button className="flex items-center cursor-pointer" onClick={() => navigate(ROUTES.home)} aria-label="FleetOS home">
-          <img src={fleetosLogo} alt="FleetOS" className="h-9 w-auto" />
-        </button>
-        <div className="hidden md:flex items-center gap-6">
-          <nav className="flex gap-4">
-            <Link className="text-on-surface-variant text-xs font-semibold hover:bg-surface-container-high transition-colors px-3 py-1 rounded" to={ROUTES.home}>Solutions</Link>
-            <Link className="text-on-surface-variant text-xs font-semibold hover:bg-surface-container-high transition-colors px-3 py-1 rounded" to={ROUTES.about}>About</Link>
-            <Link className="text-on-surface-variant text-xs font-semibold hover:bg-surface-container-high transition-colors px-3 py-1 rounded" to={ROUTES.contact}>Contact</Link>
-          </nav>
-          <button type="button" onClick={() => navigate(ROUTES.contact)} className="bg-secondary text-on-secondary px-4 py-2 rounded-lg text-xs font-semibold active:scale-95 transition-transform">Support</button>
-        </div>
-        <button type="button" className="md:hidden grid h-10 w-10 place-items-center rounded-xl text-on-surface-variant hover:bg-surface-container-high" onClick={() => setMobileNavOpen((open) => !open)} aria-expanded={mobileNavOpen} aria-label="Toggle navigation">
-          <span className="material-symbols-outlined">{mobileNavOpen ? 'close' : 'menu'}</span>
-        </button>
-      </header>
-      {mobileNavOpen && (
-        <nav className="sticky top-16 z-40 grid gap-1 border-b border-outline-variant bg-background p-3 shadow-lg md:hidden">
-          <Link className="rounded-xl px-4 py-3 text-sm font-semibold text-on-surface hover:bg-surface-container-high" to={ROUTES.home}>Solutions</Link>
-          <Link className="rounded-xl px-4 py-3 text-sm font-semibold text-on-surface hover:bg-surface-container-high" to={ROUTES.about}>About</Link>
-          <Link className="rounded-xl px-4 py-3 text-sm font-semibold text-on-surface hover:bg-surface-container-high" to={ROUTES.contact}>Contact &amp; Support</Link>
-        </nav>
-      )}
+    <AuthShell wide title="Register your company" subtitle="Three short steps. An admin reviews each company before it is listed.">
+      <ol className="mb-8 grid grid-cols-3 gap-2" aria-label="Registration steps">
+        {STEPS.map(([, label, hint], index) => (
+          <li key={label}>
+            <button type="button" disabled={index > step} onClick={() => setStep(index)} className={`w-full rounded-2xl border p-3 text-left transition-colors ${index === step ? 'border-brand bg-brand-soft/50' : index < step ? 'border-line bg-surface' : 'border-line bg-surface opacity-60'}`} aria-current={index === step ? 'step' : undefined}>
+              <span className="flex items-center gap-2">
+                <span className={`grid h-6 w-6 place-items-center rounded-full text-[12px] font-bold ${index < step ? 'bg-success text-white' : index === step ? 'bg-brand text-white' : 'bg-sunken text-subtle'}`}>
+                  {index < step ? <span className="material-symbols-outlined text-[15px]">check</span> : index + 1}
+                </span>
+                <span className="text-[13.5px] font-semibold text-ink">{label}</span>
+              </span>
+              <span className="mt-1 hidden text-[12px] text-muted sm:block">{hint}</span>
+            </button>
+          </li>
+        ))}
+      </ol>
 
-      <main className="flex-grow flex flex-col lg:flex-row">
-        {/* Visual Column (Desktop) */}
-        <div className="hidden lg:flex w-5/12 bg-primary-container relative overflow-hidden flex-col justify-center p-8">
-          <div className="absolute inset-0 opacity-20 pointer-events-none">
-            <div 
-              className="w-full h-full bg-cover bg-center" 
-              style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBNYZiqGfBxXyCZA2zCKQwBEEFN4Ugw-mV8Zyo3mV1d9PbePvEng78CvrmNYwVK9bVD4Cd_mDCrKzUcLTP2xpZo_XHfOJmdUEXcnd1SkVTqicqN2B6ViSCKLt0UuOAy-MQ-YYFe2Dltr61HJ_5upuqQ2rmhaiKBLwP7lKxKOurn7VQ42cnjGuyfgZgvCqDgLPPH8E7USFss-_gDsINkoq8-Qk-grgsYH63UlBD_AVNozEz3Ee9TDtccag')" }}
-            ></div>
-          </div>
-          <div className="relative z-10 space-y-6 max-w-md">
-            <div className="bg-secondary-container/20 w-16 h-16 rounded-xl flex items-center justify-center mb-6">
-              <span className="material-symbols-outlined text-secondary text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>verified_user</span>
+      <form onSubmit={last ? handleSubmit : next} className="card card-pad grid gap-5" noValidate={false}>
+        {step === 0 && (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="field"><span className="label">Company name</span><input className="input" required value={form.companyName} onChange={update('companyName')} placeholder="e.g. Lahore Game Zone, Glow Salon, QuickFix Plumbing" /></label>
+              <label className="field"><span className="label">Registration / NTN number <span className="font-normal text-subtle">(optional)</span></span><input className="input" value={form.registrationNumber} onChange={update('registrationNumber')} placeholder="e.g. 1234567-8" /></label>
             </div>
-            <h2 className="text-on-primary font-bold text-3xl">Secure onboarding for Pakistani companies</h2>
-            <p className="text-on-primary-container text-base">Join FleetOS to pitch your products, services, add-ons, and offers to clients by city. Your company profile, documents, requests, chats, payments, and reviews stay connected through one SaaS portal.</p>
-            <div className="pt-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-on-tertiary-container" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                <span className="text-on-primary text-xs font-semibold">Admin approval before client visibility</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-on-tertiary-container" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                <span className="text-on-primary text-xs font-semibold">Products, services, inventory, and bookings in one place</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-on-tertiary-container" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                <span className="text-on-primary text-xs font-semibold">One portal for requests, chat, payments, and reviews</span>
-              </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="field">
+                <span className="label">Business category</span>
+                <select className="select" required value={form.businessCategory} onChange={update('businessCategory')}>
+                  <option value="">Select what your business does</option>
+                  {categories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
+                </select>
+                <span className="hint">{categories.find((category) => category.value === form.businessCategory)?.description || 'Sets your modules, labels and how customers get your service.'}</span>
+              </label>
+              <label className="field">
+                <span className="label">Main city</span>
+                <select className="select" required value={form.city} onChange={update('city')}>
+                  <option value="">Select a city</option>
+                  {cities.map((city) => <option key={`${city.name}-${city.province}`} value={city.name}>{city.name} — {city.province}</option>)}
+                </select>
+              </label>
             </div>
-          </div>
-        </div>
+            <label className="field"><span className="label">Office address</span><input className="input" required value={form.address} onChange={update('address')} placeholder="Building, street, area" /></label>
+            <label className="field">
+              <span className="label">What you offer</span>
+              <textarea className="textarea" required rows={3} value={form.description} onChange={update('description')} placeholder="Describe your services, products and the areas you cover. Customers search this text." />
+            </label>
+          </>
+        )}
 
-        {/* Registration Form Column */}
-        <div className="flex-grow flex flex-col justify-center items-center py-8 px-4 md:px-8 bg-surface-container-low">
-          <div className="w-full max-w-2xl bg-surface-container-lowest p-6 md:p-8 rounded-xl border border-outline-variant shadow-sm">
-            {/* Form Header */}
-            <div className="mb-6 text-center md:text-left">
-              <h3 className="text-on-surface text-xl font-bold mb-1">Register Company</h3>
-              <p className="text-on-surface-variant text-sm">Create your company profile so clients can discover your products, services, and offers after Super Admin approval.</p>
+        {step === 1 && (
+          <>
+            <label className="field"><span className="label">Owner full name</span><input className="input" required autoComplete="name" value={form.ownerName} onChange={update('ownerName')} placeholder="Full name" /></label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="field"><span className="label">Work email</span><input className="input" type="email" required autoComplete="email" value={form.email} onChange={update('email')} placeholder="owner@company.pk" /></label>
+              <label className="field"><span className="label">Phone</span><input className="input" type="tel" required autoComplete="tel" value={form.phone} onChange={update('phone')} placeholder="+92 300 1234567" /></label>
             </div>
-
-            {(error || formError) && (
-              <div className="mb-4 p-3 bg-error-container text-on-error-container text-xs rounded-lg flex items-center gap-2">
-                <span className="material-symbols-outlined text-sm">error</span>
-                <span>{formError || error}</span>
-              </div>
-            )}
-
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              {/* Form Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Company Identity */}
-                <div className="space-y-1">
-                  <label className="block text-on-surface text-xs font-semibold uppercase">Company Name</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg" data-icon="business">business</span>
-                    <input 
-                      required
-                      type="text"
-                      className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
-                      placeholder="e.g. Lahore Home Solutions"
-                      value={form.companyName}
-                      onChange={update('companyName')}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-on-surface text-xs font-semibold uppercase">Owner / Manager Name</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg" data-icon="person">person</span>
-                    <input 
-                      required
-                      type="text"
-                      className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
-                      placeholder="Full legal name"
-                      value={form.ownerName}
-                      onChange={update('ownerName')}
-                    />
-                  </div>
-                </div>
-
-                {/* Registration & Phone */}
-                <div className="space-y-1">
-                  <label className="block text-on-surface text-xs font-semibold uppercase">Registration Number</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg" data-icon="badge">badge</span>
-                    <input 
-                      required
-                      type="text"
-                      className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
-                      placeholder="SECP / NTN / business registration no."
-                      value={form.registrationNumber}
-                      onChange={update('registrationNumber')}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-on-surface text-xs font-semibold uppercase">Business Phone</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg" data-icon="call">call</span>
-                    <input 
-                      required
-                      type="tel"
-                      className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
-                      placeholder="+92 300 1234567"
-                      value={form.phone}
-                      onChange={update('phone')}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-on-surface text-xs font-semibold uppercase">Service City</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">location_city</span>
-                    <select
-                      required
-                      className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
-                      value={form.city}
-                      onChange={update('city')}
-                    >
-                      <option value="">Select a Pakistan city</option>
-                      {cities.map((city) => <option key={`${city.name}-${city.province}`} value={city.name}>{city.name} — {city.province}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-on-surface text-xs font-semibold uppercase">Business Category</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">storefront</span>
-                    <select required className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary" value={form.businessCategory} onChange={update('businessCategory')}>
-                      <option value="">Select what your company does</option>
-                      {businessCategories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Full Width Address */}
-                <div className="md:col-span-2 space-y-1">
-                  <label className="block text-on-surface text-xs font-semibold uppercase">Business Address</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-3 text-outline text-lg" data-icon="location_on">location_on</span>
-                    <textarea 
-                      required
-                      rows="2"
-                      className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary resize-none"
-                      placeholder="Street, area, city, province"
-                      value={form.address}
-                      onChange={update('address')}
-                    ></textarea>
-                  </div>
-                </div>
-
-                {/* Auth Details */}
-                <div className="space-y-1">
-                  <label className="block text-on-surface text-xs font-semibold uppercase">Admin Email</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg" data-icon="mail">mail</span>
-                    <input 
-                      required
-                      type="email"
-                      className="w-full pl-10 pr-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
-                      placeholder="admin@yourcompany.pk"
-                      value={form.email}
-                      onChange={update('email')}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-on-surface text-xs font-semibold uppercase">Password</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg" data-icon="lock">lock</span>
-                    <input 
-                      required
-                      type={showPassword ? 'text' : 'password'}
-                      className="w-full pl-10 pr-10 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
-                      placeholder="••••••••"
-                      value={form.password}
-                      onChange={update('password')}
-                    />
-                    <button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)} className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface"><span className="material-symbols-outlined text-lg">{showPassword ? 'visibility_off' : 'visibility'}</span></button>
-                  </div>
-                  <p className="text-[11px] leading-4 text-on-surface-variant">
-                    Choose a password you will remember. It is securely hashed before it is stored.
-                  </p>
-                </div>
-
-                <div className="md:col-span-2 space-y-1">
-                  <label className="block text-on-surface text-xs font-semibold uppercase">What do you offer?</label>
-                  <textarea required rows="3" className="w-full px-3 py-2 rounded border border-outline-variant bg-surface-bright text-sm outline-none focus:border-secondary focus:ring-1 focus:ring-secondary resize-none" placeholder="Describe your products, services, or offers. This controls how clients discover your company." value={form.description} onChange={update('description')} />
-                </div>
-              </div>
-
-              {/* File Upload Bento Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                <button
-                  type="button"
-                  onClick={() => licenseInputRef.current?.click()}
-                  className={`p-4 rounded-lg border-2 border-dashed border-outline-variant bg-surface-container flex flex-col items-center justify-center text-center cursor-pointer hover:bg-surface-container-high transition-colors ${licenseFile ? 'bg-secondary/10 border-secondary' : ''}`}
-                >
-                  <span className="material-symbols-outlined text-secondary mb-1 text-2xl" data-icon="description">description</span>
-                  <span className="text-on-surface text-xs font-semibold">Business License</span>
-                  <span className="text-on-surface-variant text-xs mt-1">
-                    {licenseFile ? licenseFile.name : 'PDF, JPG (Max 5MB)'}
-                  </span>
-                  {licenseFile && <span className="mt-2 rounded-full bg-secondary/10 px-3 py-1 text-[11px] font-bold text-secondary">License selected</span>}
+            <label className="field">
+              <span className="label">Password</span>
+              <span className="relative">
+                <input className="input pr-11" type={showPassword ? 'text' : 'password'} required minLength={8} autoComplete="new-password" value={form.password} onChange={update('password')} placeholder="At least 8 characters" />
+                <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-subtle hover:bg-sunken hover:text-ink" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                  <span className="material-symbols-outlined text-[19px]">{showPassword ? 'visibility_off' : 'visibility'}</span>
                 </button>
-                <input
-                  ref={licenseInputRef}
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/png,image/jpeg"
-                  className="sr-only"
-                  onChange={handleLicenseChange}
-                />
+              </span>
+            </label>
+          </>
+        )}
 
-                <button
-                  type="button"
-                  onClick={() => logoInputRef.current?.click()}
-                  className={`p-4 rounded-lg border-2 border-dashed border-outline-variant bg-surface-container flex flex-col items-center justify-center text-center cursor-pointer hover:bg-surface-container-high transition-colors ${logoFile ? 'bg-secondary/10 border-secondary' : ''}`}
-                >
-                  {logoDataUrl ? <img src={logoDataUrl} alt="Logo preview" className="w-10 h-10 object-contain rounded-lg mb-1 bg-white" /> : <span className="material-symbols-outlined text-secondary mb-1 text-2xl" data-icon="add_photo_alternate">add_photo_alternate</span>}
-                  <span className="text-on-surface text-xs font-semibold">Company Logo</span>
-                  <span className="text-on-surface-variant text-xs mt-1">
-                    {logoFile ? logoFile.name : 'PNG, JPG, WEBP, SVG'}
-                  </span>
-                  {logoFile && <span className="mt-2 rounded-full bg-secondary/10 px-3 py-1 text-[11px] font-bold text-secondary">Logo selected</span>}
-                </button>
-                <input
-                  ref={logoInputRef}
-                  type="file"
-                  accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
-                  className="sr-only"
-                  onChange={handleLogoChange}
-                />
-              </div>
+        {step === 2 && (
+          <>
+            <UploadBox icon="description" title="Business license" hint="PDF, JPG or PNG · up to 5 MB" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/png,image/jpeg" file={licenseFile} inputRef={licenseInputRef} onChange={selectFile('license')} />
+            <UploadBox icon="add_photo_alternate" title="Company logo" hint="PNG, JPG, WEBP or SVG · up to 1.5 MB" accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml" file={logoFile} preview={logoDataUrl} inputRef={logoInputRef} onChange={selectFile('logo')} />
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-sunken/60 p-4 text-[13.5px] text-muted">
+              <input type="checkbox" className="checkbox mt-0.5" checked={form.agreeTerms} onChange={update('agreeTerms')} />
+              <span>I confirm these details are accurate and {form.companyName || 'my company'} agrees to the FleetOS Terms of Service and Data Protection Agreement. Documents are used only for verification.</span>
+            </label>
+          </>
+        )}
 
-              {/* CTA Section */}
-              <div className="pt-4 border-t border-outline-variant mt-6">
-                <label
-                  htmlFor="agreeTerms"
-                  onClick={(event) => { event.preventDefault(); setForm((current) => ({ ...current, agreeTerms: !current.agreeTerms })); }}
-                  onKeyDown={(event) => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); setForm((current) => ({ ...current, agreeTerms: !current.agreeTerms })); } }}
-                  tabIndex={0}
-                  role="checkbox"
-                  aria-checked={form.agreeTerms}
-                  className={`flex items-start gap-3 mb-6 rounded-xl p-3 cursor-pointer select-none transition-colors ${form.agreeTerms ? 'bg-secondary/10' : 'hover:bg-surface-container'}`}
-                >
-                  <input 
-                    type="checkbox"
-                    id="agreeTerms"
-                    className="sr-only"
-                    checked={form.agreeTerms}
-                    onChange={update('agreeTerms')}
-                    readOnly
-                  />
-                  <span className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${form.agreeTerms ? 'bg-secondary border-secondary text-white' : 'bg-white border-outline text-transparent'}`}>
-                    <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
-                  </span>
-                  <span className="text-on-surface-variant text-xs leading-5">
-                    I acknowledge that the information provided is legally binding. {form.companyName || 'Your Company'} agrees to the <a className="text-secondary underline font-semibold" href="#" onClick={(e) => { e.preventDefault(); e.stopPropagation(); alert('FleetOS Data Protection Agreement — uploaded license, logo, company profile, product/service details, and client workflow data are used only for verification, discovery, bookings, payments, and support.'); }}>Data Protection Agreement</a> and <a className="text-secondary underline font-semibold" href="#" onClick={(e) => { e.preventDefault(); e.stopPropagation(); alert('FleetOS Terms of Service — Companies must provide accurate details, publish honest products/services, maintain professional conduct, and honor accepted client requests.'); }}>Terms of Service</a>.
-                  </span>
-                </label>
-<button 
-                  type="submit" 
-                  disabled={submitting}
-                  className="w-full bg-secondary text-on-secondary py-3 rounded-lg font-bold text-base shadow-md hover:bg-secondary-container transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                  {submitting ? (
-                    <>
-                      <span className="material-symbols-outlined animate-spin" data-icon="progress_activity">progress_activity</span>
-                      Processing Registration...
-                    </>
-                  ) : (
-                    <>
-                      Register Company
-                      <span className="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
+        <Alert>{formError || error || (catalogueError && 'The city list could not be loaded. Check your connection — it will retry automatically.')}</Alert>
 
-            <div className="mt-6 text-center">
-              <p className="text-on-surface-variant text-xs">
-                Already registered? <Link className="text-secondary font-semibold hover:underline" to={ROUTES.login}>Sign In to Dashboard</Link>
-              </p>
-            </div>
-          </div>
-
-          {/* Trust Badges */}
-          <div className="mt-6 flex flex-wrap justify-center gap-6 opacity-60">
-            <div className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-sm" data-icon="encrypted">encrypted</span>
-              <span className="text-xs font-semibold">SSL Secure</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-sm" data-icon="gpp_good">gpp_good</span>
-              <span className="text-xs font-semibold">GDPR Compliant</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-sm" data-icon="cloud_done">cloud_done</span>
-              <span className="text-xs font-semibold">Data Encrypted</span>
-            </div>
-          </div>
+        <div className="flex items-center justify-between gap-3 border-t border-line pt-5">
+          {step > 0 ? <button type="button" className="btn btn-ghost" onClick={() => setStep((value) => value - 1)}><span className="material-symbols-outlined">arrow_back</span>Back</button> : <Link to={ROUTES.login} className="text-[13.5px] text-muted">Already registered? <span className="link">Sign in</span></Link>}
+          <button type="submit" disabled={submitting} className="btn btn-primary">
+            {submitting ? <><Spinner /> Submitting</> : last ? 'Submit for verification' : 'Continue'}
+          </button>
         </div>
-      </main>
-
-      {/* Simple Footer */}
-      <footer className="py-4 px-4 md:px-8 border-t border-outline-variant bg-surface-container-low flex flex-col md:flex-row justify-between items-center gap-4 text-xs">
-        <div className="text-on-surface-variant font-semibold">© 2024 FleetOS Infrastructure Ltd. All rights reserved.</div>
-        <div className="flex gap-6">
-          <Link className="text-on-surface-variant font-semibold hover:text-secondary" to={ROUTES.about}>Privacy Policy</Link>
-          <Link className="text-on-surface-variant font-semibold hover:text-secondary" to={ROUTES.contact}>Compliance</Link>
-          <Link className="text-on-surface-variant font-semibold hover:text-secondary" to={ROUTES.home}>System Status</Link>
-        </div>
-      </footer>
-    </div>
+      </form>
+    </AuthShell>
   );
 }
 
 export default CompanyRegister;
-
-
-
-

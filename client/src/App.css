@@ -1,7 +1,0 @@
-.app-shell {
-  min-height: 100vh;
-}
-input::-ms-reveal,
-input::-ms-clear {
-  display: none;
-}

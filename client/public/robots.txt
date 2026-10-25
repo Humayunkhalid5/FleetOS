@@ -1,0 +1,14 @@
+# FleetOS — public marketing pages are indexable.
+# Signed-in workspaces and the Super Admin console hold private data, so they
+# are kept out of the index. `/company/register` is a public page and wins over
+# the `/company/` rule because it is a longer match.
+
+User-agent: *
+Allow: /
+Allow: /company/register
+Disallow: /customer/
+Disallow: /company/
+Disallow: /admin/
+Disallow: /api/
+
+# The sitemap is generated at build time when VITE_SITE_URL is set.

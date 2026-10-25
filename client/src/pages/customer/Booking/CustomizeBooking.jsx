@@ -1,449 +1,295 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { ROUTES, BASE_LABOR } from '../../../constants';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ROUTES, companyRoute } from '../../../constants';
 import api from '../../../services/api';
-import CustomerTopNav from '../../../components/customer/CustomerTopNav';
+import { useAuth } from '../../../hooks/useAuth';
+import { useLiveQuery } from '../../../hooks/useLiveQuery';
+import { usePageChrome } from '../../../hooks/usePageChrome';
+import { useFeedback } from '../../../hooks/useFeedback';
+import { Alert, EmptyState, Skeleton, Spinner } from '../../../components/ui';
+import { CompanyLogo } from '../../../components/customer/CompanyCard';
+import { formatCurrency } from '../../../utils/helpers';
+import { readDraft, writeDraft, totals, TIME_SLOTS, slotLabel, localDateInput } from './bookingDraft';
+import { fulfillmentOf } from '../../../constants/fulfillment';
 
-const currency = new Intl.NumberFormat('en-PK', {
-  style: 'currency',
-  currency: 'PKR',
-  maximumFractionDigits: 0,
-});
+function Step({ number, title, hint, children }) {
+  return (
+    <section className="card card-pad">
+      <div className="mb-4 flex items-start gap-3">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-soft text-[13px] font-bold text-brand-fg">{number}</span>
+        <div>
+          <h2 className="text-[15.5px] font-semibold">{title}</h2>
+          {hint && <p className="text-[13px] text-muted">{hint}</p>}
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
 
 function CustomizeBooking() {
   const navigate = useNavigate();
   const location = useLocation();
-  const companyId = location.state?.companyId || 'pak-fleet-mobility';
-  const companyName = location.state?.companyName || 'Selected company';
-  const [companyPhone, setCompanyPhone] = useState(location.state?.companyPhone || '');
-  const [problemDetails, setProblemDetails] = useState(location.state?.problemDetails || '');
+  const { user } = useAuth();
+  const { toast } = useFeedback();
+  const saved = readDraft();
+  const incoming = location.state || {};
+  const resume = !incoming.companyId || incoming.companyId === saved?.companyId ? saved : null;
+  const companyId = incoming.companyId || saved?.companyId;
 
-  const [availableServices, setAvailableServices] = useState([]);
-  const [service, setService] = useState(location.state?.service || 'Basic Service Request');
-  const [servicePrice, setServicePrice] = useState(Number(location.state?.price) || BASE_LABOR);
-  const [serviceLocation, setServiceLocation] = useState({
-    address: '',
-    lat: null,
-    lng: null,
+  const [service, setService] = useState(incoming.service || resume?.service || '');
+  const [quantity, setQuantity] = useState(resume?.quantity || 1);
+  const [fulfillment, setFulfillment] = useState(resume?.fulfillment || '');
+  const [quantities, setQuantities] = useState(resume?.quantities || {});
+  const [address, setAddress] = useState(resume?.serviceLocation?.address || user?.address || '');
+  const [coords, setCoords] = useState(resume?.serviceLocation?.lat ? { lat: resume.serviceLocation.lat, lng: resume.serviceLocation.lng } : null);
+  const [locating, setLocating] = useState(false);
+  const [date, setDate] = useState(() => resume?.date || localDateInput(new Date(Date.now() + 86400000)));
+  const [time, setTime] = useState(resume?.time || '11:00');
+  const [notes, setNotes] = useState(resume?.problemDetails || incoming.problemDetails || '');
+  const [error, setError] = useState('');
+  const [savingDraft, setSavingDraft] = useState(false);
+
+  useEffect(() => { if (!companyId) navigate(ROUTES.companies, { replace: true }); }, [companyId, navigate]);
+
+  const { data: companyData, loading: companyLoading, error: companyError } = useLiveQuery(companyId ? `/companies/${encodeURIComponent(companyId)}` : null, { events: ['marketplace:updated'], keepPrevious: false });
+  const company = companyData?.company;
+  const services = useMemo(() => company?.services || [], [company]);
+  const selected = services.find((entry) => entry.name === service) || null;
+  const workspace = company?.workspace || {};
+  const options = workspace.fulfillment?.length ? workspace.fulfillment : ['onsite'];
+  const mode = options.includes(fulfillment) ? fulfillment : options[0];
+  const way = fulfillmentOf(mode);
+  const isProduct = selected?.kind === 'product';
+  const orderWords = options.some((type) => type === 'delivery' || type === 'pickup') && services.some((entry) => entry.kind === 'product');
+  const fee = mode === 'delivery' ? Number(workspace.deliveryFee || 0) : 0;
+
+  if (services.length && !services.some((entry) => entry.name === service)) setService(services[0].name);
+
+  const inventoryKey = companyId && service ? `/public/inventory?companyId=${encodeURIComponent(companyId)}&serviceName=${encodeURIComponent(service)}` : null;
+  const { data: inventoryData, loading: inventoryLoading } = useLiveQuery(inventoryKey, { events: ['marketplace:updated'] });
+  const items = useMemo(() => (inventoryData?.inventory || []).map((item) => ({
+    id: item._id || item.sku || item.name,
+    name: item.name,
+    sku: item.sku,
+    category: item.category,
+    price: Number(item.unitPrice ?? item.price ?? 0),
+    stock: Number(item.quantity ?? 0),
+  })), [inventoryData]);
+
+  const materials = items.map((item) => ({ ...item, qty: Math.min(quantities[item.id] || 0, item.stock || Infinity) })).filter((item) => item.qty > 0);
+  const sum = totals(selected?.price ?? incoming.price, materials, { quantity: isProduct ? quantity : 1, fee });
+  const today = localDateInput();
+  const minTimeToday = date === today ? new Date().toTimeString().slice(0, 5) : '00:00';
+
+  const setQty = (item, delta) => setQuantities((current) => {
+    const next = Math.max(0, (current[item.id] || 0) + delta);
+    return { ...current, [item.id]: item.stock > 0 ? Math.min(next, item.stock) : next };
   });
-  const [locatingAddress, setLocatingAddress] = useState(false);
-  const [locationMode, setLocationMode] = useState('manual');
-  const [gpsLabel, setGpsLabel] = useState('');
-  const [materials, setMaterials] = useState({});
-  const [companyItems, setCompanyItems] = useState([]);
-  const [itemsLoading, setItemsLoading] = useState(false);
-  const [itemsError, setItemsError] = useState('');
-
-  useEffect(() => {
-    async function loadCompanyDetails() {
-      if (!companyId) return;
-      try {
-        const res = await api.get(`/companies/${encodeURIComponent(companyId)}`, { noCache: true });
-        setCompanyPhone(res?.company?.phone || '');
-      } catch {
-        setCompanyPhone('');
-      }
-    }
-    loadCompanyDetails();
-  }, [companyId]);
-
-  useEffect(() => {
-    async function loadCompanyServices() {
-      if (!companyId) return;
-      try {
-        const res = await api.get(`/services?companyId=${encodeURIComponent(companyId)}`);
-        if (res && Array.isArray(res.services) && res.services.length > 0) {
-          setAvailableServices(res.services);
-          if (!location.state?.service) {
-            setService(res.services[0].name);
-            setServicePrice(Number(res.services[0].price) || BASE_LABOR);
-          }
-        }
-      } catch (err) {
-        setAvailableServices([]);
-      }
-    }
-    loadCompanyServices();
-  }, [companyId, location.state?.service]);
-
-  useEffect(() => {
-    async function loadCompanyInventory() {
-      if (!companyId) return;
-      setItemsLoading(true);
-      setItemsError('');
-      try {
-        const res = await api.get(`/public/inventory?companyId=${encodeURIComponent(companyId)}&serviceName=${encodeURIComponent(service)}`, { noCache: true });
-        const items = Array.isArray(res?.inventory) ? res.inventory : [];
-        setCompanyItems(items);
-        setMaterials(items.reduce((acc, item) => {
-          const id = item._id || item.id || item.sku || item.name;
-          acc[id] = {
-            id,
-            sku: item.sku || '',
-            qty: 0,
-            price: Number(item.unitPrice ?? item.price ?? 0),
-            name: item.name,
-            unit: item.unit || 'unit',
-            category: item.category || 'Company item',
-            stock: Number(item.quantity ?? item.qty ?? 0),
-          };
-          return acc;
-        }, {}));
-      } catch (err) {
-        setCompanyItems([]);
-        setMaterials({});
-        setItemsError(err.message || 'Company items could not be loaded.');
-      } finally {
-        setItemsLoading(false);
-      }
-    }
-    loadCompanyInventory();
-  }, [companyId, service]);
-
-  const baseLabor = Number(servicePrice) || BASE_LABOR;
-
-  const saveDraft = async () => {
-    const draft = {
-      materials,
-      service,
-      servicePrice,
-      serviceLocation,
-      savedAt: new Date().toISOString(),
-    };
-    try {
-      await api.put('/auth/booking-draft', draft);
-      alert('Draft saved to your FleetOS account.');
-    } catch (error) {
-      alert(error.message || 'Draft could not be saved.');
-    }
-  };
-
-  const updateQty = (id, delta) => {
-    setMaterials((prev) => {
-      const item = prev[id];
-      if (!item) return prev;
-      const nextQty = Math.max(0, item.qty + delta);
-      const cappedQty = item.stock > 0 ? Math.min(nextQty, item.stock) : nextQty;
-      return {
-        ...prev,
-        [id]: {
-          ...item,
-          qty: cappedQty,
-        },
-      };
-    });
-  };
-
-  const materialsTotal = Object.values(materials).reduce((sum, item) => sum + (item.qty * item.price), 0);
-  const grandTotal = baseLabor + materialsTotal;
 
   const useMyLocation = () => {
-    if (!('geolocation' in navigator)) {
-      alert('Geolocation is not supported by this browser. Please type your address below.');
-      return;
-    }
-    setLocatingAddress(true);
-    setLocationMode('gps');
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        let label = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
-          );
-          const data = await res.json();
-          if (data?.display_name) label = data.display_name;
-        } catch {
-          // Coordinates are still useful when reverse geocoding is unavailable.
-        }
-        setGpsLabel(label);
-        setServiceLocation({ address: label, lat: latitude, lng: longitude });
-        setLocatingAddress(false);
-      },
-      (err) => {
-        const messages = {
-          1: 'Location permission denied. Please allow access or type your address below.',
-          2: 'Location unavailable. Please type your address manually.',
-          3: 'Location request timed out. Please type your address manually.',
-        };
-        alert(messages[err.code] || 'Could not access your location. Please enter an address manually.');
-        setLocationMode('manual');
-        setLocatingAddress(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    if (!('geolocation' in navigator)) { toast.error('Location is not available in this browser. Type your address instead.'); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(async ({ coords: position }) => {
+      const { latitude, longitude } = position;
+      let label = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+      try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
+        const data = await response.json();
+        if (data?.display_name) label = data.display_name;
+      } catch { /* coordinates are still useful */ }
+      setAddress(label);
+      setCoords({ lat: latitude, lng: longitude });
+      setLocating(false);
+    }, (geoError) => {
+      setLocating(false);
+      toast.error({ 1: 'Location permission was denied. Type your address instead.', 2: 'Your location is unavailable right now.', 3: 'Finding your location timed out.' }[geoError.code] || 'Could not get your location.');
+    }, { enableHighAccuracy: true, timeout: 10000 });
   };
 
-  const clearGpsLocation = () => {
-    setLocationMode('manual');
-    setGpsLabel('');
-    setServiceLocation({ address: '', lat: null, lng: null });
+  const draft = () => ({
+    companyId,
+    companyName: company?.name || incoming.companyName,
+    service,
+    servicePrice: selected?.price ?? incoming.price ?? 0,
+    serviceKind: selected?.kind || 'service',
+    serviceUnit: selected?.unit || '',
+    quantity: isProduct ? quantity : 1,
+    fulfillment: mode,
+    deliveryFee: fee,
+    businessLocation: [company?.location, company?.city].filter(Boolean).join(', '),
+    quantities,
+    materials,
+    serviceLocation: { address: address.trim(), lat: coords?.lat ?? null, lng: coords?.lng ?? null },
+    date,
+    time,
+    problemDetails: notes.trim(),
+  });
+
+  useEffect(() => { if (companyId) writeDraft(draft()); });
+
+  const review = () => {
+    setError('');
+    if (!selected) return setError(`Choose ${orderWords ? 'what you want to order' : 'a service'} to continue.`);
+    if (way.needsAddress && !address.trim()) return setError(mode === 'delivery' ? 'Add the delivery address.' : 'Add the address where the work should happen.');
+    const when = new Date(`${date}T${time}:00`);
+    if (Number.isNaN(when.getTime()) || when.getTime() < Date.now()) return setError('Pick a date and time in the future.');
+    const value = draft();
+    writeDraft(value);
+    return navigate(ROUTES.bookingSummary, { state: value });
   };
+
+  const saveForLater = async () => {
+    setSavingDraft(true);
+    try { await api.put('/auth/booking-draft', { ...draft(), savedAt: new Date().toISOString() }); toast.success('Saved to your account. You can finish this booking any time.'); }
+    catch (saveError) { toast.error(saveError.message); }
+    finally { setSavingDraft(false); }
+  };
+
+  usePageChrome({ title: orderWords ? 'New order' : 'New booking', subtitle: company ? `with ${company.name}` : 'Choose what you need, how and when.', backTo: companyId ? companyRoute(company?.slug || companyId) : ROUTES.companies });
+
+  if (companyLoading) return <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]"><div className="grid gap-4"><Skeleton className="h-48 rounded-2xl" /><Skeleton className="h-40 rounded-2xl" /></div><Skeleton className="h-80 rounded-2xl" /></div>;
+  if (companyError || !company) return <div className="card"><EmptyState icon="storefront" title="This company can't take bookings right now" action={<button type="button" className="btn btn-primary" onClick={() => navigate(ROUTES.companies)}>Choose another company</button>}>{companyError?.message}</EmptyState></div>;
 
   return (
-    <div className="client-dashboard-shell bg-background text-on-surface min-h-screen">
-      <CustomerTopNav title="Customize request" subtitle="Choose the service, location, timing, and relevant add-ons." backTo="" actions={<button onClick={() => navigate(ROUTES.bookings)} className="client-nav-icon material-symbols-outlined">notifications</button>} />
-
-      <main className="pt-10 pb-40 px-container-margin max-w-7xl mx-auto">
-        <div className="mb-xl">
-          <h2 className="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-xs">Customize Your Booking</h2>
-          <p className="font-body-md text-body-md text-on-surface-variant">Choose the service and company-added items for <span className="font-bold text-primary">{companyName}</span>.</p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-lg">
-          <div className="lg:col-span-8 space-y-lg">
-            <section className="bg-surface-container-lowest rounded-xl p-lg shadow-[0_4px_16px_0_rgba(11,29,45,0.08)] border border-outline-variant">
-              <div className="flex items-center justify-between mb-md">
-                <h3 className="font-headline-md text-headline-md">Service</h3>
-                <span className="material-symbols-outlined text-on-surface-variant">build</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-md">
-                {(availableServices.length > 0 ? availableServices : [{ name: service, price: servicePrice }]).map((svcObj) => {
-                  const sName = svcObj.name;
-                  const sPrice = Number(svcObj.price) || BASE_LABOR;
-                  const active = service === sName;
-                  return (
-                    <button
-                      key={sName}
-                      onClick={() => { setService(sName); setServicePrice(sPrice); }}
-                      className={`booking-choice p-md rounded-xl border-2 text-left transition-all ${active ? 'booking-choice--active' : 'border-outline-variant hover:border-primary/50'}`}
-                    >
-                      <span className="booking-choice-title font-nav-item text-nav-item block font-bold">{sName}</span>
-                      <span className="booking-choice-price font-label-sm text-label-sm mt-xs block">{currency.format(sPrice)}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-md pt-md border-t border-surface-container">
-                <div className="flex items-center justify-between mb-sm">
-                  <h4 className="font-headline-md text-headline-md">Service Location</h4>
-                </div>
-
-                <div className="grid grid-cols-2 gap-sm mb-md">
-                  <button
-                    type="button"
-                    onClick={() => setLocationMode('manual')}
-                    className={`booking-choice flex items-center gap-sm p-md rounded-xl border-2 transition-all text-left ${
-                      locationMode === 'manual'
-                        ? 'booking-choice--active'
-                        : 'border-outline-variant hover:border-primary/50'
-                    }`}
-                  >
-                    <span className={`material-symbols-outlined ${locationMode === 'manual' ? 'text-primary' : 'text-on-surface-variant'}`}>edit_location</span>
-                    <div>
-                      <p className="font-nav-item text-nav-item text-on-surface text-sm">Type address</p>
-                      <p className="text-xs text-on-surface-variant">Enter preferred location</p>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={useMyLocation}
-                    disabled={locatingAddress}
-                    className={`booking-choice flex items-center gap-sm p-md rounded-xl border-2 transition-all text-left disabled:opacity-70 ${
-                      locationMode === 'gps'
-                        ? 'booking-choice--active'
-                        : 'border-outline-variant hover:border-primary/50'
-                    }`}
-                  >
-                    <span className={`material-symbols-outlined ${locatingAddress ? 'animate-spin' : ''} ${locationMode === 'gps' ? 'text-primary' : 'text-on-surface-variant'}`}>
-                      {locatingAddress ? 'progress_activity' : 'my_location'}
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+      <div className="grid gap-5">
+        <Step number={1} title={workspace.offeringLabel || 'Service'} hint="Prices are set by the business.">
+          {services.length ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {services.map((entry) => {
+                const active = entry.name === service;
+                return (
+                  <button key={entry._id || entry.name} type="button" onClick={() => setService(entry.name)} aria-pressed={active} className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition-colors ${active ? 'border-brand bg-brand-soft/50 ring-1 ring-brand' : 'border-line hover:border-line-strong'}`}>
+                    <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 ${active ? 'border-brand bg-brand' : 'border-line-strong'}`}>{active && <span className="h-2 w-2 rounded-full bg-white" />}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-semibold text-ink">{entry.name}</span>
+                      <span className="block text-[12.5px] text-muted">{[entry.category, entry.kind === 'product' ? 'Product' : entry.durationMinutes ? `${entry.durationMinutes} min` : null].filter(Boolean).join(' · ')}</span>
                     </span>
-                    <div>
-                      <p className="font-nav-item text-nav-item text-on-surface text-sm">
-                        {locatingAddress ? 'Detecting…' : 'Use GPS'}
-                      </p>
-                      <p className="text-xs text-on-surface-variant">Detect current location</p>
-                    </div>
+                    <span className="text-right"><span className="block text-[14px] font-semibold tabular-nums">{entry.price ? formatCurrency(entry.price) : 'Free'}</span>{entry.unit && <span className="block text-[11.5px] text-subtle">{entry.unit}</span>}</span>
                   </button>
-                </div>
-
-                {locationMode === 'gps' && gpsLabel && (
-                  <div className="booking-info-callout mb-sm flex items-start gap-sm p-sm rounded-xl text-sm">
-                    <span className="material-symbols-outlined text-[16px] mt-0.5 shrink-0">location_on</span>
-                    <span className="flex-1 leading-snug">{gpsLabel}</span>
-                    <button onClick={clearGpsLocation} className="shrink-0 hover:opacity-70 transition-opacity" title="Clear GPS location">
-                      <span className="material-symbols-outlined text-[16px]">close</span>
-                    </button>
-                  </div>
-                )}
-
-                <div className="relative group">
-                  <span className="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">location_on</span>
-                  <input
-                    value={locationMode === 'gps' && gpsLabel ? gpsLabel : serviceLocation.address}
-                    onChange={(e) => {
-                      setLocationMode('manual');
-                      setGpsLabel('');
-                      setServiceLocation((prev) => ({ ...prev, address: e.target.value }));
-                    }}
-                    className="w-full pl-xl pr-md py-md bg-surface-container-low border border-outline-variant rounded-xl focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all font-body-md text-on-surface"
-                    placeholder="Enter or confirm your service address (city, area, street)"
-                  />
-                </div>
-                <p className="mt-xs text-xs text-on-surface-variant">
-                  You can type a preferred address even after using GPS — just edit the field above.
-                </p>
+                );
+              })}
+            </div>
+          ) : <EmptyState icon="inventory" title="Nothing published yet">This business hasn't published anything to book yet. Message them to ask.</EmptyState>}
+          {isProduct && (
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-sunken/70 px-4 py-3">
+              <span className="text-[13.5px] font-medium">Quantity <span className="text-subtle">· {formatCurrency(selected.price)} {selected.unit || 'each'}</span></span>
+              <div className="flex items-center gap-1 rounded-xl border border-line bg-surface p-0.5">
+                <button type="button" className="btn btn-ghost btn-icon btn-sm" disabled={quantity <= 1} onClick={() => setQuantity((value) => Math.max(1, value - 1))} aria-label="One less"><span className="material-symbols-outlined">remove</span></button>
+                <span className="w-8 text-center text-[15px] font-semibold tabular-nums">{quantity}</span>
+                <button type="button" className="btn btn-ghost btn-icon btn-sm" disabled={quantity >= 99} onClick={() => setQuantity((value) => Math.min(99, value + 1))} aria-label="One more"><span className="material-symbols-outlined">add</span></button>
               </div>
-            </section>
+            </div>
+          )}
+        </Step>
 
-            <section className="bg-surface-container-lowest rounded-xl p-lg shadow-[0_4px_16px_0_rgba(11,29,45,0.08)] border border-outline-variant">
-              <div className="flex items-center justify-between mb-md">
-                <h3 className="font-headline-md text-headline-md">Request Details</h3>
-                <span className="material-symbols-outlined text-on-surface-variant">description</span>
-              </div>
-              <label className="font-label-sm text-label-sm text-on-surface-variant" htmlFor="problem-details">What issue needs attention?</label>
-              <textarea
-                id="problem-details"
-                value={problemDetails}
-                onChange={(e) => setProblemDetails(e.target.value)}
-                rows="4"
-                className="w-full mt-sm p-md rounded-xl border border-outline-variant bg-surface-container-low focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                placeholder="Share the problem, symptoms, urgency, and any notes for the company"
-              />
-              <p className="mt-sm text-sm text-on-surface-variant">The selected company will review the request and assign the right team member once the service is confirmed.</p>
-            </section>
+        <Step number={2} title="How do you want it?" hint={options.length > 1 ? 'Choose what suits you; the business offers these options.' : 'This is how this business serves customers.'}>
+          <div className={`grid gap-3 ${options.length > 1 ? 'sm:grid-cols-2 lg:grid-cols-3' : ''}`}>
+            {options.map((type) => {
+              const info = fulfillmentOf(type);
+              const active = type === mode;
+              return (
+                <button key={type} type="button" onClick={() => setFulfillment(type)} aria-pressed={active} className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition-colors ${active ? 'border-brand bg-brand-soft/50 ring-1 ring-brand' : 'border-line hover:border-line-strong'}`}>
+                  <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${active ? 'bg-brand text-white' : 'bg-sunken text-subtle'}`}><span className="material-symbols-outlined text-[19px]">{info.icon}</span></span>
+                  <span className="min-w-0">
+                    <span className="block text-[14px] font-semibold text-ink">{info.label}</span>
+                    <span className="block text-[12.5px] text-muted">{type === 'delivery' ? (Number(workspace.deliveryFee) ? `Delivery fee ${formatCurrency(workspace.deliveryFee)}` : 'Free delivery') : info.addressHint || `At ${company.name}`}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
+        </Step>
 
-          <div className="lg:col-span-4">
-            <div className="bg-surface-container-lowest rounded-2xl p-lg shadow-[0_4px_16px_0_rgba(11,29,45,0.08)] border border-outline-variant sticky top-24">
-              <div className="flex items-center justify-between mb-md">
-                <div>
-                  <h3 className="font-headline-md text-headline-md">Company Added Items</h3>
-                  <p className="text-xs text-on-surface-variant mt-1">Only inventory added by {companyName} appears here.</p>
-                </div>
-                <span className="material-symbols-outlined text-on-surface-variant">inventory_2</span>
-              </div>
-              <div className="booking-info-callout p-sm rounded-lg mb-md flex gap-sm">
-                <span className="material-symbols-outlined text-md">info</span>
-                <p className="font-label-sm text-label-sm leading-tight">Select optional items if you want the company to bring them for this service.</p>
-              </div>
-
-              <div className="space-y-md max-h-[400px] overflow-y-auto pr-2">
-                {itemsLoading && (
-                  <div className="rounded-xl border border-outline-variant bg-surface-container-low p-md animate-pulse">
-                    <div className="h-4 w-2/3 rounded bg-outline-variant/30 mb-3" />
-                    <div className="h-3 w-1/2 rounded bg-outline-variant/20" />
-                  </div>
-                )}
-
-                {!itemsLoading && itemsError && (
-                  <div className="rounded-xl border border-error/20 bg-error-container/40 p-md text-on-error-container">
-                    <div className="flex items-center gap-sm font-bold">
-                      <span className="material-symbols-outlined">warning</span>
-                      Items unavailable
+        <Step number={3} title="Add-ons" hint="Optional extras from the business's own stock.">
+          {inventoryLoading ? <div className="grid gap-3">{[0, 1].map((key) => <Skeleton key={key} className="h-14 rounded-xl" />)}</div> : items.length ? (
+            <ul className="divide-y divide-line rounded-2xl border border-line">
+              {items.map((item) => {
+                const qty = quantities[item.id] || 0;
+                return (
+                  <li key={item.id} className="flex items-center gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[14px] font-medium">{item.name}</p>
+                      <p className="text-[12px] text-subtle">{formatCurrency(item.price)} each · {item.stock > 0 ? `${item.stock} in stock` : 'Out of stock'}</p>
                     </div>
-                    <p className="mt-xs text-sm">{itemsError}</p>
-                  </div>
-                )}
-
-                {!itemsLoading && !itemsError && companyItems.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-outline-variant bg-surface-container-low p-lg text-center">
-                    <div className="mx-auto mb-sm flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                      <span className="material-symbols-outlined">inventory_2</span>
+                    <div className="flex items-center gap-1 rounded-xl border border-line p-0.5">
+                      <button type="button" className="btn btn-ghost btn-icon btn-sm" disabled={!qty} onClick={() => setQty(item, -1)} aria-label={`Remove one ${item.name}`}><span className="material-symbols-outlined">remove</span></button>
+                      <span className="w-7 text-center text-[14px] font-semibold tabular-nums">{qty}</span>
+                      <button type="button" className="btn btn-ghost btn-icon btn-sm" disabled={item.stock <= 0 || qty >= item.stock} onClick={() => setQty(item, 1)} aria-label={`Add one ${item.name}`}><span className="material-symbols-outlined">add</span></button>
                     </div>
-                    <h4 className="font-nav-item text-nav-item font-bold text-on-surface">No extra items added yet</h4>
-                    <p className="mt-xs text-sm text-on-surface-variant">{companyName} has not published inventory items for client bookings. You can still submit the service request.</p>
-                  </div>
-                )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : <p className="well px-4 py-3 text-[13.5px] text-muted">No add-ons are listed for this.</p>}
+        </Step>
 
-                {!itemsLoading && !itemsError && Object.keys(materials).map((key) => {
-                  const item = materials[key];
-                  return (
-                    <div key={key} className="flex items-center justify-between gap-md py-sm border-b border-surface-container">
-                      <div className="min-w-0">
-                        <h5 className="font-nav-item text-nav-item truncate">{item.name}</h5>
-                        <p className="font-label-sm text-label-sm text-on-surface-variant">
-                          {currency.format(item.price)} / {item.unit}
-                        </p>
-                        <p className="text-[11px] text-on-surface-variant mt-1">
-                          {item.category}{item.sku ? ` · ${item.sku}` : ''} · {item.stock} in stock
-                        </p>
-                      </div>
-                      <div className="flex items-center bg-surface-container rounded-lg px-2 shrink-0">
-                        <button type="button" className="p-1 hover:text-primary transition-colors disabled:opacity-40" disabled={item.qty === 0} onClick={() => updateQty(key, -1)}>
-                          <span className="material-symbols-outlined">remove</span>
-                        </button>
-                        <span className="w-8 text-center font-bold">{item.qty}</span>
-                        <button type="button" className="p-1 hover:text-primary transition-colors disabled:opacity-40" disabled={item.stock > 0 && item.qty >= item.stock} onClick={() => updateQty(key, 1)}>
-                          <span className="material-symbols-outlined">add</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
+        <Step number={4} title={way.addressLabel} hint={way.needsAddress ? way.addressHint : undefined}>
+          {!way.needsAddress ? (
+            <p className="well flex items-center gap-3 px-4 py-3 text-[14px]"><span className="material-symbols-outlined text-brand-fg">{way.icon}</span><span><b className="font-semibold">{company.name}</b>{mode !== 'remote' && <span className="block text-[13px] text-muted">{[company.location, company.city].filter(Boolean).join(', ')}</span>}{mode === 'remote' && <span className="block text-[13px] text-muted">The business works with you online; details arrive in chat.</span>}</span></p>
+          ) : (<>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <label className="input-icon flex-1">
+              <span className="material-symbols-outlined">location_on</span>
+              <input className="input" value={address} onChange={(event) => { setAddress(event.target.value); setCoords(null); }} placeholder="House, street, area, city" aria-label="Service address" />
+            </label>
+            <button type="button" onClick={useMyLocation} disabled={locating} className="btn btn-secondary h-11">{locating ? <Spinner /> : <span className="material-symbols-outlined">my_location</span>}Use my location</button>
+          </div>
+          {coords && <p className="mt-2 flex items-center gap-1 text-[12.5px] text-success-fg"><span className="material-symbols-outlined text-[16px]">check_circle</span>Exact location attached: {mode === 'delivery' ? 'the rider' : 'staff'} can navigate straight to you.</p>}
+          </>)}
+        </Step>
+
+        <Step number={5} title="When" hint={`Pick a day and a preferred ${way.whenLabel.toLowerCase()}.`}>
+          <div className="grid gap-4 sm:grid-cols-[200px_minmax(0,1fr)] sm:items-start">
+            <label className="field">
+              <span className="label">Date</span>
+              <input type="date" className="input" min={today} value={date} onChange={(event) => setDate(event.target.value)} />
+            </label>
+            <fieldset className="field">
+              <legend className="label mb-1.5">{way.whenLabel}</legend>
+              <div className="flex flex-wrap gap-2">
+                {TIME_SLOTS.map((slot) => {
+                  const disabled = date === today && slot <= minTimeToday;
+                  return <button key={slot} type="button" disabled={disabled} aria-pressed={time === slot} onClick={() => setTime(slot)} className="chip disabled:cursor-not-allowed disabled:opacity-40">{slotLabel(slot)}</button>;
                 })}
               </div>
+            </fieldset>
+          </div>
+        </Step>
 
-              <div className="mt-lg pt-md border-t border-surface-container">
-                <div className="flex justify-between items-center mb-xs">
-                  <span className="font-body-md text-body-md">Items Subtotal</span>
-                  <span className="font-nav-item text-nav-item font-bold">{currency.format(materialsTotal)}</span>
-                </div>
-              </div>
-            </div>
+        <Step number={6} title="Notes for the business" hint="Anything they should know: preferences, sizes, access instructions.">
+          <textarea className="textarea" rows={4} maxLength={2000} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={mode === 'onsite' ? 'e.g. The kitchen sink is leaking. Gate code 4512, call on arrival.' : mode === 'delivery' ? 'e.g. Ring the bell twice; leave with the guard if no answer.' : mode === 'remote' ? 'e.g. Share the files in chat; I am free after 6 pm.' : 'e.g. Please keep it ready by 5 pm.'} />
+          <p className="mt-1.5 text-right text-[12px] text-subtle">{notes.length}/2000</p>
+        </Step>
+      </div>
+
+      <aside className="card overflow-hidden lg:sticky lg:top-24">
+        <div className="flex items-center gap-3 border-b border-line p-5">
+          <CompanyLogo company={company} size={42} />
+          <div className="min-w-0">
+            <p className="truncate font-semibold">{company.name}</p>
+            <p className="truncate text-[12.5px] text-subtle">{company.city}</p>
           </div>
         </div>
-      </main>
-
-      <footer className="fixed bottom-0 w-full z-50 bg-white/80 backdrop-blur-md border-t border-outline-variant py-md px-container-margin shadow-lg">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-md">
-          <div className="flex items-center gap-lg">
-            <div className="flex flex-col">
-              <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Company</span>
-              <span className="font-nav-item text-nav-item font-bold text-primary">{companyName}</span>
-            </div>
-            <div className="h-8 w-px bg-outline-variant hidden md:block"></div>
-            <div className="flex flex-col">
-              <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Estimated Total</span>
-              <span className="font-headline-md text-headline-md font-bold text-on-surface">{currency.format(grandTotal)}</span>
-            </div>
+        <dl className="grid gap-2.5 p-5 text-[13.5px]">
+          <div className="flex justify-between gap-3"><dt className="text-muted">{isProduct && quantity > 1 ? `${quantity} × ` : ''}{service || 'Service'}</dt><dd className="font-medium tabular-nums">{formatCurrency(sum.service)}</dd></div>
+          {materials.map((item) => <div key={item.id} className="flex justify-between gap-3"><dt className="truncate text-muted">{item.name} × {item.qty}</dt><dd className="font-medium tabular-nums">{formatCurrency(item.qty * item.price)}</dd></div>)}
+          <div className="flex justify-between gap-3"><dt className="text-muted">Tax (8.5%)</dt><dd className="font-medium tabular-nums">{formatCurrency(sum.tax)}</dd></div>
+          {mode === 'delivery' && <div className="flex justify-between gap-3"><dt className="text-muted">Delivery</dt><dd className="font-medium tabular-nums">{sum.fee ? formatCurrency(sum.fee) : 'Free'}</dd></div>}
+          <div className="divider my-1" />
+          <div className="flex items-baseline justify-between gap-3"><dt className="font-semibold">Estimated total</dt><dd className="text-[20px] font-bold tabular-nums">{formatCurrency(sum.total)}</dd></div>
+        </dl>
+        <div className="grid gap-2 border-t border-line bg-sunken/40 p-5">
+          <Alert>{error}</Alert>
+          <button type="button" onClick={review} className="btn btn-primary btn-lg w-full" disabled={!services.length}>{orderWords ? 'Review order' : 'Review booking'}</button>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => navigate(`${ROUTES.chat}/${company.slug || company._id}`)} className="btn btn-secondary"><span className="material-symbols-outlined">chat</span>Ask first</button>
+            <button type="button" onClick={saveForLater} disabled={savingDraft} className="btn btn-secondary">{savingDraft ? <Spinner /> : <span className="material-symbols-outlined">bookmark</span>}Save</button>
           </div>
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <button
-              onClick={() => navigate(`${ROUTES.chat}/${companyId}`)}
-              className="flex-1 md:flex-none px-4 py-3 bg-emerald-600 text-white rounded-xl font-nav-item text-xs font-bold shadow hover:bg-emerald-700 transition-all flex items-center justify-center gap-1"
-            >
-              <span className="material-symbols-outlined text-sm">chat</span>
-              Live Chat
-            </button>
-            <a
-              href={companyPhone ? `tel:${companyPhone.replace(/[^\d+]/g, '')}` : undefined}
-              onClick={(event) => {
-                if (!companyPhone) {
-                  event.preventDefault();
-                  alert('This company has not added a phone number yet. Please use live chat after booking.');
-                }
-              }}
-              className={`flex-1 md:flex-none px-4 py-3 rounded-xl font-nav-item text-xs font-bold shadow transition-all flex items-center justify-center gap-1 ${companyPhone ? 'bg-secondary text-white hover:bg-secondary-container' : 'bg-surface-container-high text-on-surface-variant cursor-not-allowed'}`}
-            >
-              <span className="material-symbols-outlined text-sm">call</span>
-              Call
-            </a>
-            <button onClick={saveDraft} className="flex-1 md:flex-none px-4 py-3 rounded-xl border border-outline font-nav-item text-xs hover:bg-surface-container transition-colors">Save Draft</button>
-            <button
-              onClick={() => {
-                navigate(ROUTES.bookingSummary, {
-                  state: {
-                    materials,
-                    materialsTotal,
-                    grandTotal,
-                    companyId,
-                    companyName,
-                    service,
-                    servicePrice,
-                    serviceLocation,
-                    problemDetails,
-                  }
-                });
-              }}
-              className="flex-1 md:flex-none px-6 py-3 rounded-xl font-nav-item text-xs font-bold hover:shadow-lg transition-all bg-primary text-on-primary"
-            >
-              Submit Request
-            </button>
-          </div>
+          <p className="text-center text-[12px] text-subtle">You won't be charged now. {mode === 'delivery' ? 'Pay on delivery.' : mode === 'pickup' ? 'Pay when you collect.' : 'Pay after the work is done.'}</p>
         </div>
-      </footer>
+      </aside>
     </div>
   );
 }

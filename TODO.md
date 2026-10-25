@@ -10,4 +10,6 @@ Fix login page issues, fix companies display, fix site slowness, and set up Mong
 - [x] 4. `server/.env.example` — add MONGODB_URI, JWT_SECRET, PORT config.
 - [x] 5. Create `server/.env` with sensible defaults (JWT_SECRET, PORT; MongoDB optional).
 - [x] 6. Update `server/src/data/bootstrap.js` to seed into MongoDB when connected.
-- [ ] 7. Verify server starts and login/companies endpoints work.
+- [x] 7. Verify server starts and login/companies endpoints work.
+
+Verified with a live server run: MongoDB connected, /api/health returned "ok", customer login succeeded, and /api/companies returned company listings.

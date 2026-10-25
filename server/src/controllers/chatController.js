@@ -14,12 +14,26 @@ async function authorizedBooking(req, bookingId) {
 exports.getConversations = async (req, res) => {
   const filter = req.user.role === 'customer' ? { customer: req.user._id } : { company: req.user.company?._id || req.user.company };
   const bookings = await Booking.find(filter).populate('company', 'name logo slug').sort({ updatedAt: -1 }).lean();
-  const conversations = await Promise.all(bookings.map(async (booking) => {
-    const [lastMessage, unreadCount] = await Promise.all([
-      ChatMessage.findOne({ booking: booking._id }).sort({ createdAt: -1 }).lean(),
-      ChatMessage.countDocuments({ booking: booking._id, senderRole: { $ne: req.user.role }, readAt: null }),
-    ]);
-    return { booking, lastMessage, unreadCount };
+  // Two batched aggregations instead of two queries per booking: accounts with
+  // thousands of bookings otherwise issue thousands of round trips.
+  const bookingIds = bookings.map((booking) => booking._id);
+  const [lastMessages, unreadCounts] = await Promise.all([
+    ChatMessage.aggregate([
+      { $match: { booking: { $in: bookingIds } } },
+      { $sort: { booking: 1, createdAt: -1 } },
+      { $group: { _id: '$booking', message: { $first: '$$ROOT' } } },
+    ]),
+    ChatMessage.aggregate([
+      { $match: { booking: { $in: bookingIds }, senderRole: { $ne: req.user.role }, readAt: null } },
+      { $group: { _id: '$booking', count: { $sum: 1 } } },
+    ]),
+  ]);
+  const lastByBooking = new Map(lastMessages.map((row) => [String(row._id), row.message]));
+  const unreadByBooking = new Map(unreadCounts.map((row) => [String(row._id), row.count]));
+  const conversations = bookings.map((booking) => ({
+    booking,
+    lastMessage: lastByBooking.get(String(booking._id)) || null,
+    unreadCount: unreadByBooking.get(String(booking._id)) || 0,
   }));
   return res.json({ conversations });
 };

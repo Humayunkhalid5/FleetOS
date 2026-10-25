@@ -1,0 +1,177 @@
+/* ==========================================================================
+   Landing experience: depth helpers, scroll reveal, the 3D hero city and
+   the live job card. Colours come from tokens.css so both themes work.
+   ========================================================================== */
+
+/* ---------- motion & depth helpers ---------- */
+.card-hover { transition: transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s cubic-bezier(.22,1,.36,1), border-color .2s ease; }
+.card-hover:hover { transform: translateY(-3px); box-shadow: var(--shadow-pop); border-color: rgb(var(--brand-line)); }
+.chip-lift { transition: transform .2s cubic-bezier(.22,1,.36,1), border-color .2s, color .2s, box-shadow .2s; }
+.chip-lift:hover { transform: translateY(-2px); border-color: rgb(var(--brand-line)); color: rgb(var(--brand-fg)); box-shadow: var(--shadow-card); }
+
+.icon-tile {
+  display: grid; flex: none; place-items: center; width: 40px; height: 40px; border-radius: 12px;
+  color: rgb(var(--brand-fg));
+  background: linear-gradient(145deg, rgb(var(--brand-soft)), rgb(var(--accent-soft)));
+  box-shadow: inset 0 0 0 1px rgb(var(--brand-line) / 0.7), 0 6px 14px -8px rgb(var(--brand) / 0.5);
+}
+
+.text-gradient {
+  background-image: linear-gradient(100deg, rgb(var(--brand)) 0%, rgb(var(--accent)) 55%, rgb(var(--violet)) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+[data-theme='dark'] .text-gradient { background-image: linear-gradient(100deg, rgb(var(--brand-fg)) 0%, rgb(var(--accent)) 55%, rgb(var(--violet)) 100%); }
+
+/* Section band: white with a fading dot grid in light, translucent in dark. */
+.band { position: relative; border-block: 1px solid rgb(var(--line)); background: linear-gradient(180deg, rgb(var(--surface) / 0.85), rgb(var(--canvas) / 0.6)); }
+.band::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .7;
+  background-image: radial-gradient(rgb(var(--line-strong)) 1px, transparent 1.2px); background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 20%, transparent 75%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 20%, transparent 75%);
+}
+.band > * { position: relative; }
+
+.cta-band {
+  background:
+    radial-gradient(600px 300px at 85% 0%, rgb(59 130 246 / 0.55), transparent),
+    radial-gradient(500px 260px at 0% 100%, rgb(10 199 237 / 0.3), transparent),
+    linear-gradient(135deg, #0B1628, #13254A 60%, #1D3A7A);
+  background-color: #0B1628;
+  box-shadow: 0 30px 80px -30px rgb(30 58 138 / 0.55);
+}
+
+/* Scroll reveal uses an animation (not a transition) so hover transforms keep working. */
+.reveal:not(.is-visible) { opacity: 0; }
+.reveal.is-visible { animation: reveal-in .7s cubic-bezier(.22,1,.36,1) backwards; animation-delay: var(--reveal-delay, 0ms); }
+@keyframes reveal-in { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+
+/* ---------- landing hero ---------- */
+.hero-aurora { position: absolute; inset: -80px 0 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.hero-aurora::before, .hero-aurora::after { content: ''; position: absolute; border-radius: 999px; filter: blur(70px); }
+.hero-aurora::before { width: 560px; height: 420px; right: 4%; top: 40px; background: radial-gradient(closest-side, rgb(59 130 246 / 0.28), transparent); animation: aurora 16s ease-in-out infinite alternate; }
+.hero-aurora::after { width: 460px; height: 380px; right: 26%; top: 260px; background: radial-gradient(closest-side, rgb(6 182 212 / 0.22), transparent); animation: aurora 19s ease-in-out infinite alternate-reverse; }
+[data-theme='dark'] .hero-aurora::before { background: radial-gradient(closest-side, rgb(62 116 232 / 0.32), transparent); }
+[data-theme='dark'] .hero-aurora::after { background: radial-gradient(closest-side, rgb(34 211 238 / 0.18), transparent); }
+@keyframes aurora { to { transform: translate3d(-60px, 40px, 0) scale(1.12); } }
+
+.hero-visual { position: relative; display: grid; min-width: 0; }
+.hero-visual__scene { position: relative; height: 360px; margin: 0 -16px; }
+.hero-visual .hero-visual__card { position: relative; z-index: 2; width: 100%; max-width: 440px; margin: -56px auto 0; align-self: end; }
+
+/* Phones: the city is decoration, so give it a tighter stage and drop the
+   floating job chips that would be clipped at the screen edges. */
+@media (max-width: 639px) {
+  .hero-visual__scene { height: 300px; }
+  .hero-visual .hero-visual__card { margin-top: -28px; }
+  .hero-scene__labels { display: none; }
+}
+@media (min-width: 1024px) {
+  .hero-visual { height: 600px; }
+  .hero-visual__scene { position: absolute; top: -40px; right: -64px; left: -40px; height: 520px; margin: 0; }
+  .hero-visual .hero-visual__card { position: absolute; left: -24px; bottom: -12px; margin: 0; width: 370px; }
+}
+
+.hero-scene { position: absolute; inset: 0; cursor: grab; touch-action: pan-y; -webkit-user-select: none; user-select: none; }
+.hero-scene.is-dragging { cursor: grabbing; }
+.hero-scene__canvas { display: block; width: 100%; height: 100%; opacity: 0; transition: opacity .8s ease; }
+.hero-scene[data-ready] .hero-scene__canvas { opacity: 1; }
+.hero-scene__labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.scene-chip {
+  position: absolute; left: 0; top: 0; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  padding: 4px 9px; border-radius: 999px; font-size: 11px; line-height: 16px; color: rgb(var(--ink));
+  background: rgb(var(--surface)); border: 1px solid rgb(var(--line)); box-shadow: var(--shadow-card);
+  transition: opacity .3s ease; will-change: transform;
+}
+.scene-chip b { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; font-weight: 500; color: rgb(var(--subtle)); }
+.scene-chip::before { content: ''; width: 6px; height: 6px; border-radius: 999px; background: rgb(var(--warning)); }
+.scene-chip[data-phase='enroute']::before { background: rgb(var(--brand)); box-shadow: 0 0 0 3px rgb(var(--brand) / 0.2); }
+.scene-chip[data-phase='arrived']::before { background: rgb(var(--success)); }
+.scene-hint {
+  position: absolute; left: 50%; top: 6px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 500; color: rgb(var(--muted)); pointer-events: none; white-space: nowrap;
+  background: rgb(var(--surface) / 0.9); border: 1px solid rgb(var(--line)); box-shadow: var(--shadow-xs);
+}
+.scene-hint .material-symbols-outlined { font-size: 16px; color: rgb(var(--brand-fg)); }
+@media (min-width: 1024px) { .scene-hint { left: auto; right: 120px; top: 34px; transform: none; } }
+
+/* ---------- live job card ---------- */
+.job-card {
+  --rx: 0deg; --ry: 0deg; --mx: 50%; --my: 0%;
+  position: relative; overflow: hidden; border-radius: 22px; border: 1px solid rgb(var(--line));
+  background: rgb(var(--surface)); box-shadow: var(--shadow-pop);
+  transform: perspective(1200px) rotateX(var(--rx)) rotateY(var(--ry));
+  transition: transform .5s cubic-bezier(.22,1,.36,1), box-shadow .3s;
+  animation: card-in .6s .15s cubic-bezier(.22,1,.36,1) backwards;
+}
+.job-card:hover { transition: transform .12s linear, box-shadow .3s; }
+.job-card::before {
+  content: ''; position: absolute; inset: 0 0 auto; height: 3px;
+  background: linear-gradient(90deg, rgb(var(--brand)), rgb(var(--accent)), rgb(var(--violet)));
+}
+.job-card::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; opacity: 0; transition: opacity .3s;
+  background: radial-gradient(420px circle at var(--mx) var(--my), rgb(255 255 255 / 0.5), transparent 45%);
+  mix-blend-mode: soft-light;
+}
+.job-card:hover::after { opacity: 1; }
+@keyframes card-in { from { opacity: 0; transform: perspective(1200px) translateY(14px); } }
+
+.job-steps { position: relative; display: flex; justify-content: space-between; margin: 0; padding: 0; list-style: none; }
+.job-steps li {
+  position: relative; z-index: 1; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 999px;
+  background: rgb(var(--sunken)); color: rgb(var(--subtle)); border: 1px solid rgb(var(--line));
+  transition: background-color .3s, color .3s, border-color .3s, transform .3s, box-shadow .3s;
+}
+.job-steps li .material-symbols-outlined { font-size: 16px; }
+.job-steps li.is-done { background: rgb(var(--brand)); border-color: transparent; color: #fff; }
+.job-steps li.is-current { background: rgb(var(--surface)); border: 2px solid rgb(var(--brand)); color: rgb(var(--brand-fg)); transform: scale(1.12); box-shadow: 0 0 0 5px rgb(var(--brand) / 0.15); }
+.job-steps__track { position: absolute; left: 15px; right: 15px; top: 50%; height: 2px; transform: translateY(-50%); background: rgb(var(--line)); }
+.job-steps__track i { display: block; height: 100%; background: linear-gradient(90deg, rgb(var(--brand)), rgb(var(--accent))); transition: width .5s cubic-bezier(.22,1,.36,1); }
+
+.job-route { position: relative; height: 64px; overflow: hidden; border-radius: 14px; border: 1px solid rgb(var(--line)); background: rgb(var(--sunken) / 0.7); }
+.job-route::before {
+  content: ''; position: absolute; inset: 0;
+  background-image: linear-gradient(rgb(var(--line) / 0.7) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--line) / 0.7) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+.job-route svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.job-route__base { fill: none; stroke: rgb(var(--line-strong)); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 2 6; vector-effect: non-scaling-stroke; }
+.job-route__done { fill: none; stroke: rgb(var(--brand)); stroke-width: 3; stroke-linecap: round; transition: stroke-dashoffset .25s linear; }
+.job-route__end, .job-route__van { position: absolute; display: grid; place-items: center; transform: translate(-50%, -50%); }
+.job-route__end--start { width: 24px; height: 24px; border-radius: 8px; border: 1px solid rgb(var(--line)); background: rgb(var(--surface)); color: rgb(var(--muted)); box-shadow: var(--shadow-xs); }
+.job-route__end--start .material-symbols-outlined { font-size: 14px; }
+.job-route__end--pin { color: rgb(var(--warning)); transform: translate(-50%, -80%); transition: color .3s; }
+.job-route__end--pin.is-reached { color: rgb(var(--success)); }
+.job-route__end--pin .material-symbols-outlined { font-size: 24px; }
+.job-route__van {
+  width: 26px; height: 26px; border-radius: 999px; background: rgb(var(--brand)); color: #fff;
+  box-shadow: 0 0 0 4px rgb(var(--brand) / 0.2), 0 6px 14px -4px rgb(var(--brand) / 0.7);
+  transition: left .25s linear, top .25s linear;
+}
+.job-route__van .material-symbols-outlined { font-size: 14px; }
+.job-stat { min-width: 0; padding: 10px 11px; border-radius: 12px; background: rgb(var(--sunken) / 0.8); }
+.job-stat p { font-size: 11px; color: rgb(var(--subtle)); }
+.job-stat b { display: block; margin-top: 6px; overflow: hidden; font-size: 13px; font-weight: 600; color: rgb(var(--ink)); white-space: nowrap; text-overflow: ellipsis; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal:not(.is-visible) { opacity: 1; }
+  .job-card { transform: none; }
+}
+
+/* ---------- sign-in side panel ---------- */
+.auth-aside {
+  border: 1px solid rgb(var(--line));
+  background:
+    radial-gradient(520px 300px at 100% 0%, rgb(var(--brand) / 0.16), transparent),
+    radial-gradient(420px 260px at 0% 100%, rgb(var(--accent) / 0.14), transparent),
+    linear-gradient(160deg, rgb(var(--surface)), rgb(var(--sunken)));
+  box-shadow: var(--shadow-pop);
+}
+.auth-aside::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(rgb(var(--line-strong)) 1px, transparent 1.2px); background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 70% 20%, #000 10%, transparent 70%);
+  mask-image: radial-gradient(ellipse 80% 60% at 70% 20%, #000 10%, transparent 70%);
+}

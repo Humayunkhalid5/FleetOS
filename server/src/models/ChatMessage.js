@@ -10,4 +10,6 @@ const chatMessageSchema = new mongoose.Schema({
   readAt: { type: Date, default: null },
 }, { timestamps: true });
 
+chatMessageSchema.index({ booking: 1, createdAt: -1 });
+
 module.exports = mongoose.models.ChatMessage || mongoose.model('ChatMessage', chatMessageSchema);

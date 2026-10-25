@@ -2,6 +2,9 @@ const crypto = require('crypto');
 const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
 const { broadcastBooking, broadcastPlatform } = require('../socket');
+const Invoice = require('../models/Invoice');
+const { generateInvoiceForBooking } = require('./invoiceController');
+const { createNotification } = require('./notificationController');
 
 const stripeApiVersion = '2026-02-25.clover';
 
@@ -54,6 +57,17 @@ exports.recordPayment = async (req, res) => {
   booking.paymentStatus = 'paid';
   booking.statusHistory.push({ status: 'Paid', at: new Date(), byRole: 'company', note: 'Payment recorded' });
   await booking.save();
+  await generateInvoiceForBooking(booking._id).catch(() => null);
+  await Invoice.updateOne({ booking: booking._id }, { paymentStatus: 'paid', paymentMethod: booking.paymentMethod }).catch(() => null);
+  await createNotification({
+    recipientUser: booking.customer,
+    title: 'Payment recorded',
+    message: `Payment of PKR ${Number(booking.pricing.finalTotal || 0).toLocaleString('en-PK')} for ${booking.reference} was recorded. Your invoice is ready.`,
+    type: 'payment',
+    referenceId: booking.reference,
+    link: '/customer/payments',
+    io: req.app.get('io'),
+  }).catch(() => null);
   broadcastBooking(booking, 'booking:updated');
   broadcastPlatform('payment');
   return res.json({ payment, booking });

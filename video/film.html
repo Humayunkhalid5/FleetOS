@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FleetOS — showcase film</title>
+<script type="importmap">{ "imports": { "three": "/client/node_modules/three/build/three.module.js", "three/addons/": "/client/node_modules/three/examples/jsm/" } }</script>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="film.css">
+</head>
+<body>
+<!--
+  Timing cues (data-at):  scene@1.2   1.2 s after the scene starts
+                          scene:2     when sentence 2 of that scene is spoken (+0.3 offset allowed: scene:2+0.3)
+                          scene%0.4   40% through that scene's voiceover
+  data-fx: up | down | left | right | fade | pop | blur | lane | panel   data-until: same syntax, element leaves
+-->
+<div id="stage">
+  <canvas id="gl" width="1920" height="1080"></canvas>
+  <div id="vignette"></div>
+  <div id="labels"></div>
+
+  <!-- 1 · HOOK -->
+  <section class="scene" data-scene="hook">
+    <div class="call glass" style="left:150px;top:300px" data-fx="panel" data-at="hook:0" data-base="perspective(1400px) rotateY(16deg) rotateZ(-2deg)">
+      <span class="tile-icon tone-red"><span class="i">plumbing</span></span>
+      <div><h4>Burst pipe, 12:40 am</h4><p>Plumber: ringing… no answer.</p></div>
+      <span class="x i" data-fx="pop" data-at="hook%0.62">close</span>
+    </div>
+    <div class="call glass" style="left:700px;top:520px" data-fx="panel" data-at="hook:1" data-base="perspective(1400px) rotateX(10deg)">
+      <span class="tile-icon tone-amber"><span class="i">sports_esports</span></span>
+      <div><h4>New console, today</h4><p>Gaming store: “Price? Call back tomorrow.”</p></div>
+      <span class="x i" data-fx="pop" data-at="hook%0.75">close</span>
+    </div>
+    <div class="call glass" style="left:1250px;top:300px" data-fx="panel" data-at="hook:2" data-base="perspective(1400px) rotateY(-16deg) rotateZ(2deg)">
+      <span class="tile-icon tone-violet"><span class="i">storefront</span></span>
+      <div><h4>Groceries, this evening</h4><p>Local shop: “On the way!” — 3 hours ago</p></div>
+      <span class="x i" data-fx="pop" data-at="hook%0.9">close</span>
+    </div>
+    <h2 class="title" style="position:absolute;left:0;right:0;top:780px;text-align:center;font-size:70px" data-fx="up" data-at="hook:3">Three businesses. <span class="grad">Same story.</span></h2>
+  </section>
+
+  <!-- 2 · PROBLEM -->
+  <section class="scene" data-scene="problem">
+    <div style="position:absolute;left:140px;top:150px;width:1500px">
+      <div class="kicker" data-fx="left" data-at="problem@0.1">01 · The problem</div>
+      <h2 class="title" style="margin-top:22px" data-fx="up" data-at="problem@0.3">Small businesses still run on<br><span class="grad">phone calls &amp; guesswork.</span></h2>
+    </div>
+    <div class="pain glass" style="left:140px" data-fx="up" data-at="problem:1">
+      <span class="tile-icon tone-red"><span class="i">person</span></span>
+      <h3>Customers</h3>
+      <ul><li><span class="i">close</span>Can’t verify who they’re dealing with</li><li><span class="i">close</span>No clear price upfront</li><li><span class="i">close</span>No idea when it will arrive</li></ul>
+    </div>
+    <div class="pain glass" style="left:700px" data-fx="up" data-at="problem:2">
+      <span class="tile-icon tone-amber"><span class="i">domain</span></span>
+      <h3>Businesses</h3>
+      <ul><li><span class="i">close</span>Orders lost in WhatsApp chats</li><li><span class="i">close</span>Notebooks instead of records</li><li><span class="i">close</span>No view of staff in the field</li></ul>
+    </div>
+    <div class="pain glass" style="left:1260px" data-fx="up" data-at="problem:3">
+      <span class="tile-icon tone-violet"><span class="i">engineering</span></span>
+      <h3>Staff &amp; workers</h3>
+      <ul><li><span class="i">close</span>No record of finished work</li><li><span class="i">close</span>Reputation never written down</li><li><span class="i">close</span>Unsteady, untracked income</li></ul>
+    </div>
+  </section>
+
+  <!-- 3 · SOLUTION -->
+  <section class="scene" data-scene="solution">
+    <div style="position:absolute;left:0;right:0;top:250px;display:flex;flex-direction:column;align-items:center" data-fx="fade" data-at="solution@0" data-until="solution:1-0.1">
+      <svg class="logo-mark" viewBox="0 0 64 70" width="210" height="230" style="overflow:visible;filter:drop-shadow(0 20px 60px rgba(59,130,246,.65))">
+        <path d="M3 13.2 30.3 1v14.8L3 28V13.2Z" fill="#3B82F6" data-fx="lane" data-at="solution@0.1"/>
+        <path d="M3 32.6 30.3 20.5v14.7L3 47.4V32.6Z" fill="#2563EB" data-fx="lane" data-at="solution@0.22"/>
+        <path d="m3 52 27.3-12.1v14.7L3 66.8V52Z" fill="#22D3EE" data-fx="lane" data-at="solution@0.34"/>
+        <path d="M36.8 14.9 62 3.7v14.7L36.8 29.6V14.9Z" fill="#60A5FA" data-fx="lane" data-at="solution@0.46"/>
+        <path d="M36.8 34.4 62 23.2v14.7L36.8 49.1V34.4Z" fill="#3B82F6" data-fx="lane" data-at="solution@0.58"/>
+      </svg>
+      <div class="wordmark" style="margin-top:34px" data-fx="blur" data-at="solution@0.7">FleetOS</div>
+      <p class="lead" style="margin-top:18px;font-size:36px" data-fx="up" data-at="solution@1.3">Every service job, from request to receipt.</p>
+    </div>
+    <div style="position:absolute;left:0;right:0;top:140px;text-align:center" data-fx="up" data-at="solution:1+0.3">
+      <div class="kicker" style="justify-content:center">02 · The solution</div>
+      <h2 class="title" style="margin-top:18px;font-size:72px">One platform. <span class="grad">Three connected roles.</span></h2>
+    </div>
+  </section>
+
+  <!-- 3b · SAAS -->
+  <section class="scene" data-scene="saas">
+    <div style="position:absolute;left:0;right:0;top:140px;text-align:center">
+      <div class="kicker" style="justify-content:center" data-fx="up" data-at="saas@0.1">03 · Built as SaaS</div>
+      <h2 class="title" style="margin-top:18px;font-size:72px" data-fx="up" data-at="saas@0.3">One platform. <span class="grad">Every kind of business.</span></h2>
+    </div>
+    <div class="carousel" data-fx="fade" data-at="saas:1-0.2" data-until="saas:3-0.4">
+      <div class="carousel-ring" id="carousel">
+        <div class="ind glass"><span class="tile-icon tone-red"><span class="i">plumbing</span></span><b>Plumbing &amp; home repair</b></div>
+        <div class="ind glass"><span class="tile-icon tone-violet"><span class="i">sports_esports</span></span><b>Gaming &amp; electronics</b></div>
+        <div class="ind glass"><span class="tile-icon tone-amber"><span class="i">storefront</span></span><b>Local shops &amp; retail</b></div>
+        <div class="ind glass"><span class="tile-icon tone-green"><span class="i">content_cut</span></span><b>Salons &amp; wellness</b></div>
+        <div class="ind glass"><span class="tile-icon tone-amber"><span class="i">restaurant</span></span><b>Food &amp; restaurants</b></div>
+        <div class="ind glass"><span class="tile-icon"><span class="i">local_gas_station</span></span><b>Fuel &amp; energy</b></div>
+        <div class="ind glass"><span class="tile-icon tone-violet"><span class="i">work</span></span><b>Professional services</b></div>
+        <div class="ind glass"><span class="tile-icon tone-green"><span class="i">devices</span></span><b>Digital &amp; technology</b></div>
+      </div>
+    </div>
+    <div class="ws-chip glass" data-fx="up" data-at="saas%0.48" data-until="saas:3-0.4"><span class="i">dashboard_customize</span>Each gets its own workspace: modules, labels and staff roles for its trade</div>
+    <div class="scale">
+      <div class="step glass" data-fx="up" data-at="saas:3"><span class="tile-icon tone-green"><span class="i">store</span></span><div><small>Today</small><b>Small &amp; medium businesses</b></div></div>
+      <span class="arrow i" data-fx="left" data-at="saas:3+1.4">arrow_forward</span>
+      <div class="step glass" data-fx="up" data-at="saas:3+1.7"><span class="tile-icon"><span class="i">corporate_fare</span></span><div><small>Next</small><b>Private limited companies</b></div></div>
+      <span class="arrow i" data-fx="left" data-at="saas:3+3.6">arrow_forward</span>
+      <div class="step glass" data-fx="up" data-at="saas:3+3.9"><span class="tile-icon tone-violet"><span class="i">public</span></span><div><small>Then</small><b>Pakistan &amp; international</b></div></div>
+    </div>
+  </section>
+
+  <!-- 4 · CUSTOMER -->
+  <section class="scene" data-scene="customer">
+    <div style="position:absolute;left:140px;top:230px;width:640px">
+      <div class="kicker" data-fx="left" data-at="customer@0.1">04 · Customer</div>
+      <h2 class="title" style="margin-top:20px" data-fx="up" data-at="customer@0.25">Find. Compare.<br><span class="grad">Book.</span></h2>
+      <p class="lead" style="margin-top:26px" data-fx="up" data-at="customer@0.6">Approved businesses by city and service, real ratings, and a clear price before you confirm.</p>
+      <div style="margin-top:34px;display:grid;gap:16px;justify-items:start">
+        <span class="chip" data-fx="left" data-at="customer:1"><span class="i" style="color:#60A5FA">verified</span>Approved businesses only</span>
+        <span class="chip" data-fx="left" data-at="customer:1+0.4"><span class="i" style="color:#FBBF24">star</span>Ratings from real jobs</span>
+        <span class="chip" data-fx="left" data-at="customer:1+0.8"><span class="i" style="color:#34D399">payments</span>Price shown upfront</span>
+      </div>
+    </div>
+    <div class="device" style="left:860px;top:160px;width:960px" data-fx="panel" data-at="customer@0.3" data-base="perspective(1800px) rotateY(-13deg) rotateX(3deg)">
+      <div class="bar"><i></i><i></i><i></i><span>fleetos · customer portal</span></div>
+      <img src="build/shots/customer-companies.jpg" alt="">
+    </div>
+    <div class="device" style="left:1230px;top:500px;width:600px" data-fx="up" data-at="customer:1+0.3" data-base="perspective(1800px) rotateY(-13deg) rotateX(3deg) translateZ(80px)">
+      <div class="bar"><i></i><i></i><i></i><span>company profile</span></div>
+      <img src="build/shots/customer-company.jpg" alt="">
+    </div>
+  </section>
+
+  <!-- 5 · MERCHANT -->
+  <section class="scene" data-scene="merchant">
+    <div style="position:absolute;left:140px;top:150px;width:900px">
+      <div class="kicker" data-fx="left" data-at="merchant@0.1">05 · Business</div>
+      <h2 class="title" style="margin-top:20px;font-size:76px" data-fx="up" data-at="merchant@0.25">Accept, decline, <span class="grad">dispatch.</span></h2>
+    </div>
+    <div class="request glass" style="left:140px;top:370px" data-fx="left" data-at="merchant@1.9">
+      <div class="row"><span class="ping">New request · just now</span><span style="font-size:20px;color:#6F80A3;font-family:monospace">FOS-2481</span></div>
+      <h3>Pipe leak repair · kitchen</h3>
+      <div class="meta"><span><span class="i">location_on</span>DHA Phase 5, Lahore</span><span><span class="i">payments</span>PKR 8,300</span></div>
+      <div class="btns">
+        <div class="btn accept" id="accept"><span class="i">check_circle</span>Accept</div>
+        <div class="btn decline" id="decline"><span class="i">cancel</span>Decline</div>
+      </div>
+    </div>
+    <div class="branch glass" style="left:140px;top:750px" data-fx="up" data-at="merchant:1+1.4">
+      <span class="tile-icon tone-red" style="width:58px;height:58px;font-size:32px"><span class="i">forum</span></span>
+      <p><b>Declined?</b>The reason reaches the customer right away.</p>
+    </div>
+    <div class="rank glass" style="left:1080px;top:300px" data-fx="right" data-at="merchant:2" data-base="perspective(1600px) rotateY(-8deg)">
+      <h3><span class="i">auto_awesome</span>Smart Dispatch · best match</h3>
+      <div class="tech best"><span class="av">NA</span><div><b>Nadeem Akhtar</b><small>2.9 km · 15 min away · ★ 4.8 · 0 active jobs</small><div class="bar"><i data-bar="0.89"></i></div></div><span class="score" data-count="88.8">0</span></div>
+      <div class="tech"><span class="av">UR</span><div><b>Usman Raza</b><small>3.4 km · 18 min away · ★ 4.7 · 1 active job</small><div class="bar"><i data-bar="0.82"></i></div></div><span class="score" data-count="82.4">0</span></div>
+      <div class="tech"><span class="av">BA</span><div><b>Bilal Ahmed</b><small>6.1 km · 27 min away · ★ 4.5 · 2 active jobs</small><div class="bar"><i data-bar="0.71"></i></div></div><span class="score" data-count="71.0">0</span></div>
+    </div>
+  </section>
+
+  <!-- 6 · LIVE TRACKING -->
+  <section class="scene" data-scene="tracking">
+    <div style="position:absolute;left:140px;top:150px;width:900px">
+      <div class="kicker" data-fx="left" data-at="tracking@0.1">06 · Live tracking</div>
+      <h2 class="title" style="margin-top:20px;font-size:76px" data-fx="up" data-at="tracking@0.25">Watch it <span class="grad">arrive.</span></h2>
+    </div>
+    <div class="phone" data-fx="panel" data-at="tracking@0.4" data-base="perspective(1800px) rotateY(-10deg)">
+      <div class="screen">
+        <div class="notch"></div>
+        <div class="head"><small><span>Live job</span><span>FOS-2481</span></small><h5>Pipe leak repair · kitchen</h5><span class="status" id="trk-status"><span class="i">local_shipping</span><span>En route</span></span></div>
+        <div class="eta"><small id="trk-eta-label">Arriving in</small><b id="trk-eta">14 min</b><span id="trk-eta-sub">Imran Ali is on the way</span></div>
+        <div class="mini-map">
+          <svg viewBox="0 0 392 190">
+            <defs><pattern id="g" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="#D5DEEC" stroke-width="1.5"/></pattern></defs>
+            <rect width="392" height="190" fill="url(#g)"/>
+            <path d="M0 120 H392 M150 0 V190 M290 0 V190" stroke="#fff" stroke-width="14"/>
+            <path id="trk-route" d="M40 160 C 120 160, 140 70, 220 80 S 320 40, 352 46" fill="none" stroke="#CBD5E1" stroke-width="6" stroke-linecap="round" stroke-dasharray="2 10"/>
+            <path id="trk-done" d="M40 160 C 120 160, 140 70, 220 80 S 320 40, 352 46" fill="none" stroke="#2563EB" stroke-width="6" stroke-linecap="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/>
+            <circle cx="352" cy="46" r="12" fill="#10B981"/><circle cx="352" cy="46" r="5" fill="#fff"/>
+            <g id="trk-van"><circle r="15" fill="#2563EB"/><circle r="22" fill="#2563EB" opacity=".18"/></g>
+          </svg>
+        </div>
+        <div class="steps" id="trk-steps"><i class="fill"></i><span class="i">assignment_ind</span><span class="i">local_shipping</span><span class="i">where_to_vote</span><span class="i">construction</span><span class="i">task_alt</span></div>
+        <div class="techcard"><span class="av">IA</span><div><b>Imran Ali</b><small>★ 4.9 · 312 jobs completed</small></div><span class="i" style="margin-left:auto;font-size:30px;color:#2563EB">call</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · PAYMENT -->
+  <section class="scene" data-scene="payment">
+    <div style="position:absolute;left:140px;top:150px;width:1200px">
+      <div class="kicker" data-fx="left" data-at="payment@0.1">07 · Payment &amp; review</div>
+      <h2 class="title" style="margin-top:20px;font-size:76px" data-fx="up" data-at="payment@0.25">Paid. Invoiced. <span class="grad">Rated.</span></h2>
+    </div>
+    <div class="invoice glass" style="left:180px;top:380px" data-fx="panel" data-at="payment@0.6" data-base="perspective(1600px) rotateY(10deg)">
+      <div style="font-size:22px;color:#9FB0CF;font-weight:700;letter-spacing:.14em">INVOICE · INV-2481</div>
+      <div class="row" style="margin-top:14px"><span>Pipe leak repair</span><b>PKR 6,500</b></div>
+      <div class="row"><span>PVC fittings &amp; sealant</span><b>PKR 1,800</b></div>
+      <div class="row"><span>Payment</span><b>Cash on completion</b></div>
+      <div class="row total" style="border:0"><span>Total</span><b>PKR 8,300</b></div>
+      <div class="stamp" data-fx="pop" data-at="payment@1.9">PAID</div>
+    </div>
+    <div class="review glass" style="left:1060px;top:420px" data-fx="panel" data-at="payment%0.55" data-base="perspective(1600px) rotateY(-10deg)">
+      <div class="stars" id="stars"><span class="i">star</span><span class="i">star</span><span class="i">star</span><span class="i">star</span><span class="i">star</span></div>
+      <q>Fixed in 30 minutes. Clean work, fair price.</q>
+      <div class="who"><span class="av" style="width:52px;height:52px;font-size:19px">AK</span>Ayesha Karim · DHA Phase 5, Lahore</div>
+    </div>
+  </section>
+
+  <!-- 8 · SUPER ADMIN -->
+  <section class="scene" data-scene="admin">
+    <div style="position:absolute;left:140px;top:150px;width:900px">
+      <div class="kicker" data-fx="left" data-at="admin@0.1">08 · Super admin</div>
+      <h2 class="title" style="margin-top:20px;font-size:76px" data-fx="up" data-at="admin@0.25">Trust, <span class="grad">built in.</span></h2>
+    </div>
+    <div style="position:absolute;left:140px;top:360px;width:700px;display:grid;gap:16px">
+      <div class="cap glass" data-fx="left" data-at="admin%0.08"><span class="tile-icon"><span class="i">verified_user</span></span><div><b>Verifies every business</b><small>Documents reviewed before it goes live</small></div></div>
+      <div class="cap glass" data-fx="left" data-at="admin%0.42"><span class="tile-icon tone-green"><span class="i">monitoring</span></span><div><b>Oversees jobs &amp; payments</b><small>Across every business on the platform</small></div></div>
+      <div class="cap glass" data-fx="left" data-at="admin%0.66"><span class="tile-icon tone-violet"><span class="i">support_agent</span></span><div><b>Handles support</b><small>Contact form and user tickets in one queue</small></div></div>
+      <div class="cap glass" data-fx="left" data-at="admin%0.78"><span class="tile-icon tone-red"><span class="i">block</span></span><div><b>Suspends rule-breakers</b><small>Portal access or marketplace listing</small></div></div>
+    </div>
+    <div class="device" style="left:930px;top:220px;width:880px" data-fx="panel" data-at="admin@0.4" data-base="perspective(1800px) rotateY(-12deg) rotateX(3deg)">
+      <div class="bar"><i></i><i></i><i></i><span>fleetos · super admin console</span></div>
+      <img src="build/shots/admin-overview.jpg" alt="">
+    </div>
+  </section>
+
+  <!-- 9 · STACK -->
+  <section class="scene" data-scene="stack">
+    <div style="position:absolute;left:140px;top:150px;width:1400px">
+      <div class="kicker" data-fx="left" data-at="stack@0.1">09 · Technology</div>
+      <h2 class="title" style="margin-top:20px;font-size:76px" data-fx="up" data-at="stack@0.25">Built on the <span class="grad">MERN</span> stack.</h2>
+    </div>
+    <div class="stack-tile glass" style="left:140px;top:400px" data-fx="up" data-at="stack:1"><span class="letter" style="color:#34D399">M</span><div><b>MongoDB</b><small>The single source of truth for every record</small></div></div>
+    <div class="stack-tile glass" style="left:560px;top:400px" data-fx="up" data-at="stack:2"><span class="letter" style="color:#E2E8F0">E</span><div><b>Express</b><small>Secure, role-based REST API</small></div></div>
+    <div class="stack-tile glass" style="left:980px;top:400px" data-fx="up" data-at="stack:3"><span class="letter" style="color:#22D3EE">R</span><div><b>React</b><small>Three fast portals: customer, company, admin</small></div></div>
+    <div class="stack-tile glass" style="left:1400px;top:400px" data-fx="up" data-at="stack:2+0.6"><span class="letter" style="color:#86EFAC">N</span><div><b>Node.js</b><small>One runtime for the API and real-time server</small></div></div>
+    <div style="position:absolute;left:140px;right:140px;top:760px;display:flex;flex-wrap:wrap;gap:14px;justify-content:center">
+      <span class="badge" style="font-size:26px;padding:14px 24px;border-color:rgba(34,211,238,.5);color:#fff" data-fx="pop" data-at="stack:4"><span class="i" style="font-size:28px">bolt</span>Socket.IO real-time</span>
+      <span class="badge" data-fx="pop" data-at="stack:4+0.25"><span class="i">key</span>JWT sessions</span>
+      <span class="badge" data-fx="pop" data-at="stack:4+0.4"><span class="i">admin_panel_settings</span>Role-based access</span>
+      <span class="badge" data-fx="pop" data-at="stack:4+0.55"><span class="i">lock</span>bcrypt passwords</span>
+      <span class="badge" data-fx="pop" data-at="stack:4+0.7"><span class="i">map</span>Leaflet maps</span>
+      <span class="badge" data-fx="pop" data-at="stack:4+0.85"><span class="i">view_in_ar</span>Three.js 3D</span>
+    </div>
+  </section>
+
+  <!-- 10 · IMPACT -->
+  <section class="scene" data-scene="impact">
+    <div style="position:absolute;left:140px;top:150px;width:1400px">
+      <div class="kicker" data-fx="left" data-at="impact@0.1">10 · Impact</div>
+      <h2 class="title" style="margin-top:20px;font-size:76px" data-fx="up" data-at="impact@0.25">Better for <span class="grad">everyone in the job.</span></h2>
+    </div>
+    <div class="impact glass" style="left:140px;top:380px" data-fx="up" data-at="impact:1"><span class="tile-icon tone-green"><span class="i">shield_person</span></span><h3>Customers</h3><p>Know who is coming, what it costs and when they’ll arrive.</p></div>
+    <div class="impact glass" style="left:570px;top:380px" data-fx="up" data-at="impact:2"><span class="tile-icon tone-amber"><span class="i">engineering</span></span><h3>Workers</h3><p>Every finished job and rating builds a reputation and steadier income.</p></div>
+    <div class="impact glass" style="left:1000px;top:380px" data-fx="up" data-at="impact:3"><span class="tile-icon"><span class="i">storefront</span></span><h3>Businesses</h3><p>A live workspace instead of paperwork, and customers they couldn’t reach before.</p></div>
+    <div class="impact glass" style="left:1430px;top:380px" data-fx="up" data-at="impact:4"><span class="tile-icon tone-violet"><span class="i">account_balance</span></span><h3>Economy</h3><p>Documented payments move informal work toward the formal economy.</p></div>
+  </section>
+
+  <!-- 11 · ROADMAP -->
+  <section class="scene" data-scene="roadmap">
+    <div style="position:absolute;left:140px;top:150px;width:1400px">
+      <div class="kicker" data-fx="left" data-at="roadmap@0.1">11 · Roadmap</div>
+      <h2 class="title" style="margin-top:20px;font-size:76px" data-fx="up" data-at="roadmap@0.25">Version one is <span class="grad">just the start.</span></h2>
+    </div>
+    <div class="road" data-fx="fade" data-at="roadmap:1"><i id="road-fill" style="width:0"></i></div>
+    <div class="mile" style="left:140px" data-fx="up" data-at="roadmap%0.22"><div class="card glass"><span class="tile-icon tone-green"><span class="i">account_balance_wallet</span></span><b>JazzCash &amp; Easypaisa payments</b></div><span class="dot"></span></div>
+    <div class="mile" style="left:470px" data-fx="up" data-at="roadmap%0.40"><div class="card glass"><span class="tile-icon"><span class="i">translate</span></span><b>Urdu &amp; regional languages</b></div><span class="dot"></span></div>
+    <div class="mile" style="left:810px" data-fx="up" data-at="roadmap%0.55"><div class="card glass"><span class="tile-icon tone-violet"><span class="i">smartphone</span></span><b>Staff app with live GPS</b></div><span class="dot"></span></div>
+    <div class="mile" style="left:1150px" data-fx="up" data-at="roadmap%0.72"><div class="card glass"><span class="tile-icon tone-amber"><span class="i">sms</span></span><b>SMS &amp; WhatsApp alerts</b></div><span class="dot"></span></div>
+    <div class="mile" style="left:1480px" data-fx="up" data-at="roadmap%0.86"><div class="card glass"><span class="tile-icon tone-green"><span class="i">workspace_premium</span></span><b>Verified skill badges</b></div><span class="dot"></span></div>
+    <p style="position:absolute;left:0;right:0;top:700px;text-align:center;font-size:26px;color:#9FB0CF" data-fx="fade" data-at="roadmap%0.95">Also planned: demand forecasting · warranty &amp; dispute handling · offline mode for field staff</p>
+  </section>
+
+  <!-- 12 · CTA -->
+  <section class="scene" data-scene="cta">
+    <div style="position:absolute;left:0;right:0;top:190px;display:flex;flex-direction:column;align-items:center;text-align:center">
+      <div style="display:flex;align-items:center;gap:30px" data-fx="blur" data-at="cta@0.1">
+        <svg viewBox="0 0 64 70" width="120" height="131" style="filter:drop-shadow(0 16px 40px rgba(59,130,246,.6))"><path d="M3 13.2 30.3 1v14.8L3 28V13.2Z" fill="#3B82F6"/><path d="M3 32.6 30.3 20.5v14.7L3 47.4V32.6Z" fill="#2563EB"/><path d="m3 52 27.3-12.1v14.7L3 66.8V52Z" fill="#22D3EE"/><path d="M36.8 14.9 62 3.7v14.7L36.8 29.6V14.9Z" fill="#60A5FA"/><path d="M36.8 34.4 62 23.2v14.7L36.8 49.1V34.4Z" fill="#3B82F6"/></svg>
+        <span class="wordmark" style="font-size:132px">FleetOS</span>
+      </div>
+      <p class="lead" style="margin-top:22px;font-size:38px;color:#C9D5EE" data-fx="up" data-at="cta:1">Every service job, from request to receipt.</p>
+      <div style="margin-top:60px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center" data-fx="up" data-at="cta:2">
+        <span class="badge" style="font-size:24px;padding:12px 22px"><span class="i">hub</span>3 connected portals</span>
+        <span class="badge" style="font-size:24px;padding:12px 22px"><span class="i">category</span>8 industry workspaces</span>
+        <span class="badge" style="font-size:24px;padding:12px 22px"><span class="i">bolt</span>Real-time MERN stack</span>
+      </div>
+      <div style="margin-top:44px" data-fx="up" data-at="cta:2+0.9">
+        <span class="who-card glass"><span class="av" id="who-initials">HK</span><div style="text-align:left"><small style="margin:0 0 4px;letter-spacing:.14em;text-transform:uppercase;font-size:17px;font-weight:700;color:#22D3EE">Designed &amp; built by</small><b id="who-name">Humayun Khalid</b><small id="who-role">Full-stack MERN developer</small></div></span>
+      </div>
+    </div>
+  </section>
+
+  <div id="grain"></div>
+  <header id="chrome">
+    <div id="chapter"></div>
+    <div id="brand"><svg viewBox="0 0 64 70" width="30" height="33"><path d="M3 13.2 30.3 1v14.8L3 28V13.2Z" fill="#3B82F6"/><path d="M3 32.6 30.3 20.5v14.7L3 47.4V32.6Z" fill="#2563EB"/><path d="m3 52 27.3-12.1v14.7L3 66.8V52Z" fill="#22D3EE"/><path d="M36.8 14.9 62 3.7v14.7L36.8 29.6V14.9Z" fill="#60A5FA"/><path d="M36.8 34.4 62 23.2v14.7L36.8 49.1V34.4Z" fill="#3B82F6"/></svg>FleetOS</div>
+  </header>
+  <div id="progress"><i></i></div>
+  <div id="caption"><span></span></div>
+</div>
+<script type="module" src="film.js"></script>
+</body>
+</html>

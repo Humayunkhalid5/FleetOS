@@ -1,24 +1,134 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import CompanyShell from '../../../components/company/CompanyShell';
+import { useMemo, useState } from 'react';
 import api from '../../../services/api';
+import { useLiveQuery } from '../../../hooks/useLiveQuery';
+import { usePageChrome } from '../../../hooks/usePageChrome';
+import { useFeedback } from '../../../hooks/useFeedback';
+import { useWorkspace } from '../../../components/company/workspace';
+import AvatarUploader from '../../../components/common/AvatarUploader';
+import { Alert, Avatar, EmptyState, Modal, SkeletonCards, Spinner, StatusBadge, Tabs } from '../../../components/ui';
 
-const blank = () => ({ name: '', role: '', phone: '', email: '', experienceYears: 0, status: 'Available', avatar: '' });
-function initials(name) { return String(name || 'ST').split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase(); }
+const STATUSES = ['Available', 'On Job', 'En Route', 'Off Duty'];
+const blank = () => ({ name: '', role: '', phone: '', email: '', experienceYears: 1, status: 'Available', avatar: '', skills: [] });
 
 export default function CompanyTechnicians() {
-  const [people, setPeople] = useState([]); const [company, setCompany] = useState(null); const [query, setQuery] = useState(''); const [error, setError] = useState('');
-  const [open, setOpen] = useState(false); const [editing, setEditing] = useState(null); const [form, setForm] = useState(blank());
-  const load = useCallback(async () => { try { const [staffResult, dashboardResult] = await Promise.all([api.get('/technicians', { noCache: true }), api.get('/company/dashboard', { noCache: true })]); setPeople(staffResult.technicians || []); setCompany(dashboardResult.company || null); } catch (requestError) { setError(requestError.message); } }, []);
-  useEffect(() => { const timer = window.setTimeout(load, 0); return () => window.clearTimeout(timer); }, [load]);
-  const staffLabel = company?.workspace?.workforceLabel || 'Staff'; const singular = staffLabel.endsWith('s') ? staffLabel.slice(0, -1) : staffLabel;
-  const filtered = useMemo(() => people.filter((person) => [person.name, person.role, person.email, person.phone].some((value) => String(value || '').toLowerCase().includes(query.toLowerCase()))), [people, query]);
-  const close = () => { setOpen(false); setEditing(null); setForm(blank()); };
-  const save = async (event) => { event.preventDefault(); try { if (editing) await api.put(`/technicians/${editing._id}`, form); else await api.post('/technicians', form); close(); await load(); } catch (requestError) { setError(requestError.message); } };
-  const remove = async (person) => { if (!window.confirm(`Delete ${person.name}? Assigned staff cannot be deleted until their active work is reassigned.`)) return; try { await api.del(`/technicians/${person._id}`); await load(); } catch (requestError) { setError(requestError.message); } };
-  const readAvatar = (event) => { const file = event.target.files?.[0]; if (!file) return; if (!file.type.startsWith('image/') || file.size > 1.5 * 1024 * 1024) return setError('Choose an image smaller than 1.5 MB.'); const reader = new FileReader(); reader.onload = () => setForm((current) => ({ ...current, avatar: reader.result })); reader.readAsDataURL(file); };
-  return <CompanyShell title={staffLabel} subtitle={`Manage the ${staffLabel.toLowerCase()} who represent this company. Labels adapt to your company category.`} search={query} onSearch={setQuery} actions={<button onClick={() => { setEditing(null); setForm(blank()); setOpen(true); }} className="rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700">Add {singular}</button>}>
-    {error && <p className="mb-5 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</p>}
-    <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{filtered.map((person) => <article key={person._id} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm"><div className="flex gap-4"><div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl bg-[#0D1B2A] font-bold text-white">{person.avatar ? <img src={person.avatar} alt={person.name} className="h-full w-full object-cover" /> : initials(person.name)}</div><div className="min-w-0"><h2 className="truncate font-bold text-slate-900">{person.name}</h2><p className="mt-1 text-sm text-slate-500">{person.role || singular}</p><span className={`mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-bold ${person.status === 'Available' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{person.status}</span></div></div><div className="mt-5 border-t border-slate-100 pt-4 text-sm text-slate-500"><p>{person.email || 'No email added'}</p><p className="mt-1">{person.phone || 'No phone added'} · {person.experienceYears || 0} years</p></div><div className="mt-5 flex justify-end gap-2"><button onClick={() => { setEditing(person); setForm({ ...person }); setOpen(true); }} className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">Edit</button><button onClick={() => remove(person)} className="rounded-xl px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50">Delete</button></div></article>)}{!filtered.length && <p className="rounded-3xl border border-dashed border-slate-200 bg-white p-10 text-center text-slate-500 md:col-span-2 xl:col-span-3">No {staffLabel.toLowerCase()} have been added for this company.</p>}</section>
-    {open && <div className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/40 p-4"><form onSubmit={save} className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl"><div className="mb-5 flex justify-between"><div><h2 className="text-xl font-bold text-slate-900">{editing ? `Edit ${singular}` : `Add ${singular}`}</h2><p className="mt-1 text-sm text-slate-500">A profile picture and details are saved with this company only.</p></div><button type="button" onClick={close} className="text-slate-400">✕</button></div><div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-bold text-slate-700">Name<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 p-3 font-normal" /></label><label className="text-sm font-bold text-slate-700">Role / responsibility<input value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value })} placeholder={`e.g. ${singular}`} className="mt-1 w-full rounded-xl border border-slate-200 p-3 font-normal" /></label><label className="text-sm font-bold text-slate-700">Phone<input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 p-3 font-normal" /></label><label className="text-sm font-bold text-slate-700">Email<input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 p-3 font-normal" /></label><label className="text-sm font-bold text-slate-700">Experience (years)<input type="number" min="0" value={form.experienceYears} onChange={(event) => setForm({ ...form, experienceYears: Number(event.target.value) })} className="mt-1 w-full rounded-xl border border-slate-200 p-3 font-normal" /></label><label className="text-sm font-bold text-slate-700">Availability<select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 p-3 font-normal"><option>Available</option><option>On Job</option><option>Unavailable</option></select></label><label className="sm:col-span-2 text-sm font-bold text-slate-700">Profile photo<input type="file" accept="image/png,image/jpeg,image/webp" onChange={readAvatar} className="mt-1 block w-full rounded-xl border border-slate-200 p-3 font-normal" /></label></div><div className="mt-6 flex justify-end gap-3"><button type="button" onClick={close} className="rounded-xl px-4 py-3 font-bold text-slate-600">Cancel</button><button className="rounded-xl bg-blue-600 px-5 py-3 font-bold text-white">Save {singular}</button></div></form></div>}
-  </CompanyShell>;
+  const { workspace } = useWorkspace();
+  const { confirm, toast } = useFeedback();
+  const label = workspace.workforceLabel || 'Staff';
+  const singular = label.endsWith('s') ? label.slice(0, -1) : label;
+  const { data, error, loading, refresh } = useLiveQuery('/technicians', { events: ['booking:updated', 'workspace:updated', 'review:created'] });
+  const people = useMemo(() => data?.technicians || [], [data]);
+  const [query, setQuery] = useState('');
+  const [tab, setTab] = useState('all');
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(blank());
+  const [skill, setSkill] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [statusBusy, setStatusBusy] = useState('');
+
+  const q = query.trim().toLowerCase();
+  const list = people.filter((person) => (tab === 'all' || person.status === tab) && (!q || [person.name, person.role, person.email, person.phone, ...(person.skills || [])].some((value) => String(value || '').toLowerCase().includes(q))));
+  const count = (status) => people.filter((person) => person.status === status).length;
+
+  const openForm = (person = null) => { setEditing(person || 'new'); setForm(person ? { ...blank(), ...person, skills: person.skills || [] } : blank()); setFormError(''); setSkill(''); };
+  const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.type === 'number' ? Number(event.target.value) : event.target.value }));
+  const addSkill = () => { const value = skill.trim(); if (value && !form.skills.includes(value)) setForm((current) => ({ ...current, skills: [...current.skills, value] })); setSkill(''); };
+
+  const save = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setFormError('');
+    const payload = { name: form.name, role: form.role, phone: form.phone, email: form.email, experienceYears: form.experienceYears, status: form.status, skills: form.skills, ...(form.avatar?.startsWith('data:') ? { avatar: form.avatar } : {}) };
+    try {
+      if (editing === 'new') await api.post('/technicians', payload); else await api.put(`/technicians/${editing._id}`, payload);
+      toast.success(`${form.name} ${editing === 'new' ? 'added' : 'updated'}`);
+      setEditing(null);
+    } catch (requestError) { setFormError(requestError.message); }
+    finally { setSaving(false); }
+  };
+
+  const setStatus = async (person, status) => {
+    setStatusBusy(person._id);
+    try { await api.put(`/technicians/${person._id}`, { status }); toast.success(`${person.name} is now ${status}`); }
+    catch (requestError) { toast.error(requestError.message); }
+    finally { setStatusBusy(''); }
+  };
+
+  const remove = async (person) => {
+    const ok = await confirm({ title: `Remove ${person.name}?`, message: `They will no longer be available for dispatch. ${singular}s with active jobs must be reassigned first.`, confirmLabel: 'Remove', tone: 'danger' });
+    if (!ok) return;
+    try { await api.del(`/technicians/${person._id}`); toast.success(`${person.name} removed`); }
+    catch (requestError) { toast.error(requestError.message); }
+  };
+
+  usePageChrome({
+    title: label,
+    subtitle: 'Your team and their availability for dispatch.',
+    search: query,
+    onSearch: setQuery,
+    actions: <button type="button" className="btn btn-primary" onClick={() => openForm()}><span className="material-symbols-outlined">person_add</span>Add {singular.toLowerCase()}</button>,
+  });
+
+  return (
+    <div className="grid gap-5">
+      <Tabs value={tab} onChange={setTab} tabs={[['all', 'Everyone', people.length], ...STATUSES.map((status) => [status, status, count(status)])]} />
+      <Alert onRetry={refresh}>{error && !data ? error.message : ''}</Alert>
+      {loading ? <SkeletonCards count={6} /> : list.length ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {list.map((person) => (
+            <article key={person._id} className="card flex flex-col p-5">
+              <div className="flex items-start gap-3">
+                <Avatar name={person.name} src={person.avatar} size={48} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-semibold">{person.name}</p>
+                  <p className="truncate text-[12.5px] text-muted">{person.role || singular}</p>
+                </div>
+                <StatusBadge status={person.status} />
+              </div>
+              <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
+                <div className="well py-2"><dt className="text-[11px] text-subtle">Rating</dt><dd className="text-[14px] font-semibold">{person.rating ? Number(person.rating).toFixed(1) : '—'}</dd></div>
+                <div className="well py-2"><dt className="text-[11px] text-subtle">Jobs</dt><dd className="text-[14px] font-semibold">{person.completedJobsCount || 0}</dd></div>
+                <div className="well py-2"><dt className="text-[11px] text-subtle">Years</dt><dd className="text-[14px] font-semibold">{person.experienceYears || 0}</dd></div>
+              </dl>
+              {(person.skills || []).length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{person.skills.slice(0, 4).map((item) => <span key={item} className="badge badge-neutral">{item}</span>)}</div>}
+              <p className="mt-3 truncate text-[12.5px] text-subtle">{[person.phone, person.email].filter(Boolean).join(' · ') || 'No contact details'}</p>
+              <div className="mt-auto flex items-center gap-2 pt-4">
+                <select className="select input-sm h-9 flex-1 text-[13px]" value={person.status} disabled={statusBusy === person._id} onChange={(event) => setStatus(person, event.target.value)} aria-label={`Availability for ${person.name}`}>
+                  {STATUSES.map((status) => <option key={status}>{status}</option>)}
+                </select>
+                <button type="button" className="btn btn-secondary btn-icon btn-sm h-9 w-9" onClick={() => openForm(person)} aria-label={`Edit ${person.name}`}><span className="material-symbols-outlined">edit</span></button>
+                <button type="button" className="btn btn-ghost btn-icon btn-sm h-9 w-9 hover:text-danger-fg" onClick={() => remove(person)} aria-label={`Remove ${person.name}`}><span className="material-symbols-outlined">delete</span></button>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="card"><EmptyState icon="badge" title={q || tab !== 'all' ? 'No one matches' : `Add your first ${singular.toLowerCase()}`} action={!q && tab === 'all' && <button type="button" className="btn btn-primary" onClick={() => openForm()}>Add {singular.toLowerCase()}</button>}>{q || tab !== 'all' ? 'Try another filter.' : 'Team members can be dispatched to bookings and tracked live by customers.'}</EmptyState></div>
+      )}
+
+      <Modal open={Boolean(editing)} onClose={() => setEditing(null)} size="lg" title={editing === 'new' ? `Add ${singular.toLowerCase()}` : `Edit ${form.name}`} description="Profiles are visible only within your company and to customers they serve."
+        footer={<><button type="button" className="btn btn-secondary" onClick={() => setEditing(null)}>Cancel</button><button type="submit" form="staff-form" className="btn btn-primary" disabled={saving}>{saving ? <><Spinner /> Saving</> : 'Save'}</button></>}>
+        <form id="staff-form" onSubmit={save} className="grid gap-4">
+          <AvatarUploader name={form.name} src={form.avatar} size={64} onChange={(avatar) => setForm((current) => ({ ...current, avatar }))} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="field"><span className="label">Full name</span><input className="input" required value={form.name} onChange={update('name')} /></label>
+            <label className="field"><span className="label">Role</span><input className="input" value={form.role} onChange={update('role')} placeholder={`e.g. Senior ${singular.toLowerCase()}`} /></label>
+            <label className="field"><span className="label">Phone</span><input className="input" type="tel" value={form.phone} onChange={update('phone')} /></label>
+            <label className="field"><span className="label">Email</span><input className="input" type="email" value={form.email} onChange={update('email')} /></label>
+            <label className="field"><span className="label">Experience (years)</span><input className="input" type="number" min="0" value={form.experienceYears} onChange={update('experienceYears')} /></label>
+            <label className="field"><span className="label">Availability</span><select className="select" value={form.status} onChange={update('status')}>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label>
+          </div>
+          <div className="field">
+            <span className="label">Skills <span className="font-normal text-subtle">— used by Smart Dispatch to match jobs</span></span>
+            <div className="flex gap-2">
+              <input className="input" value={skill} onChange={(event) => setSkill(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addSkill(); } }} placeholder="e.g. Installation, Repair & Support" />
+              <button type="button" className="btn btn-secondary h-11" onClick={addSkill}>Add</button>
+            </div>
+            {form.skills.length > 0 && <div className="mt-1 flex flex-wrap gap-1.5">{form.skills.map((item) => <button key={item} type="button" className="badge badge-brand" onClick={() => setForm((current) => ({ ...current, skills: current.skills.filter((value) => value !== item) }))}>{item}<span className="material-symbols-outlined">close</span></button>)}</div>}
+          </div>
+          <Alert>{formError}</Alert>
+        </form>
+      </Modal>
+    </div>
+  );
 }

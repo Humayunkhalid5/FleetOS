@@ -3,6 +3,7 @@ const controller = require('../controllers/assignmentController');
 const { protect, requireApprovedCompany } = require('../middleware/authMiddleware');
 const { asyncHandler } = require('../utils/http');
 
+router.get('/bookings/:id/recommendations', protect, requireApprovedCompany, asyncHandler(controller.getRecommendations));
 router.post('/bookings/:id/assign', protect, requireApprovedCompany, asyncHandler(controller.assignTechnician));
 router.post('/assign-technician', protect, requireApprovedCompany, asyncHandler(controller.assignTechnician));
 

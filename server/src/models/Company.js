@@ -6,6 +6,9 @@ const companySchema = new mongoose.Schema({
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   description: { type: String, default: '', maxlength: 1200 },
   businessCategory: { type: String, default: 'field-services', index: true },
+  // Subset of the category's fulfilment types this business offers (empty = all of them).
+  fulfillmentOptions: [{ type: String, enum: ['onsite', 'delivery', 'pickup', 'instore', 'remote'] }],
+  deliveryFee: { type: Number, default: 0, min: 0, max: 100000 },
   // Used only by the built-in demonstration catalogue migration. It is never
   // applied to a company created by a real owner.
   seedProfileVersion: { type: Number, default: 0, select: false },
@@ -33,11 +36,16 @@ const companySchema = new mongoose.Schema({
   clientListed: { type: Boolean, default: true, index: true },
   approvalVersion: { type: Number, default: 1 },
   approvedAt: { type: Date, default: null },
+  locationCoordinates: {
+    type: { type: String, enum: ['Point'], default: 'Point' },
+    coordinates: { type: [Number], default: [73.0479, 33.6844] },
+  },
 }, { timestamps: true });
 
 companySchema.virtual('verified').get(function verified() { return this.approvalStatus === 'approved'; });
 companySchema.set('toJSON', { virtuals: true });
 companySchema.index({ approvalStatus: 1, city: 1, rating: -1, updatedAt: -1, name: 1 });
 companySchema.index({ approvalStatus: 1, rating: -1, updatedAt: -1, name: 1 });
+companySchema.index({ locationCoordinates: '2dsphere' });
 
 module.exports = mongoose.models.Company || mongoose.model('Company', companySchema);

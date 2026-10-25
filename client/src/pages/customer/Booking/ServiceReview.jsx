@@ -1,204 +1,94 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../constants';
 import api from '../../../services/api';
-import CustomerTopNav from '../../../components/customer/CustomerTopNav';
+import { useLiveQuery } from '../../../hooks/useLiveQuery';
+import { usePageChrome } from '../../../hooks/usePageChrome';
+import { useFeedback } from '../../../hooks/useFeedback';
+import { Alert, Avatar, EmptyState, Skeleton, Spinner } from '../../../components/ui';
+
+const LABELS = ['Poor', 'Fair', 'Good', 'Great', 'Excellent'];
+const QUICK = ['On time', 'Clear communication', 'Professional staff', 'Fair price', 'Clean work'];
 
 function ServiceReview() {
   const navigate = useNavigate();
   const location = useLocation();
-  const selectedTech = location.state?.selectedTech?.name || location.state?.selectedTech || 'Assigned staff member';
-  const bookingId = location.state?.bookingId || new URLSearchParams(location.search).get('bookingId') || null;
+  const { toast } = useFeedback();
+  const bookingId = location.state?.bookingId || new URLSearchParams(location.search).get('bookingId') || '';
+  const { data, loading, error } = useLiveQuery(bookingId ? `/bookings/${bookingId}` : null, { keepPrevious: false });
+  const booking = data?.booking;
   const [rating, setRating] = useState(0);
-  const [feedback, setFeedback] = useState('');
+  const [hover, setHover] = useState(0);
+  const [comment, setComment] = useState('');
+  // Quick tags are toggles kept apart from the free text, then joined on submit.
+  const [tags, setTags] = useState([]);
+  const toggleTag = (tag) => setTags((current) => (current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag]));
+  const fullComment = [tags.join(' · '), comment.trim()].filter(Boolean).join(' — ');
   const [submitting, setSubmitting] = useState(false);
-  const [booking, setBooking] = useState(null);
-  const [error, setError] = useState('');
+  const [formError, setFormError] = useState('');
 
-  useEffect(() => {
-    if (!bookingId) return;
-    api.get(`/bookings/${bookingId}`, { noCache: true })
-      .then((result) => setBooking(result.booking || null))
-      .catch((requestError) => setError(requestError.message));
-  }, [bookingId]);
+  usePageChrome({ title: 'Rate your service', subtitle: booking ? `${booking.serviceSnapshot?.name} · ${booking.company?.name}` : '', backTo: ROUTES.bookings });
 
-  const getTechAvatar = (name) => {
-    if (name === 'Ayesha Khan') return "https://lh3.googleusercontent.com/aida-public/AB6AXuDnCiWvnkOKQReJfbwVPnaN6tu7s5397gTYSVBPMyiX6toCf8p5wo3eRuZ2QIc2TqcZrm-1vI7JyRT7oqpSWXpAdRECBDCnRGuLQM6zGzCDYi5wegUEzJG2p7E7E7jfdx9hSCUUoveU458OaY-di3G4frMSjmTJwjSznLPYXVl_zY_nMTuD0q3drMrje1gMak8VTFXTBe687naWHZTIHqBAHuyZqtzAN7B6ZysOa9vPYFnRqmNuHtlY1A";
-    if (name === 'Bilal Ahmed') return "https://lh3.googleusercontent.com/aida-public/AB6AXuBdSq9kds-9hvrnwo749V1I2EinNun7_8MX5BIE5-IMKUNAe4eYNSZlRYfJsQoPN6Bhr_Si7Oj9uq3XH8CcF0q8t2BSjIFBI_5A248PGaEjKqs1N1rbNOcqGh-pFfZ5qZmC7dv0k7AJ0lOUJGzjeGN4P8Z_QnnObTriizg6iqp9D11hzs6aSOcdIpfpF8Q04gH3UJwNaz_BNK0OIH9K1hLW_V9CsATPDG8NQAVE-f5Eg0eDZhdoGe4WAg";
-    return "https://lh3.googleusercontent.com/aida-public/AB6AXuCXwsweOO86ly3Mjt2oPOTZRYD1NP5mFpi-bynzXFWH7BK3T1YL55KCFFrZrOcUURPtfBegXO4gbwW3z5IQjimD9PJdNPhesJ7hL7KISKXUv2KgwVNlnz3xE0qI3A_5wrkX3sa2pXAqeANZCpoaBO2LDhb6qnmgB5-KmV-pNODRMH9NfpRAtxVFJQVyju9SQjow0qsPDwEUkQxQe7i-Ws5_NWjIGSggzyQu6yGIMjlDQRpIl02wL0Lvqw";
-  };
-  const ratingLabels = ["Poor", "Fair", "Good", "Great", "Excellent!"];
-
-  const handleSubmit = async () => {
-    if (rating === 0) {
-      alert('Please select a star rating before submitting.');
-      return;
-    }
-    if (!bookingId) {
-      alert('No completed booking was selected for this review.');
-      return;
-    }
-    if (!feedback.trim()) {
-      alert('Please add a short written review.');
-      return;
-    }
+  const submit = async (event) => {
+    event.preventDefault();
+    setFormError('');
+    if (!rating) return setFormError('Choose a star rating.');
+    if (fullComment.length < 5) return setFormError('Pick a tag or add a few words about the job.');
     setSubmitting(true);
     try {
-      await api.post('/reviews', {
-        bookingId,
-        technician: selectedTech,
-        service: booking?.serviceSnapshot?.name || 'Preventive Maintenance',
-        rating,
-        comment: feedback.trim(),
-      });
-      alert('Review Submitted Successfully!');
-      navigate(ROUTES.dashboard);
-    } catch (err) {
-      alert(err.message || 'Failed to submit review. Please try again.');
-    } finally {
+      await api.post('/reviews', { bookingId, rating, comment: fullComment });
+      toast.success('Thanks — your review is now on the company profile.', { title: 'Review published' });
+      navigate(ROUTES.reviews, { replace: true });
+    } catch (requestError) {
+      setFormError(requestError.message);
       setSubmitting(false);
     }
+    return undefined;
   };
 
+  if (!bookingId) return <div className="card"><EmptyState icon="rate_review" title="Pick a completed booking to review" action={<button type="button" className="btn btn-primary" onClick={() => navigate(ROUTES.bookings)}>My bookings</button>} /></div>;
+  if (loading) return <div className="mx-auto grid max-w-xl gap-4"><Skeleton className="h-24 rounded-2xl" /><Skeleton className="h-72 rounded-2xl" /></div>;
+  if (error || !booking) return <div className="card"><EmptyState icon="error" title="This booking can't be reviewed">{error?.message}</EmptyState></div>;
+  if (!['Completed', 'Paid'].includes(booking.status)) return <div className="card"><EmptyState icon="hourglass_top" title="Reviews open after the job is completed" action={<button type="button" className="btn btn-primary" onClick={() => navigate(`${ROUTES.liveTracking}?bookingId=${bookingId}`)}>Track this booking</button>}>Current status: {booking.status}.</EmptyState></div>;
+
+  const shown = hover || rating;
+
   return (
-    <div className="client-dashboard-shell bg-background text-on-surface font-body-md text-body-md overflow-x-hidden min-h-screen">
-      <CustomerTopNav title="Service review" subtitle="Share feedback about your completed request." backTo={ROUTES.bookings} />
-
-      <main className="pt-10 pb-32 max-w-2xl mx-auto px-container-margin">
-        {/* Success Headline Area */}
-        <div className="text-center mb-xl">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-tertiary-container text-on-tertiary-container rounded-full mb-md shadow-lg shadow-tertiary/20">
-            <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'wght' 600" }}>check_circle</span>
-          </div>
-          <h2 className="font-headline-lg text-headline-lg text-primary mb-xs">Service Completed!</h2>
-          <p className="text-on-secondary-container font-body-lg text-body-lg">Thank you for choosing FleetOS. Your feedback helps our partners improve.</p>
-          {error && <p className="mt-md text-sm text-error">{error}</p>}
+    <form onSubmit={submit} className="mx-auto grid max-w-xl gap-5">
+      <section className="card card-pad flex items-center gap-4">
+        <Avatar name={booking.technician?.name || booking.company?.name} src={booking.technician?.avatar} size={48} />
+        <div className="min-w-0">
+          <p className="truncate font-semibold">{booking.technician?.name || booking.company?.name}</p>
+          <p className="truncate text-[13px] text-muted">{booking.serviceSnapshot?.name} · {new Date(booking.scheduledAt).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}</p>
         </div>
+        <span className="ref ml-auto">{booking.reference}</span>
+      </section>
 
-        {/* Review Card */}
-        <section className="bg-surface-container-lowest rounded-xl p-lg shadow-[0_4px_16px_rgba(11,29,45,0.12)] border border-surface-container-high">
-          {/* Rating Selector Section */}
-          <div className="flex flex-col items-center mb-xl">
-            <label className="font-label-sm text-label-sm text-outline uppercase tracking-widest mb-md">How was your service?</label>
-            <div className="flex gap-xs">
-              {[1, 2, 3, 4, 5].map(star => (
-                <button 
-                  key={star} 
-                  className="group p-1 focus:outline-none transition-transform hover:scale-110 active:scale-95" 
-                  onClick={() => setRating(star)}
-                >
-                  <span 
-                    className={`material-symbols-outlined text-5xl transition-colors ${rating >= star ? 'text-yellow-400' : 'text-surface-variant group-hover:text-yellow-400'}`}
-                    style={{ fontVariationSettings: rating >= star ? "'FILL' 1" : "'FILL' 0" }}
-                  >
-                    star
-                  </span>
-                </button>
-              ))}
-            </div>
-            <p className={`mt-sm font-nav-item text-nav-item italic h-5 ${rating > 0 ? 'text-primary font-bold' : 'text-on-surface-variant'}`}>
-              {rating > 0 ? ratingLabels[rating - 1] : ''}
-            </p>
-          </div>
-
-          {/* Text Feedback Area */}
-          <div className="mb-lg">
-            <label className="block font-label-sm text-label-sm text-on-surface-variant mb-xs" htmlFor="experience">Tell us about your experience</label>
-            <textarea 
-              id="experience" 
-              value={feedback}
-              onChange={(e) => setFeedback(e.target.value)}
-              className="w-full bg-surface-container rounded-lg border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary p-md font-body-md text-body-md placeholder:text-on-secondary-container/50 transition-all resize-none" 
-              placeholder="Was the service on time? Did the company communicate clearly and complete the request properly?" 
-              rows="5"
-            ></textarea>
-          </div>
-
-          {/* Upload integrations stay disabled until secure object storage and scanning are configured. */}
-          <div className="mb-xl">
-            <label className="block font-label-sm text-label-sm text-on-surface-variant mb-xs">Service photos</label>
-            <div className="w-full border-2 border-dashed border-outline-variant rounded-xl p-lg flex items-center gap-md bg-surface-container-low opacity-70">
-              <span className="material-symbols-outlined">image_not_supported</span>
-              <p className="text-xs text-on-surface-variant">Photo uploads require configured object storage and malware scanning and are not enabled locally.</p>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex flex-col md:flex-row gap-md mt-lg">
-            <button 
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="flex-1 bg-primary text-on-primary font-bold py-md px-xl rounded-xl shadow-lg hover:shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-sm disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {submitting ? (
-                <>
-                  <span className="material-symbols-outlined animate-spin">progress_activity</span>
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  Submit Review
-                  <span className="material-symbols-outlined">send</span>
-                </>
-              )}
+      <section className="card card-pad">
+        <p className="text-center text-[15px] font-semibold">How did it go?</p>
+        <div className="mt-4 flex justify-center gap-1" onMouseLeave={() => setHover(0)} role="radiogroup" aria-label="Rating">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button key={star} type="button" role="radio" aria-checked={rating === star} aria-label={`${star} star${star > 1 ? 's' : ''}`} onMouseEnter={() => setHover(star)} onClick={() => setRating(star)} className="rounded-xl p-1 transition-transform hover:scale-110">
+              <span className={`material-symbols-outlined text-[44px] ${star <= shown ? 'icon-fill text-warning' : 'text-line-strong'}`}>star</span>
             </button>
-            <button 
-              onClick={() => navigate('/customer/companies')}
-              className="flex-1 bg-surface-container-high text-on-surface-variant font-bold py-md px-xl rounded-xl hover:bg-surface-container-highest transition-all"
-            >
-              Back to Home
-            </button>
-          </div>
-        </section>
-
-        {/* Context Card: Service Summary */}
-        <div className="mt-xl grid grid-cols-1 md:grid-cols-2 gap-md">
-          <div className="bg-surface-container-low p-md rounded-xl flex items-start gap-md">
-            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-sm">
-              <span className="material-symbols-outlined text-primary">oil_barrel</span>
-            </div>
-            <div>
-              <p className="font-label-sm text-label-sm text-on-surface-variant uppercase">Service Type</p>
-              <p className="font-headline-md text-headline-md">{booking?.serviceSnapshot?.name || 'Completed service request'}</p>
-              <p className="text-xs text-outline">Reference: {booking?.reference || 'Selected booking'}</p>
-            </div>
-          </div>
-          <div className="bg-surface-container-low p-md rounded-xl flex items-start gap-md">
-            <div className="w-12 h-12 rounded-lg overflow-hidden border border-surface-container-high">
-              <img className="w-full h-full object-cover" alt={selectedTech} src={getTechAvatar(selectedTech)} />
-            </div>
-            <div>
-              <p className="font-label-sm text-label-sm text-on-surface-variant uppercase">Assigned Staff</p>
-              <p className="font-headline-md text-headline-md">{selectedTech}</p>
-              <p className="text-xs text-tertiary flex items-center gap-1">
-                <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
-                Verified Company Staff
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
-      </main>
+        <p className="mt-1 h-5 text-center text-[13.5px] font-semibold text-muted">{shown ? LABELS[shown - 1] : ''}</p>
 
-      {/* BottomNavBar */}
-      <nav className="md:hidden fixed bottom-0 w-full z-50 flex justify-around items-center px-container-margin py-sm bg-surface shadow-[0_-4px_16px_0_rgba(11,29,45,0.12)] rounded-t-xl">
-        <a href={ROUTES.dashboard} onClick={e => {e.preventDefault(); navigate(ROUTES.dashboard);}} className="flex flex-col items-center justify-center text-on-secondary-fixed-variant px-4 py-1 hover:bg-surface-container-high transition-transform duration-150 scale-95 active:scale-90">
-          <span className="material-symbols-outlined">dashboard</span>
-          <span className="font-nav-item text-nav-item">Dashboard</span>
-        </a>
-        <a href={ROUTES.bookings} onClick={e => {e.preventDefault(); navigate(ROUTES.bookings);}} className="flex flex-col items-center justify-center text-on-secondary-fixed-variant px-4 py-1 hover:bg-surface-container-high transition-transform duration-150 scale-95 active:scale-90">
-          <span className="material-symbols-outlined">event_note</span>
-          <span className="font-nav-item text-nav-item">Bookings</span>
-        </a>
-        <a href={ROUTES.bookings} onClick={e => {e.preventDefault(); navigate(ROUTES.bookings);}} className="flex flex-col items-center justify-center text-on-secondary-fixed-variant px-4 py-1 hover:bg-surface-container-high transition-transform duration-150 scale-95 active:scale-90">
-          <span className="material-symbols-outlined">search</span>
-          <span className="font-nav-item text-nav-item">Search</span>
-        </a>
-        <a href={ROUTES.profile} onClick={e => {e.preventDefault(); navigate(ROUTES.profile);}} className="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-xl px-4 py-1 transition-transform duration-150 scale-95 active:scale-90">
-          <span className="material-symbols-outlined">person</span>
-          <span className="font-nav-item text-nav-item">Profile</span>
-        </a>
-      </nav>
-    </div>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          {QUICK.map((tag) => (
+            <button key={tag} type="button" className="chip h-8 text-[12.5px]" aria-pressed={tags.includes(tag)} onClick={() => toggleTag(tag)}>{tags.includes(tag) && <span className="material-symbols-outlined text-[15px]">check</span>}{tag}</button>
+          ))}
+        </div>
+        <label className="field mt-5">
+          <span className="label">Your review</span>
+          <textarea className="textarea" rows={5} maxLength={1000} value={comment} onChange={(event) => setComment(event.target.value)} placeholder="What went well? Anything the company could improve?" />
+          <span className="hint text-right">{comment.length}/1000 · shown publicly with your first name</span>
+        </label>
+        <Alert className="mt-4">{formError}</Alert>
+        <button type="submit" disabled={submitting} className="btn btn-primary btn-lg mt-5 w-full">{submitting ? <><Spinner /> Publishing</> : 'Publish review'}</button>
+      </section>
+    </form>
   );
 }
 

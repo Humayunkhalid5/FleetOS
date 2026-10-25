@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const { hashPassword, verifyPassword } = require('../utils/passwords');
 const User = require('../models/User');
 const Company = require('../models/Company');
 const Booking = require('../models/Booking');
@@ -10,7 +10,9 @@ const SupportRequest = require('../models/SupportRequest');
 const { authenticateCredentials, issueSession, clearSession, publicUser } = require('./authController');
 const { sendCompanyDecisionEmail } = require('../utils/mailer');
 const { broadcastPlatform, broadcastMarketplace } = require('../socket');
-const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{10,}$/;
+const { recentMonths } = require('../utils/months');
+// Admin passwords: 8+ characters with at least one letter and one number.
+const strongPassword = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 
 function companyClientVisible(company) {
   return company?.approvalStatus === 'approved'
@@ -32,6 +34,25 @@ exports.adminLogin = async (req, res) => {
   return res.json({ token, user: publicUser(user) });
 };
 
+// Change the Admin password from the sign-in screen. The current password is
+// the proof of identity; the new bcrypt hash is written to MongoDB and every
+// existing Admin session is invalidated.
+exports.adminChangePassword = async (req, res) => {
+  const { email, currentPassword, newPassword } = req.body || {};
+  if (!email || !currentPassword || !newPassword) return res.status(400).json({ message: 'Email, current password and new password are required' });
+  if (!strongPassword.test(String(newPassword))) return res.status(400).json({ message: 'New password must be at least 8 characters and include a letter and a number' });
+  if (String(newPassword) === String(currentPassword)) return res.status(400).json({ message: 'Choose a password different from the current one' });
+  const user = await authenticateCredentials(email, currentPassword);
+  if (!user || user.role !== 'super-admin') return res.status(401).json({ message: 'Email or current password is incorrect' });
+  const admin = await User.findById(user._id).select('+password');
+  admin.password = await hashPassword(String(newPassword));
+  admin.sessionVersion += 1;
+  admin.lastLoginAt = new Date();
+  await admin.save();
+  const token = issueSession(res, admin, 'fleetos_admin_session');
+  return res.json({ token, user: publicUser(admin) });
+};
+
 exports.adminLogout = async (req, res) => {
   clearSession(res, 'fleetos_admin_session');
   return res.status(204).end();
@@ -40,6 +61,8 @@ exports.adminLogout = async (req, res) => {
 exports.adminMe = async (req, res) => res.json({ user: publicUser(req.user) });
 
 exports.overview = async (req, res) => {
+  const trendMonths = recentMonths(6);
+  const [trendStart] = trendMonths;
   const [companyCounts, userCounts, bookingCounts, finance, review, activeTechnicians, pendingCompanies, openSupport, recentBookings, revenueTrend] = await Promise.all([
     Company.aggregate([{ $group: { _id: '$approvalStatus', count: { $sum: 1 } } }]),
     User.aggregate([{ $match: { role: { $ne: 'super-admin' } } }, { $group: { _id: '$role', count: { $sum: 1 } } }]),
@@ -51,10 +74,8 @@ exports.overview = async (req, res) => {
     SupportRequest.countDocuments({ status: 'open' }),
     Booking.find().populate('company', 'name').sort({ createdAt: -1 }).limit(8).lean(),
     Payment.aggregate([
-      { $match: { status: 'recorded' } },
+      { $match: { status: 'recorded', recordedAt: { $gte: new Date(trendStart.year, trendStart.month - 1, 1) } } },
       { $group: { _id: { year: { $year: '$recordedAt' }, month: { $month: '$recordedAt' } }, amount: { $sum: '$amount' } } },
-      { $sort: { '_id.year': 1, '_id.month': 1 } },
-      { $limit: 7 },
     ]),
   ]);
   const sumCounts = (rows) => rows.reduce((sum, row) => sum + row.count, 0);
@@ -74,8 +95,18 @@ exports.overview = async (req, res) => {
     bookingCounts,
     pendingCompanies,
     recentBookings,
-    revenueTrend,
+    // Last six calendar months, oldest first, with empty months as 0.
+    revenueTrend: trendMonths.map(({ year, month }) => ({
+      _id: { year, month },
+      amount: revenueTrend.find((row) => row._id.year === year && row._id.month === month)?.amount || 0,
+    })),
     mongo: { state: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected', database: mongoose.connection.name },
+    system: {
+      uptimeSeconds: Math.round(process.uptime()),
+      memoryMb: Math.round(process.memoryUsage().rss / 1048576),
+      node: process.version,
+      environment: process.env.NODE_ENV || 'development',
+    },
   });
 };
 
@@ -118,7 +149,9 @@ exports.setCompanyStatus = async (req, res) => {
   if (!company) return res.status(409).json({ message: 'Company was updated elsewhere; refresh and try again' });
   await User.updateOne(
     { company: company._id, role: 'company' },
-    { status: status === 'approved' ? 'active' : 'suspended', $inc: { sessionVersion: 1 } },
+    // Approval keeps the owner's current session so their waiting screen opens
+    // the workspace immediately; rejection/suspension revokes every session.
+    status === 'approved' ? { status: 'active' } : { status: 'suspended', $inc: { sessionVersion: 1 } },
   );
   const email = await sendCompanyDecisionEmail(company, status).catch((error) => ({ delivered: false, reason: error.message }));
   broadcastMarketplace('company-status', company._id);
@@ -136,9 +169,24 @@ exports.setUserStatus = async (req, res) => {
   return res.json({ user });
 };
 
+// Recovery for customers and companies who forgot their password: the admin
+// sets a new one, its bcrypt hash replaces the old one in MongoDB, and every
+// existing session for that account is signed out.
+exports.setUserPassword = async (req, res) => {
+  const password = String(req.body.password || '');
+  if (password.length < 8) return res.status(400).json({ message: 'Use at least 8 characters for the new password' });
+  const user = await User.findOne({ _id: req.params.id, role: { $ne: 'super-admin' } }).select('+password');
+  if (!user) return res.status(404).json({ message: 'User not found' });
+  user.password = await hashPassword(password);
+  user.sessionVersion += 1;
+  await user.save();
+  broadcastPlatform('user');
+  return res.json({ user: { _id: user._id, email: user.email, status: user.status } });
+};
+
 exports.listBookings = async (req, res) => res.json({ bookings: await Booking.find().populate('company', 'name').populate('customer', 'name email').sort({ createdAt: -1 }).limit(500).lean() });
 exports.listPayments = async (req, res) => {
-  const [payments, companyRevenue] = await Promise.all([
+  const [payments, companyRevenue, [totals = {}] = [], paymentCount] = await Promise.all([
     Payment.find().populate('company', 'name city').populate('customer', 'name email').populate('booking', 'reference').sort({ createdAt: -1 }).limit(500).lean(),
     Payment.aggregate([
       { $match: { status: 'recorded' } },
@@ -149,8 +197,15 @@ exports.listPayments = async (req, res) => {
       { $unwind: '$company' },
       { $project: { _id: 0, companyId: '$_id', company: { _id: '$company._id', name: '$company.name', city: '$company.city' }, revenue: 1, payments: 1 } },
     ]),
+    // Platform totals cover every payment, not only the ledger rows returned.
+    Payment.aggregate([
+      { $match: { status: 'recorded' } },
+      { $group: { _id: null, revenue: { $sum: '$amount' }, recorded: { $sum: 1 }, companies: { $addToSet: '$company' } } },
+      { $project: { _id: 0, revenue: 1, recorded: 1, companies: { $size: '$companies' } } },
+    ]),
+    Payment.countDocuments(),
   ]);
-  return res.json({ payments, companyRevenue });
+  return res.json({ payments, companyRevenue, totals: { revenue: totals.revenue || 0, recorded: totals.recorded || 0, companies: totals.companies || 0, payments: paymentCount } });
 };
 
 exports.setCompanyListing = async (req, res) => {
@@ -183,9 +238,9 @@ exports.updateAdminProfile = async (req, res) => {
   const wantsPasswordChange = Boolean(req.body.currentPassword || req.body.newPassword);
   if (wantsPasswordChange) {
     if (!req.body.currentPassword || !req.body.newPassword) return res.status(400).json({ message: 'Both current and new password are required' });
-    if (!strongPassword.test(String(req.body.newPassword))) return res.status(400).json({ message: 'New password must be at least 10 characters and include uppercase, lowercase, number and symbol' });
-    if (!(await bcrypt.compare(req.body.currentPassword, admin.password))) return res.status(400).json({ message: 'Current password is incorrect' });
-    admin.password = await bcrypt.hash(req.body.newPassword, 12);
+    if (!strongPassword.test(String(req.body.newPassword))) return res.status(400).json({ message: 'New password must be at least 8 characters and include a letter and a number' });
+    if (!(await verifyPassword(req.body.currentPassword, admin.password))) return res.status(400).json({ message: 'Current password is incorrect' });
+    admin.password = await hashPassword(req.body.newPassword);
   }
 
   const emailChanged = requestedEmail !== admin.email;

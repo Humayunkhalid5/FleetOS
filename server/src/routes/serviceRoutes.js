@@ -4,6 +4,8 @@ const { protect, optionalProtect, requireApprovedCompany } = require('../middlew
 const { asyncHandler } = require('../utils/http');
 
 router.get('/services', optionalProtect, asyncHandler(controller.getServices));
+router.get('/services/templates', protect, requireApprovedCompany, asyncHandler(controller.getTemplates));
+router.post('/services/templates', protect, requireApprovedCompany, asyncHandler(controller.applyTemplates));
 router.post('/services', protect, requireApprovedCompany, asyncHandler(controller.createService));
 router.put('/services/:id', protect, requireApprovedCompany, asyncHandler(controller.updateService));
 router.delete('/services/:id', protect, requireApprovedCompany, asyncHandler(controller.deleteService));

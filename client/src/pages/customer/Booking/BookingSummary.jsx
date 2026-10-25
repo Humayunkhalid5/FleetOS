@@ -1,296 +1,145 @@
-import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../constants';
 import api from '../../../services/api';
-import CustomerTopNav from '../../../components/customer/CustomerTopNav';
+import { usePageChrome } from '../../../hooks/usePageChrome';
+import { useFeedback } from '../../../hooks/useFeedback';
+import { Alert, LifecycleRail, Spinner } from '../../../components/ui';
+import { formatCurrency } from '../../../utils/helpers';
+import { readDraft, clearDraft, totals, slotLabel } from './bookingDraft';
+import { fulfillmentOf } from '../../../constants/fulfillment';
+
+const METHODS = [
+  ['cash', 'payments', 'Cash', 'Pay in cash when you receive it. The business records it and you get an invoice.'],
+  ['card', 'credit_card', 'Card', 'Pay securely online by card when the business has card checkout enabled.'],
+];
+
+function Row({ icon, label, children }) {
+  return (
+    <div className="flex gap-4 px-5 py-4 sm:px-6">
+      <span className="material-symbols-outlined mt-0.5 text-[20px] text-subtle">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[12.5px] text-subtle">{label}</p>
+        <div className="mt-0.5 text-[14px] font-medium text-ink">{children}</div>
+      </div>
+    </div>
+  );
+}
 
 function BookingSummary() {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state || {};
-  
-  const materials = state.materials || {};
-  const companyId = state.companyId || 'pak-fleet-mobility';
-  const companyName = state.companyName || 'Selected company';
-  const problemDetails = state.problemDetails || '';
-  const service = state.service || 'Preventive Maintenance';
-  const servicePrice = state.servicePrice !== undefined ? state.servicePrice : 120;
-  const serviceLocation = state.serviceLocation || {
-    address: 'Gulberg III, Lahore, Punjab',
-    lat: 31.5204,
-    lng: 74.3587,
-  };
-  
-  // Calculate dynamic totals or use fallbacks
-  const baseLabor = Number(servicePrice) || 120.00;
-  const materialsTotal = state.materialsTotal !== undefined ? state.materialsTotal : 63.50;
-  const subtotal = baseLabor + materialsTotal;
-  const tax = Math.round(subtotal * 0.05);
-  const grandTotal = subtotal + tax;
+  const { toast } = useFeedback();
+  const draft = location.state?.companyId ? location.state : readDraft();
+  const [method, setMethod] = useState('cash');
+  const [idempotencyKey] = useState(() => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-  // Filter materials that have qty > 0 to display them
-  const selectedMaterials = Object.values(materials).filter(item => item.qty > 0);
+  useEffect(() => { if (!draft?.companyId || !draft?.service) navigate(ROUTES.companies, { replace: true }); }, [draft, navigate]);
+  usePageChrome({ title: 'Review and confirm', subtitle: 'Check the details before the business receives it.', backTo: ROUTES.customizeBooking });
+  if (!draft?.companyId || !draft?.service) return null;
 
-  // The company allots the right staff member after the request is confirmed.
-  // Until then we display a neutral placeholder (prevents undefined crash).
-  const assignedTech = 'Company will assign';
+  const materials = draft.materials || [];
+  const mode = draft.fulfillment || 'onsite';
+  const way = fulfillmentOf(mode);
+  const isOrder = mode === 'delivery' || mode === 'pickup';
+  const sum = totals(draft.servicePrice, materials, { quantity: draft.quantity || 1, fee: draft.deliveryFee || 0 });
+  const when = new Date(`${draft.date}T${draft.time}:00`);
+  const whenLabel = Number.isNaN(when.getTime()) ? 'Not scheduled' : `${when.toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long' })} · ${way.whenLabel.toLowerCase()} around ${slotLabel(draft.time)}`;
 
-  const [selectedPayment, setSelectedPayment] = useState('cash');
-  const [idempotencyKey] = useState(() => globalThis.crypto?.randomUUID?.() || `${Date.now()}`);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-
-  const showHelp = () => {
-    alert('Need help? Contact our support team at support@fleetos.com or call +92 42 35781234.');
-  };
-
-  const handleConfirm = async () => {
-    setIsProcessing(true);
-    const goToTracking = (bookingId = null) => {
-      setIsProcessing(false);
-      setIsSuccess(true);
-      setTimeout(() => {
-        navigate(`${ROUTES.liveTracking}?bookingId=${bookingId}`, {
-          replace: true,
-          state: { selectedTech: 'Company will assign', bookingId },
-        });
-      }, 600);
-    };
-
+  const confirm = async () => {
+    setSubmitting(true);
+    setError('');
     try {
-      // Create the booking in the backend with correct field mapping
-      const response = await api.post('/bookings', {
-        companyId,
-        companyName,
-        serviceName: service,
-        materials: Object.values(materials).filter((m) => m.qty > 0).map((m) => ({ name: m.name, quantity: m.qty, unitPrice: m.price })),
-        paymentMethod: selectedPayment,
-        scheduledAt: new Date(Date.now() + 86400000).toISOString(),
-        location: serviceLocation.address,
-        vehicle: { label: 'Client request' },
+      const { booking } = await api.post('/bookings', {
+        companyId: draft.companyId,
+        serviceName: draft.service,
+        fulfillment: mode,
+        quantity: draft.quantity || 1,
+        materials: materials.map((item) => ({ name: item.name, quantity: item.qty, unitPrice: item.price })),
+        paymentMethod: method,
+        scheduledAt: when.toISOString(),
+        location: way.needsAddress ? draft.serviceLocation?.address : undefined,
+        coordinates: way.needsAddress && draft.serviceLocation?.lat ? { lat: draft.serviceLocation.lat, lng: draft.serviceLocation.lng } : undefined,
+        notes: draft.problemDetails,
+        vehicle: { label: draft.service },
         idempotencyKey,
       });
-      const created = response.booking || {};
-      if (selectedPayment === 'card') {
-        const checkout = await api.post(`/payments/checkout/${created._id || created.id}`, {});
-        window.location.assign(checkout.checkoutUrl);
-        return;
+      const bookingId = booking?._id || booking?.id;
+      clearDraft();
+      if (method === 'card') {
+        try {
+          const checkout = await api.post(`/payments/checkout/${bookingId}`, {});
+          if (checkout?.checkoutUrl) { window.location.assign(checkout.checkoutUrl); return; }
+        } catch (checkoutError) {
+          toast.info(`${checkoutError.message} Your booking is confirmed — you can pay the company after the service.`, { title: 'Card checkout unavailable', duration: 7000 });
+        }
+      } else {
+        toast.success(`${isOrder ? 'Order' : 'Booking'} ${booking?.reference || ''} sent to ${draft.companyName}.`, { title: isOrder ? 'Order placed' : 'Booking confirmed' });
       }
-      goToTracking(created._id || created.id || null);
-    } catch (err) {
-      setIsProcessing(false);
-      window.alert(err.message || 'Booking could not be created.');
+      navigate(`${ROUTES.liveTracking}?bookingId=${bookingId}`, { replace: true, state: { bookingId } });
+    } catch (requestError) {
+      setError(requestError.message || 'The booking could not be created.');
+      setSubmitting(false);
     }
   };
 
-  // Helper for dynamic avatars based on tech name
-  const getTechAvatar = (name) => {
-    if (name === 'Ayesha Khan') return "https://lh3.googleusercontent.com/aida-public/AB6AXuDnCiWvnkOKQReJfbwVPnaN6tu7s5397gTYSVBPMyiX6toCf8p5wo3eRuZ2QIc2TqcZrm-1vI7JyRT7oqpSWXpAdRECBDCnRGuLQM6zGzCDYi5wegUEzJG2p7E7E7jfdx9hSCUUoveU458OaY-di3G4frMSjmTJwjSznLPYXVl_zY_nMTuD0q3drMrje1gMak8VTFXTBe687naWHZTIHqBAHuyZqtzAN7B6ZysOa9vPYFnRqmNuHtlY1A";
-    if (name === 'Bilal Ahmed') return "https://lh3.googleusercontent.com/aida-public/AB6AXuBdSq9kds-9hvrnwo749V1I2EinNun7_8MX5BIE5-IMKUNAe4eYNSZlRYfJsQoPN6Bhr_Si7Oj9uq3XH8CcF0q8t2BSjIFBI_5A248PGaEjKqs1N1rbNOcqGh-pFfZ5qZmC7dv0k7AJ0lOUJGzjeGN4P8Z_QnnObTriizg6iqp9D11hzs6aSOcdIpfpF8Q04gH3UJwNaz_BNK0OIH9K1hLW_V9CsATPDG8NQAVE-f5Eg0eDZhdoGe4WAg";
-    return "https://lh3.googleusercontent.com/aida-public/AB6AXuANElbcBjWXr-TTiov_ngCtxN-PtgyZF2rqH2uz6WBDM-TST0bGcEq53NLZn5qdrbrSGP9LB8ySFBVOzwUcaPL0awUofZXp7x-bvs5ac2FPB7JMyCyZefOKmpsArTgK6a3ruBr267uIBmd5nTijVhfMWRPEzOTmr8_9KzQNpv_9ysJMgZP8vQEHFMGR0xBr1LADKFfHhlFyFedz6T3f2t8se6invdewcWudCaFday7rPmdaTo_udK0Jsw";
-  };
-
   return (
-    <div className="client-dashboard-shell bg-background text-on-surface min-h-screen">
-      <CustomerTopNav title="Booking summary" subtitle="Check your request before you send it to the company." backTo="" actions={<button onClick={showHelp} className="client-nav-icon material-symbols-outlined">help_outline</button>} />
-
-      <main className="pt-10 pb-32 max-w-5xl mx-auto px-container-margin grid grid-cols-1 md:grid-cols-12 gap-lg">
-        {/* Left Column: Details & Summary */}
-        <div className="md:col-span-7 space-y-lg">
-          {/* Company Staff Summary Card */}
-          <section className="bg-surface-container-lowest rounded-xl p-lg shadow-[0_4px_16px_0_rgba(11,29,45,0.08)] border border-outline-variant/10">
-            <div className="flex items-center justify-between mb-md">
-              <h2 className="font-headline-md text-headline-md text-on-surface">Assignment Status</h2>
-              <span className="px-3 py-1 bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-label-sm rounded-full">Company Assigned</span>
-            </div>
-            <div className="flex items-center gap-md">
-              <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-primary-fixed">
-                <img className="w-full h-full object-cover" alt={assignedTech} src={getTechAvatar(assignedTech)} />
-              </div>
-              <div className="flex-1">
-                <p className="font-headline-md text-headline-md text-on-surface">Company will assign suitable staff</p>
-                <p className="font-body-md text-body-md text-on-surface-variant flex items-center gap-xs">
-                  <span className="material-symbols-outlined text-[16px]">verified</span>
-                  The selected company reviews the request and allocates the best available team member.
-                </p>
-              </div>
-              <button onClick={() => navigate(ROUTES.customizeBooking, { state: { companyId, companyName } })} className="text-primary font-nav-item text-nav-item hover:underline">Edit Request</button>
-            </div>
-          </section>
-
-          {/* Detailed Cost Breakdown */}
-          <section className="space-y-md">
-            <h2 className="font-headline-md text-headline-md text-on-surface ml-1">Order Details</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
-              {/* Service Item */}
-              <div className="bg-surface-container-lowest rounded-xl p-md shadow-[0_4px_16px_0_rgba(11,29,45,0.08)] border border-outline-variant/10 flex flex-col justify-between">
-                <div>
-                  <span className="material-symbols-outlined text-primary mb-2">build</span>
-                  <p className="font-body-md text-body-md text-on-surface-variant">Primary Service</p>
-                  <p className="font-headline-md text-headline-md text-on-surface">{service}</p>
-                  {problemDetails && <p className="mt-2 font-body-md text-body-md text-on-surface-variant">{problemDetails}</p>}
-                </div>
-                <p className="mt-4 font-headline-md text-headline-md text-primary">PKR {baseLabor.toLocaleString('en-PK')}</p>
-              </div>
-              
-              {/* Materials Item */}
-              <div className="bg-surface-container-lowest rounded-xl p-md shadow-[0_4px_16px_0_rgba(11,29,45,0.08)] border border-outline-variant/10 flex flex-col justify-between">
-                <div>
-                  <span className="material-symbols-outlined text-tertiary mb-2">inventory_2</span>
-                  <p className="font-body-md text-body-md text-on-surface-variant">Materials</p>
-                  <ul className="mt-2 space-y-1">
-                    {selectedMaterials.length > 0 ? selectedMaterials.map((item, idx) => (
-                      <li key={idx} className="flex justify-between font-body-md text-body-md text-on-surface">
-                        <span>{item.qty}x {item.name}</span>
-                        <span>PKR {(item.qty * item.price).toLocaleString('en-PK')}</span>
-                      </li>
-                    )) : (
-                      <li className="font-body-md text-body-md text-on-surface-variant">No materials selected</li>
-                    )}
-                  </ul>
-                </div>
-                <p className="mt-4 font-headline-md text-headline-md text-tertiary">PKR {materialsTotal.toLocaleString('en-PK')}</p>
-              </div>
-            </div>
-          </section>
-
-          {/* Location & Time */}
-          <section className="bg-surface-container-lowest rounded-xl p-lg shadow-[0_4px_16px_0_rgba(11,29,45,0.08)] border border-outline-variant/10">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-lg">
-              <div className="flex items-start gap-md">
-                <div className="bg-primary-container p-2 rounded-lg">
-                  <span className="material-symbols-outlined text-on-primary-container">location_on</span>
-                </div>
-                <div>
-                  <p className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Service Location</p>
-                  <p className="font-body-md text-body-md text-on-surface">{serviceLocation.address || 'Gulberg III, Lahore, Punjab'}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-md">
-                <div className="bg-secondary-container p-2 rounded-lg">
-                  <span className="material-symbols-outlined text-on-secondary-container">calendar_today</span>
-                </div>
-                <div>
-                  <p className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Scheduled For</p>
-                  <p className="font-body-md text-body-md text-on-surface">Oct 24, 2023<br/>09:30 AM - 11:00 AM</p>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        {/* Right Column: Payment & Checkout */}
-        <div className="md:col-span-5">
-          <div className="sticky top-24 space-y-lg">
-            {/* Summary & Total */}
-            <div className="bg-white rounded-xl p-lg shadow-lg border-2 border-primary/5">
-              <h3 className="font-headline-md text-headline-md text-on-surface mb-lg">Payment Summary</h3>
-              <div className="space-y-md border-b border-outline-variant/20 pb-lg mb-lg">
-                <div className="flex justify-between font-body-md text-body-md text-on-surface-variant">
-                  <span>Service Subtotal</span>
-                  <span>PKR {baseLabor.toLocaleString('en-PK')}</span>
-                </div>
-                <div className="flex justify-between font-body-md text-body-md text-on-surface-variant">
-                  <span>Materials & Parts</span>
-                  <span>PKR {materialsTotal.toLocaleString('en-PK')}</span>
-                </div>
-                <div className="flex justify-between font-body-md text-body-md text-on-surface-variant">
-                  <span>Estimated Tax (8.5%)</span>
-                  <span>PKR {tax.toLocaleString('en-PK')}</span>
-                </div>
-              </div>
-              <div className="flex justify-between items-center mb-xl">
-                <p className="font-headline-md text-headline-md text-on-surface">Grand Total</p>
-                <p className="text-3xl font-extrabold text-primary">PKR {grandTotal.toLocaleString('en-PK')}</p>
-              </div>
-
-              {/* Payment Methods */}
-              <div className="space-y-md">
-                <p className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest">Select Payment Method</p>
-                
-                <label className={`relative flex items-center p-md border-2 rounded-xl cursor-pointer transition-all ${selectedPayment === 'card' ? 'border-primary bg-primary/5' : 'border-outline-variant/20 hover:border-primary/50'}`}>
-                  <input type="radio" name="payment" className="hidden" checked={selectedPayment === 'card'} onChange={() => setSelectedPayment('card')} />
-                  <div className="flex items-center gap-md w-full">
-                    <span className={`material-symbols-outlined ${selectedPayment === 'card' ? 'text-primary' : 'text-on-surface-variant'}`}>credit_card</span>
-                    <div className="flex-1">
-                      <p className="font-nav-item text-nav-item text-on-surface">Credit / Debit Card</p>
-                      <p className="font-label-sm text-label-sm text-on-surface-variant">Secure checkout hosted by Stripe</p>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full ${selectedPayment === 'card' ? 'border-4 border-primary bg-white' : 'border-2 border-outline-variant bg-white'}`}></div>
-                  </div>
-                </label>
-
-                <label className={`relative flex items-center p-md border-2 rounded-xl cursor-pointer transition-all ${selectedPayment === 'cash' ? 'border-primary bg-primary/5' : 'border-outline-variant/20 hover:border-primary/50'}`}>
-                  <input type="radio" name="payment" className="hidden" checked={selectedPayment === 'cash'} onChange={() => setSelectedPayment('cash')} />
-                  <div className="flex items-center gap-md w-full">
-                    <span className={`material-symbols-outlined ${selectedPayment === 'cash' ? 'text-primary' : 'text-on-surface-variant'}`}>payments</span>
-                    <div className="flex-1">
-                      <p className="font-nav-item text-nav-item text-on-surface">Cash after service</p>
-                      <p className="font-label-sm text-label-sm text-on-surface-variant">Company records payment after completion</p>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full ${selectedPayment === 'cash' ? 'border-4 border-primary bg-white' : 'border-2 border-outline-variant bg-white'}`}></div>
-                  </div>
-                </label>
-
-              </div>
-
-              {/* Confirm Button */}
-              <button 
-                onClick={handleConfirm}
-                disabled={isProcessing || isSuccess}
-                className={`mt-xl w-full py-4 rounded-xl font-headline-md text-headline-md flex items-center justify-center gap-2 transition-all duration-200 ${
-                  isSuccess ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-primary text-white hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0'
-                } ${isProcessing ? 'opacity-80 cursor-not-allowed' : ''}`}
-              >
-                {isProcessing && <span className="material-symbols-outlined animate-spin">progress_activity</span>}
-                {isProcessing && 'Processing...'}
-                {isSuccess && <span className="material-symbols-outlined">check_circle</span>}
-                {isSuccess && 'Booking confirmed'}
-                {!isProcessing && !isSuccess && `Confirm booking · PKR ${grandTotal.toLocaleString('en-PK')}`}
-              </button>
-              <p className="mt-md text-center font-label-sm text-label-sm text-on-surface-variant">
-                By clicking confirm, you agree to FleetOS <a className="text-primary underline" href="#" onClick={(e) => { e.preventDefault(); alert('Terms of Service — Please contact support for the full agreement.'); }}>Terms of Service</a>.
-              </p>
-            </div>
-
-            {/* Security Badges */}
-            <div className="flex flex-wrap justify-center items-center gap-lg opacity-60 grayscale hover:grayscale-0 transition-all">
-              <div className="flex items-center gap-sm">
-                <span className="material-symbols-outlined text-sm">lock</span>
-                <span className="font-label-sm text-label-sm">256-bit SSL</span>
-              </div>
-              <div className="flex items-center gap-sm">
-                <span className="material-symbols-outlined text-sm">verified_user</span>
-                <span className="font-label-sm text-label-sm">PCI Compliant</span>
-              </div>
-              <div className="flex items-center gap-sm">
-                <span className="material-symbols-outlined text-sm">security</span>
-                <span className="font-label-sm text-label-sm">Safe Checkout</span>
-              </div>
-            </div>
+    <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+      <div className="grid gap-5">
+        <section className="card">
+          <div className="card-header">
+            <h2 className="card-title">{isOrder ? 'Order details' : 'Booking details'}</h2>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate(ROUTES.customizeBooking, { state: { companyId: draft.companyId } })}><span className="material-symbols-outlined">edit</span>Edit</button>
           </div>
-        </div>
-      </main>
+          <div className="divide-y divide-line">
+            <Row icon="storefront" label="Business">{draft.companyName}</Row>
+            <Row icon={draft.serviceKind === 'product' ? 'inventory_2' : 'handyman'} label={draft.serviceKind === 'product' ? 'Item' : 'Service'}>{(draft.quantity || 1) > 1 ? `${draft.quantity} × ` : ''}{draft.service}</Row>
+            <Row icon={way.icon} label="How">{way.label}</Row>
+            <Row icon="location_on" label={way.addressLabel}>{way.needsAddress ? <>{draft.serviceLocation?.address}{draft.serviceLocation?.lat && <span className="badge badge-success ml-2 align-middle">Exact location</span>}</> : mode === 'remote' ? 'Online, details in chat' : `${draft.companyName}${draft.businessLocation ? ` · ${draft.businessLocation}` : ''}`}</Row>
+            <Row icon="event" label="When">{whenLabel}</Row>
+            {draft.problemDetails && <Row icon="notes" label="Your notes"><p className="whitespace-pre-line font-normal text-muted">{draft.problemDetails}</p></Row>}
+          </div>
+        </section>
 
-      {/* BottomNavBar (Mobile Only) */}
-      <nav className="md:hidden fixed bottom-0 w-full z-50 flex justify-around items-center px-container-margin py-sm bg-surface rounded-t-xl shadow-[0_-4px_16px_0_rgba(11,29,45,0.12)]">
-        <a href={ROUTES.dashboard} onClick={(e) => { e.preventDefault(); navigate(ROUTES.dashboard); }} className="flex flex-col items-center justify-center text-on-secondary-fixed-variant px-4 py-1">
-          <span className="material-symbols-outlined">dashboard</span>
-          <span className="font-nav-item text-nav-item">Dashboard</span>
-        </a>
-        <a href={ROUTES.bookings} onClick={(e) => { e.preventDefault(); navigate(ROUTES.bookings); }} className="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-xl px-4 py-1 scale-95 transition-transform duration-150">
-          <span className="material-symbols-outlined">event_note</span>
-          <span className="font-nav-item text-nav-item">Bookings</span>
-        </a>
-        <a href={ROUTES.bookings} onClick={(e) => { e.preventDefault(); navigate(ROUTES.bookings); }} className="flex flex-col items-center justify-center text-on-secondary-fixed-variant px-4 py-1">
-          <span className="material-symbols-outlined">search</span>
-          <span className="font-nav-item text-nav-item">Search</span>
-        </a>
-        <a href={ROUTES.profile} onClick={(e) => { e.preventDefault(); navigate(ROUTES.profile); }} className="flex flex-col items-center justify-center text-on-secondary-fixed-variant px-4 py-1">
-          <span className="material-symbols-outlined">person</span>
-          <span className="font-nav-item text-nav-item">Profile</span>
-        </a>
-      </nav>
+        <section className="card card-pad">
+          <h2 className="card-title">Payment method</h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {METHODS.map(([value, icon, title, text]) => (
+              <button key={value} type="button" onClick={() => setMethod(value)} aria-pressed={method === value} className={`flex gap-3 rounded-2xl border p-4 text-left transition-colors ${method === value ? 'border-brand bg-brand-soft/50 ring-1 ring-brand' : 'border-line hover:border-line-strong'}`}>
+                <span className={`material-symbols-outlined ${method === value ? 'text-brand-fg' : 'text-subtle'}`}>{icon}</span>
+                <span><span className="block text-[14px] font-semibold">{title}</span><span className="mt-0.5 block text-[12.5px] text-muted">{text}</span></span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="card card-pad">
+          <h2 className="card-title">What happens next</h2>
+          <p className="mt-1 text-[13.5px] text-muted">{mode === 'onsite' ? 'The business assigns staff, and you can follow every step live.' : mode === 'delivery' ? 'The business accepts your order and you can follow the delivery live.' : 'You see every update the moment the business makes it.'}</p>
+          <LifecycleRail status="Pending" fulfillment={mode} className="mt-5" />
+        </section>
+      </div>
+
+      <aside className="card overflow-hidden lg:sticky lg:top-24">
+        <div className="border-b border-line p-5"><h2 className="card-title">Price summary</h2></div>
+        <dl className="grid gap-2.5 p-5 text-[13.5px]">
+          <div className="flex justify-between gap-3"><dt className="text-muted">{(draft.quantity || 1) > 1 ? `${draft.quantity} × ` : ''}{draft.service}</dt><dd className="font-medium tabular-nums">{formatCurrency(sum.service)}</dd></div>
+          {materials.map((item) => <div key={item.id || item.name} className="flex justify-between gap-3"><dt className="truncate text-muted">{item.name} × {item.qty}</dt><dd className="font-medium tabular-nums">{formatCurrency(item.qty * item.price)}</dd></div>)}
+          <div className="flex justify-between gap-3"><dt className="text-muted">Tax (8.5%)</dt><dd className="font-medium tabular-nums">{formatCurrency(sum.tax)}</dd></div>
+          {mode === 'delivery' && <div className="flex justify-between gap-3"><dt className="text-muted">Delivery</dt><dd className="font-medium tabular-nums">{sum.fee ? formatCurrency(sum.fee) : 'Free'}</dd></div>}
+          <div className="divider my-1" />
+          <div className="flex items-baseline justify-between gap-3"><dt className="font-semibold">Total</dt><dd className="text-[22px] font-bold tabular-nums">{formatCurrency(sum.total)}</dd></div>
+        </dl>
+        <div className="grid gap-3 border-t border-line bg-sunken/40 p-5">
+          <Alert>{error}</Alert>
+          <button type="button" onClick={confirm} disabled={submitting} className="btn btn-primary btn-lg w-full">
+            {submitting ? <><Spinner /> Confirming</> : isOrder ? 'Place order' : 'Confirm booking'}
+          </button>
+          <p className="text-center text-[12px] text-subtle">Prices come from the business's live catalogue. Cancel free until it is under way.</p>
+        </div>
+      </aside>
     </div>
   );
 }

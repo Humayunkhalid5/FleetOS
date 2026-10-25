@@ -8,6 +8,9 @@ const serviceSchema = new mongoose.Schema({
   price: { type: Number, required: true, min: 0 },
   durationMinutes: { type: Number, default: 60, min: 15 },
   status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
+  // A product is ordered in quantities (consoles, groceries, meals); a service is booked per job.
+  kind: { type: String, enum: ['service', 'product'], default: 'service' },
+  unit: { type: String, default: '', trim: true, maxlength: 40 },
   description: { type: String, default: '', maxlength: 800 },
 }, { timestamps: true });
 

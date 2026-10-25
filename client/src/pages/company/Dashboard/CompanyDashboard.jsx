@@ -1,178 +1,162 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
-import CompanyShell from '../../../components/company/CompanyShell';
-import api, { getActiveSessionToken } from '../../../services/api';
+import { useLiveQuery } from '../../../hooks/useLiveQuery';
+import { usePageChrome } from '../../../hooks/usePageChrome';
+import { useAuth } from '../../../hooks/useAuth';
+import { DASHBOARD_KEY, DASHBOARD_EVENTS } from '../../../components/company/workspace';
+import useBookingActions, { nextAction } from '../../../components/company/useBookingActions';
+import { bookingFulfillment, fulfillmentOf } from '../../../constants/fulfillment';
+import { StaffSelect } from '../Bookings/CompanyBookings';
+import BarChart from '../../../components/ui/BarChart';
+import { Alert, Avatar, EmptyState, Skeleton, StatCard, StatusBadge } from '../../../components/ui';
+import { LIFECYCLE, statusTone } from '../../../components/ui/status';
+import { formatCurrency, formatDateTime, getGreeting, timeAgo } from '../../../utils/helpers';
 
-const money = (value) => `PKR ${Number(value || 0).toLocaleString('en-PK')}`;
-const time = (value) => value ? new Intl.DateTimeFormat('en-PK', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
-
-function downloadCsv(bookings) {
-  const rows = [['Reference', 'Customer', 'Request', 'Service', 'Assigned Staff', 'Status', 'Amount'], ...bookings.map((item) => [item.reference, item.customerName, item.vehicle?.label, item.serviceSnapshot?.name, item.technician?.name || 'Unassigned', item.status, item.pricing?.finalTotal])];
-  const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(',')).join('\n');
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = `fleetos-operations-${new Date().toISOString().slice(0, 10)}.csv`;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
-function CompanyDashboard() {
-  const navigate = useNavigate();
-  const [data, setData] = useState(null);
-  const [query, setQuery] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState('');
-
-  const load = useCallback(() => {
-    setError('');
-    return api.get('/company/dashboard', { noCache: true }).then(setData).catch((requestError) => setError(requestError.message));
-  }, []);
-  useEffect(() => {
-    const timer = window.setTimeout(load, 0);
-    return () => window.clearTimeout(timer);
-  }, [load]);
-  useEffect(() => {
-    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
-      withCredentials: true,
-      auth: { token: getActiveSessionToken() },
-      transports: ['websocket', 'polling'],
-    });
-    socket.on('booking:created', load);
-    socket.on('booking:updated', load);
-    return () => socket.disconnect();
-  }, [load]);
-
-  const bookings = useMemo(() => data?.bookings || [], [data?.bookings]);
-  const workspace = data?.company?.workspace || {};
-  const modules = { workforce: true, inventory: true, ...workspace.modules };
-  const filtered = useMemo(() => bookings.filter((booking) => [booking.reference, booking.customerName, booking.vehicle?.label, booking.serviceSnapshot?.name, booking.technician?.name, booking.status].some((value) => String(value || '').toLowerCase().includes(query.toLowerCase()))), [bookings, query]);
-  const maxRevenue = Math.max(...(data?.revenue || []).map((item) => item.amount), 1);
-
-  const assignFirstAvailable = async (booking) => {
-    const tech = data.technicians.find((item) => item.status === 'Available');
-    if (!tech) return setError('No available technician. Update technician availability first.');
-    setBusy(booking._id);
-    try { await api.post(`/bookings/${booking._id}/assign`, { technicianId: tech._id }); await load(); }
-    catch (requestError) { setError(requestError.message); }
-    finally { setBusy(''); }
-  };
-
+function Panel({ title, action, children, className = '' }) {
   return (
-    <CompanyShell
-      title="Overview"
-      subtitle="Welcome back, here&apos;s what&apos;s happening today."
-      search={query}
-      onSearch={setQuery}
-      actions={(
-        <button onClick={() => navigate('/company/bookings')} aria-label="Open booking notifications" className="w-11 h-11 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm relative">
-          <span className="material-symbols-outlined text-[20px]">notifications</span>
-          <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-red-500 border-2 border-white" />
-        </button>
-      )}
-    >
-          {error && <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium flex items-center gap-3"><span className="material-symbols-outlined">error</span> {error}</div>}
-
-          {!data ? (
-            <div className="py-32 flex flex-col items-center justify-center gap-4">
-              <div className="w-10 h-10 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
-            </div>
-          ) : (
-            <>
-              <section className="grid grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
-                {[
-                  ['account_balance_wallet', 'Revenue', money(data.metrics.recordedRevenue), 'text-emerald-600 bg-emerald-50'],
-                  ['fact_check', 'Total Bookings', data.metrics.totalBookings, 'text-blue-600 bg-blue-50'],
-                  ['pending_actions', 'Pending Requests', data.metrics.pendingDispatch, 'text-orange-600 bg-orange-50'],
-                  ['task_alt', 'Completed Work', data.metrics.completedJobs, 'text-cyan-600 bg-cyan-50'],
-                  modules.workforce
-                    ? ['groups', `Available ${workspace.workforceLabel || 'Staff'}`, `${data.metrics.availableTechnicians}/${data.metrics.technicianTotal}`, 'text-purple-600 bg-purple-50']
-                    : ['inventory_2', 'Stock alerts', data.metrics.lowStock, 'text-purple-600 bg-purple-50'],
-                ].map(([icon, label, value, colorClass]) => (
-                  <div key={label} className="bg-white rounded-3xl p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100 hover:-translate-y-1 transition-transform">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${colorClass}`}>
-                      <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>{icon}</span>
-                    </div>
-                    <p className="text-3xl font-bold text-slate-900 tracking-tight">{value}</p>
-                    <p className="text-sm font-semibold text-slate-500 mt-1">{label}</p>
-                  </div>
-                ))}
-              </section>
-
-              <div className="grid xl:grid-cols-[minmax(0,2.2fr)_minmax(380px,1fr)] gap-8">
-                <div className="space-y-8">
-                  <div className="bg-white rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100 overflow-hidden flex flex-col">
-                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
-                      <h2 className="text-xl font-bold text-slate-900">Recent Bookings</h2>
-                      <div className="flex gap-2">
-                        <button onClick={() => navigate('/company/bookings')} className="px-4 py-2 bg-blue-50 text-blue-700 font-bold rounded-xl text-sm hover:bg-blue-100 transition-colors">View All</button>
-                        <button onClick={() => downloadCsv(bookings)} className="px-4 py-2 bg-slate-50 text-slate-600 font-bold rounded-xl border border-slate-200 text-sm hover:bg-slate-100 transition-colors">Export</button>
-                      </div>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead className="bg-slate-50/50">
-                          <tr>
-                            {['Booking Ref', 'Customer Details', 'Service', 'Status', 'Amount', 'Action'].map((head, index) => (
-                              <th key={head} className={`p-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider ${index === 0 ? 'pl-6' : ''} ${index === 5 ? 'pr-6 text-center' : ''}`}>{head}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {filtered.slice(0, 8).map((booking) => (
-                            <tr key={booking._id} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="p-4 pl-6"><span className="font-mono text-sm font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-lg">{booking.reference}</span></td>
-                              <td className="p-4"><p className="font-bold text-slate-900 text-sm">{booking.customerName}</p><p className="text-xs text-slate-500 font-medium mt-0.5">{booking.vehicle?.label || 'Client request'} • {time(booking.scheduledAt)}</p></td>
-                              <td className="p-4 text-sm font-medium text-slate-700">{booking.serviceSnapshot?.name}</td>
-                              <td className="p-4"><span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${booking.status === 'Completed' || booking.status === 'Paid' ? 'bg-emerald-50 text-emerald-700' : booking.status === 'Pending' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'}`}>{booking.status}</span></td>
-                              <td className="p-4 text-sm font-bold text-slate-900">{money(booking.pricing?.finalTotal)}</td>
-                              <td className="p-4 pr-6 text-center">
-                                {booking.status === 'Pending' ? <button disabled={busy === booking._id} onClick={() => assignFirstAvailable(booking)} className="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50">Assign Staff</button> : <button onClick={() => navigate('/company/bookings')} className="text-slate-400 hover:text-blue-600 transition-colors"><span className="material-symbols-outlined">more_horiz</span></button>}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  <div className="bg-white rounded-3xl p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100">
-                    <h3 className="font-bold text-lg text-slate-900 mb-6 flex justify-between items-center">Revenue Trend <Link to="/company/analytics" className="text-sm text-blue-600 hover:underline">Details</Link></h3>
-                    <div className="h-48 flex items-end gap-3">
-                      {data.revenue.map((item) => (
-                        <div key={item.month} className="flex-1 flex flex-col items-center gap-2 group">
-                          <div className="w-full bg-blue-100 rounded-t-xl relative overflow-hidden flex items-end" style={{ height: '100%' }}>
-                            <div className="w-full bg-blue-500 rounded-t-xl transition-all duration-500 group-hover:bg-blue-600" style={{ height: `${Math.max(10, item.amount / maxRevenue * 100)}%` }} />
-                          </div>
-                          <span className="text-xs font-bold text-slate-400 uppercase">{item.month}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {modules.workforce && <div className="bg-white rounded-3xl p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100">
-                    <h3 className="font-bold text-lg text-slate-900 mb-4 flex justify-between items-center">Top {workspace.workforceLabel || 'Staff'} <Link to="/company/technicians" className="text-sm text-blue-600 hover:underline">Manage</Link></h3>
-                    <div className="space-y-4">
-                      {data.technicians.slice(0, 4).map((tech) => (
-                        <div key={tech._id} className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-sm">{tech.name.substring(0, 2).toUpperCase()}</div>
-                          <div className="flex-1"><p className="font-bold text-sm text-slate-900">{tech.name}</p><p className="text-xs font-medium text-slate-500">{tech.completedJobs || 0} jobs completed</p></div>
-                          <div className={`w-2.5 h-2.5 rounded-full ${tech.status === 'Available' ? 'bg-emerald-500' : 'bg-orange-500'}`} />
-                        </div>
-                      ))}
-                    </div>
-                  </div>}
-                </div>
-              </div>
-            </>
-          )}
-    </CompanyShell>
+    <section className={`card overflow-hidden ${className}`}>
+      <div className="card-header"><h2 className="card-title">{title}</h2>{action}</div>
+      {children}
+    </section>
   );
 }
 
-export default CompanyDashboard;
+export default function CompanyDashboard() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const actions = useBookingActions();
+  const { data, error, loading, refresh } = useLiveQuery(DASHBOARD_KEY, { events: DASHBOARD_EVENTS, interval: 60000 });
+  const workspace = data?.company?.workspace || {};
+  const modules = { workforce: true, inventory: true, ...workspace.modules };
+  const metrics = data?.metrics || {};
+  const bookings = useMemo(() => (data?.bookings || []).filter((booking) => booking.serviceSnapshot?.category !== 'Inquiry'), [data]);
+  const staff = data?.technicians || [];
+  const pending = bookings.filter((booking) => booking.status === 'Pending');
+  const active = bookings.filter((booking) => ['Assigned', 'En Route', 'Arrived', 'In Progress'].includes(booking.status));
+  const awaitingPayment = bookings.filter((booking) => booking.status === 'Completed');
+  const statusCounts = metrics.statusCounts || {};
+  const totalJobs = Math.max(1, metrics.totalBookings || 0);
+  const requestLabel = workspace.requestLabel || 'Requests';
+  const staffLabel = workspace.workforceLabel || 'Staff';
 
+  // Owners often register under the business name; greet them as a team then.
+  const ownerName = String(user?.name || '');
+  const firstName = ownerName.split(' ')[0];
+  const greetName = !firstName || (data?.company?.name || '').startsWith(firstName) ? 'team' : firstName;
+
+  usePageChrome({
+    title: `${getGreeting()}, ${greetName}`,
+    subtitle: `${data?.company?.name || 'Your workspace'} · live overview`,
+    actions: data && <>
+      <button type="button" className="btn btn-secondary" onClick={() => navigate('/company/bookings')}><span className="material-symbols-outlined">inbox</span>{requestLabel}</button>
+      <button type="button" className="btn btn-primary" onClick={() => navigate('/company/dispatch')}><span className="material-symbols-outlined">psychology</span>Smart Dispatch</button>
+    </>,
+  });
+
+  if (loading) {
+    return (
+      <div className="grid gap-5">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">{[0, 1, 2, 3].map((key) => <Skeleton key={key} className="h-[124px] rounded-2xl" />)}</div>
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]"><Skeleton className="h-96 rounded-2xl" /><Skeleton className="h-96 rounded-2xl" /></div>
+      </div>
+    );
+  }
+  if (error && !data) return <Alert onRetry={refresh}>{error.message}</Alert>;
+
+  return (
+    <div className="grid gap-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <StatCard icon="account_balance_wallet" label="Recorded revenue" value={formatCurrency(metrics.recordedRevenue)} tone="success" onClick={() => navigate('/company/analytics')} />
+        <StatCard icon="inbox" label={`New ${requestLabel.toLowerCase()}`} value={metrics.pendingDispatch || 0} hint={metrics.pendingDispatch ? 'Waiting for staff' : 'All dispatched'} tone={metrics.pendingDispatch ? 'warning' : 'brand'} onClick={() => navigate('/company/bookings')} />
+        <StatCard icon="engineering" label="Jobs in progress" value={metrics.activeJobs || 0} hint={`${awaitingPayment.length} awaiting payment`} tone="info" onClick={() => navigate('/company/bookings')} />
+        {modules.workforce
+          ? <StatCard icon="badge" label={`${staffLabel} available`} value={`${metrics.availableTechnicians || 0}/${metrics.technicianTotal || 0}`} tone="violet" onClick={() => navigate('/company/technicians')} />
+          : <StatCard icon="inventory_2" label="Low stock items" value={metrics.lowStock || 0} tone={metrics.lowStock ? 'warning' : 'violet'} onClick={() => navigate('/company/inventory')} />}
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <Panel title="Needs your attention" action={<Link to="/company/bookings" className="link text-[13px]">View all</Link>}>
+          {[...pending, ...awaitingPayment].length ? (
+            <ul className="divide-y divide-line">
+              {[...pending, ...awaitingPayment].slice(0, 6).map((booking) => (
+                // Phones get a two-line title and a separate action row, so the
+                // job and customer names are never cut down to a few letters.
+                <li key={booking._id} className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-2 px-5 py-3.5 sm:px-6 md:flex md:flex-wrap md:items-center md:gap-3">
+                  <Avatar name={booking.customerName} size={36} />
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 text-[14px] font-semibold leading-5 md:truncate">{booking.serviceSnapshot?.name} <span className="font-normal text-subtle">· {booking.customerName}</span></p>
+                    <p className="truncate text-[12.5px] text-subtle">{fulfillmentOf(bookingFulfillment(booking)).short} · {formatDateTime(booking.scheduledAt)} · received {timeAgo(booking.createdAt)}</p>
+                  </div>
+                  <div className="col-start-2 flex flex-wrap items-center gap-2 md:col-start-auto">
+                    <StatusBadge status={booking.status} fulfillment={bookingFulfillment(booking)} />
+                    {booking.status === 'Pending' && nextAction(booking, { staffManaged: modules.workforce !== false })
+                      ? <button type="button" className="btn btn-primary btn-sm" disabled={actions.busy === booking._id} onClick={() => actions.advance(booking, { staffManaged: modules.workforce !== false })}>{nextAction(booking, { staffManaged: modules.workforce !== false }).label}</button>
+                      : booking.status === 'Pending' && modules.workforce
+                        ? <StaffSelect booking={booking} staff={staff} onAssign={actions.assign} disabled={actions.busy === booking._id} />
+                        : booking.status === 'Completed' && <button type="button" className="btn btn-success btn-sm" disabled={actions.busy === booking._id} onClick={() => actions.recordPayment(booking)}>Record payment</button>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : <EmptyState icon="task_alt" title="You're all caught up">New bookings and jobs waiting for payment will show up here.</EmptyState>}
+        </Panel>
+
+        <Panel title="Revenue" action={<Link to="/company/analytics" className="link text-[13px]">Analytics</Link>}>
+          <div className="p-5 sm:p-6">
+            <p className="text-[26px] font-bold tracking-tight tabular-nums">{formatCurrency(metrics.recordedRevenue)}</p>
+            <p className="text-[12.5px] text-subtle">Recorded payments, last 6 months</p>
+            <div className="mt-5"><BarChart data={(data?.revenue || []).map((item) => ({ label: item.month, short: String(item.month).split(' ')[0], value: item.amount }))} format={formatCurrency} height={200} empty="Revenue appears once payments are recorded" /></div>
+          </div>
+        </Panel>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-3">
+        <Panel title="Job pipeline">
+          <ul className="grid gap-3 p-5 sm:p-6">
+            {LIFECYCLE.map((status) => {
+              const count = statusCounts[status] || 0;
+              return (
+                <li key={status} className="grid grid-cols-[100px_minmax(0,1fr)_32px] items-center gap-3 text-[13px]">
+                  <span className="text-muted">{status}</span>
+                  <span className="h-2 overflow-hidden rounded-full bg-sunken"><span className={`block h-full rounded-full bg-${statusTone(status) === 'neutral' ? 'line-strong' : statusTone(status)}`} style={{ width: `${(count / totalJobs) * 100}%` }} /></span>
+                  <span className="text-right font-semibold tabular-nums">{count}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </Panel>
+
+        {modules.workforce && (
+          <Panel title={staffLabel} action={<Link to="/company/technicians" className="link text-[13px]">Manage</Link>}>
+            {staff.length ? (
+              <ul className="divide-y divide-line">
+                {staff.slice(0, 6).map((person) => (
+                  <li key={person._id} className="flex items-center gap-3 px-5 py-3 sm:px-6">
+                    <Avatar name={person.name} src={person.avatar} size={32} />
+                    <div className="min-w-0 flex-1"><p className="truncate text-[13.5px] font-semibold">{person.name}</p><p className="text-[12px] text-subtle">{person.completedJobsCount || 0} jobs completed</p></div>
+                    <StatusBadge status={person.status} />
+                  </li>
+                ))}
+              </ul>
+            ) : <EmptyState icon="badge" title={`No ${staffLabel.toLowerCase()} yet`} action={<button type="button" className="btn btn-primary btn-sm" onClick={() => navigate('/company/technicians')}>Add team</button>} />}
+          </Panel>
+        )}
+
+        <Panel title={modules.inventory ? 'Low stock' : 'In progress'} action={<Link to={modules.inventory ? '/company/inventory' : '/company/bookings'} className="link text-[13px]">Open</Link>}>
+          {modules.inventory ? ((data?.lowStock || []).length ? (
+            <ul className="divide-y divide-line">
+              {data.lowStock.map((item) => (
+                <li key={item._id} className="flex items-center justify-between gap-3 px-5 py-3 sm:px-6">
+                  <div className="min-w-0"><p className="truncate text-[13.5px] font-semibold">{item.name}</p><p className="text-[12px] text-subtle">Reorder at {item.reorderLevel}</p></div>
+                  <span className={`badge ${item.quantity <= 0 ? 'badge-danger' : 'badge-warning'}`}>{item.quantity} left</span>
+                </li>
+              ))}
+            </ul>
+          ) : <EmptyState icon="inventory" title="Stock levels look healthy" />) : (active.length ? (
+            <ul className="divide-y divide-line">{active.slice(0, 6).map((booking) => <li key={booking._id} className="flex items-center justify-between gap-3 px-5 py-3"><span className="truncate text-[13.5px] font-medium">{booking.serviceSnapshot?.name}</span><StatusBadge status={booking.status} /></li>)}</ul>
+          ) : <EmptyState icon="engineering" title="No jobs in progress" />)}
+        </Panel>
+      </div>
+    </div>
+  );
+}

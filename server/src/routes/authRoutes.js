@@ -5,6 +5,7 @@ const { asyncHandler } = require('../utils/http');
 
 router.post('/auth/register', asyncHandler(controller.register));
 router.post('/auth/login', asyncHandler(controller.login));
+router.get('/auth/oauth/providers', asyncHandler(controller.listOAuthProviders));
 router.get('/auth/oauth/:provider', asyncHandler(controller.startOAuth));
 router.get('/auth/oauth/:provider/callback', asyncHandler(controller.finishOAuth));
 router.post('/auth/logout', asyncHandler(controller.logout));

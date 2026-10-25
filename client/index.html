@@ -3,32 +3,145 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="FleetOS - Premium Fleet Management, On-Demand Vehicle Maintenance & Real-time Tracking Platform" />
-    <title>FleetOS — Multi-Company SaaS Marketplace</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preconnect" href="https://tile.openstreetmap.org" />
-    <link rel="preconnect" href="https://unpkg.com" />
-    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#F4F7FA" />
+    <title>FleetOS — Book local services and run every job in one workspace</title>
+    <meta name="description" content="FleetOS is the booking and operations platform for local service businesses. Customers book verified companies and track jobs live; companies handle requests, staff, stock and payments in one workspace." />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+    <meta name="application-name" content="FleetOS" />
+    <!-- The canonical URL is set per route at runtime and injected into the
+         built HTML by the fleetos-sitemap plugin when VITE_SITE_URL is set. -->
+
+    <!-- Link previews (LinkedIn, WhatsApp, X, Slack) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="FleetOS" />
+    <meta property="og:title" content="FleetOS — Book local services and run every job in one workspace" />
+    <meta property="og:description" content="Book verified service companies, follow every job live, and give your team one workspace for requests, staff, stock and payments." />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image:alt" content="FleetOS — service operations from request to receipt" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="FleetOS — Book local services and run every job in one workspace" />
+    <meta name="twitter:description" content="Book verified service companies, follow every job live, and give your team one workspace for requests, staff, stock and payments." />
+    <meta name="twitter:image" content="/og-image.png" />
+
+    <script>
+      // Apply the saved (or system) theme before first paint to avoid a flash.
+      (function () {
+        try {
+          var stored = localStorage.getItem('fleetos-theme');
+          var theme = stored || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          var root = document.documentElement;
+          root.setAttribute('data-theme', theme);
+          if (theme === 'dark') root.classList.add('dark');
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', theme === 'dark' ? '#060B15' : '#F4F7FA');
+        } catch (e) {}
+      })();
+    </script>
+
+    <!-- Third-party image hosts are on the critical path. The icon font is
+         preloaded at build time by the fleetos-sitemap plugin, once its hashed
+         file name is known. -->
+    <link rel="preconnect" href="https://images.unsplash.com" crossorigin />
     <link rel="dns-prefetch" href="https://tile.openstreetmap.org" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" />
-    <!-- Import Map: shared module aliases (resolved by Vite via resolve.alias too) -->
-    <script type="importmap">
+
+    <style>
+      /* Boot splash: visible until React mounts, matches the in-app loader. */
+      html { background: #F4F7FA; }
+      html[data-theme='dark'] { background: #060B15; }
+      #boot { position: fixed; inset: 0; display: grid; place-items: center; }
+      #boot svg { width: 56px; height: 56px; animation: boot-pulse 1.2s ease-in-out infinite; }
+      @keyframes boot-pulse { 50% { opacity: .45; transform: scale(.94); } }
+      .no-js { max-width: 720px; margin: 0 auto; padding: 48px 24px; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; color: #0B1628; }
+      .no-js h1 { font-size: 32px; line-height: 1.15; letter-spacing: -0.02em; margin: 0 0 16px; }
+      .no-js p { font-size: 16px; line-height: 1.6; color: #3D4F6A; margin: 0 0 12px; }
+      .no-js a { color: #2563EB; font-weight: 600; }
+    </style>
+
+    <!-- Structured data: readable by crawlers that never execute JavaScript. -->
+    <script type="application/ld+json">
       {
-        "imports": {
-          "@constants": "/src/constants/index.js",
-          "@utils": "/src/utils/helpers.js",
-          "@context": "/src/context/AppContext.jsx",
-          "@hooks": "/src/hooks/useAuth.js",
-          "@services": "/src/services/api.js"
-        }
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "#organization",
+            "name": "FleetOS",
+            "description": "Booking and operations software for local service businesses.",
+            "logo": "/favicon.svg",
+            "areaServed": { "@type": "Country", "name": "Pakistan" }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "#website",
+            "name": "FleetOS",
+            "publisher": { "@id": "#organization" },
+            "inLanguage": "en"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "FleetOS",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Web",
+            "description": "Customers book verified local companies and track every job live. Companies manage requests, staff, stock and payments in one workspace.",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "PKR" }
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How does a customer send a request?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Choose an approved company, select its service or product, add requirements and confirm. The booking reaches the company workspace straight away." }
+              },
+              {
+                "@type": "Question",
+                "name": "Are companies checked?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Companies are listed only after an admin reviews their documents and approves them. Access can be suspended at any time." }
+              },
+              {
+                "@type": "Question",
+                "name": "Which payment methods are supported?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Companies record cash and invoice payments after the work is complete; card checkout can be enabled once a payment provider is configured." }
+              },
+              {
+                "@type": "Question",
+                "name": "Can each company use its own terminology?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Yes. The business category chosen at registration sets the workspace modules and labels, so a retailer sees orders and store staff while a field-service company sees requests and technicians." }
+              },
+              {
+                "@type": "Question",
+                "name": "Can a booking be cancelled?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Customers can cancel pending or assigned jobs. Companies can cancel with a recorded reason, which both sides can see." }
+              }
+            ]
+          }
+        ]
       }
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot" aria-label="Loading FleetOS">
+        <svg viewBox="0 0 64 70" fill="none" aria-hidden="true">
+          <path d="M3 13.2 30.3 1v14.8L3 28V13.2Z" fill="#2563EB"/>
+          <path d="M3 32.6 30.3 20.5v14.7L3 47.4V32.6Z" fill="#1D4ED8"/>
+          <path d="m3 52 27.3-12.1v14.7L3 66.8V52Z" fill="#0AC7ED"/>
+          <path d="M36.8 14.9 62 3.7v14.7L36.8 29.6V14.9Z" fill="#3B6FE0"/>
+          <path d="M36.8 34.4 62 23.2v14.7L36.8 49.1V34.4Z" fill="#2B5FD9"/>
+        </svg>
+      </div>
+    </div>
+    <noscript>
+      <div class="no-js">
+        <h1>FleetOS — service operations from request to receipt</h1>
+        <p>FleetOS connects customers with verified local service companies. Customers search by city and service, book a priced job, follow it live on a map and keep every receipt in one place.</p>
+        <p>Companies get a single workspace for booking requests, staff assignment and dispatch, stock, payments and analytics.</p>
+        <p>Enable JavaScript to sign in, or <a href="/company/register">register your company</a>. You can also read <a href="/about">about FleetOS</a> or <a href="/contact">contact the team</a>.</p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

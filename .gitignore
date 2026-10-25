@@ -7,5 +7,17 @@ build/
 coverage/
 uploads/
 .vscode/
+
+# Large demo recordings stay local; GitHub rejects files above 100 MB and they
+# are not needed to build or run the app.
+docs/*.mp4
+video/*.mp4
+
+# Local run artifacts and tool state
+*.log
+.freebuff/
+.claude/
 .DS_Store
 server/.runtime/
+.vercel
+.env*

@@ -91,6 +91,9 @@ function broadcastPlatform(type = 'platform') {
 function broadcastMarketplace(type = 'marketplace', companyId = null) {
   if (!io) return;
   io.to('marketplace').emit('marketplace:updated', { type, companyId: companyId ? String(companyId) : null });
+  // Keep every open session of the affected company in sync too (other staff
+  // members, and the pending-approval screen waiting for a Super Admin).
+  if (companyId) io.to(`company:${companyId}`).emit('workspace:updated', { type, companyId: String(companyId) });
   io.to('super-admins').emit('platform:updated', { type, companyId: companyId ? String(companyId) : null });
 }
 

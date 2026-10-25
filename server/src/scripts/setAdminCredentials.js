@@ -1,17 +1,17 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const bcrypt = require('bcryptjs');
+const { hashPassword } = require('../utils/passwords');
 const connectDB = require('../config/db');
 const User = require('../models/User');
 
-const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{10,}$/;
+const strongPassword = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 
 async function setAdminCredentials() {
   const email = String(process.env.SUPER_ADMIN_EMAIL || '').toLowerCase().trim();
   const password = String(process.env.SUPER_ADMIN_PASSWORD || '');
   if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error('Set a valid SUPER_ADMIN_EMAIL environment variable');
-  if (!strongPassword.test(password)) throw new Error('SUPER_ADMIN_PASSWORD must have 10+ characters with uppercase, lowercase, number, and symbol');
+  if (!strongPassword.test(password)) throw new Error('SUPER_ADMIN_PASSWORD must have 8+ characters with at least one letter and one number');
 
   const connection = await connectDB();
   try {
@@ -20,7 +20,7 @@ async function setAdminCredentials() {
     if (!admin) admin = new User({ name: 'FleetOS Super Admin', role: 'super-admin' });
     admin.name = admin.name || 'FleetOS Super Admin';
     admin.email = email;
-    admin.password = await bcrypt.hash(password, 12);
+    admin.password = await hashPassword(password);
     admin.role = 'super-admin';
     admin.company = undefined;
     admin.status = 'active';

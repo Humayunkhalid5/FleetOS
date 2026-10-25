@@ -42,7 +42,7 @@ exports.getTechnicians = async (req, res) => {
 };
 
 exports.createTechnician = async (req, res) => {
-  const data = pick(req.body, ['name', 'role', 'phone', 'email', 'rating', 'experienceYears', 'status', 'avatar']);
+  const data = pick(req.body, ['name', 'role', 'phone', 'email', 'experienceYears', 'status', 'avatar', 'skills']);
   if (data.avatar) data.avatar = validateAvatar(data.avatar).data;
   const technician = await Technician.create({ ...data, company: req.company._id, techId: `TECH-${crypto.randomInt(100000, 999999)}` });
   broadcastMarketplace('technician', req.company._id);
@@ -50,7 +50,7 @@ exports.createTechnician = async (req, res) => {
 };
 
 exports.updateTechnician = async (req, res) => {
-  const updates = pick(req.body, ['name', 'role', 'phone', 'email', 'rating', 'experienceYears', 'status', 'avatar']);
+  const updates = pick(req.body, ['name', 'role', 'phone', 'email', 'experienceYears', 'status', 'avatar', 'skills']);
   if (updates.avatar) updates.avatar = validateAvatar(updates.avatar).data;
   const technician = await Technician.findOneAndUpdate({ _id: req.params.id, company: req.company._id }, updates, { new: true, runValidators: true });
   if (!technician) return res.status(404).json({ message: 'Technician not found' });

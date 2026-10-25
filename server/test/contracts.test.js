@@ -27,12 +27,15 @@ test('company workspace capabilities match the selected business model', () => {
   const digital = getWorkspace({ businessCategory: 'digital-technology' });
 
   assert.equal(retail.requestLabel, 'Orders');
-  assert.equal(retail.modules.workforce, false);
-  assert.equal(retail.modules.tracking, false);
+  assert.deepEqual(retail.fulfillment, ['delivery', 'pickup']);
+  assert.equal(retail.modules.tracking, true); // deliveries are tracked
   assert.equal(professional.modules.inventory, false);
-  assert.equal(professional.modules.tracking, false);
+  assert.equal(professional.modules.tracking, false); // remote and in-office only
   assert.equal(digital.workforceLabel, 'Specialists');
-  assert.equal(digital.modules.tracking, false);
+  // A business can narrow its options, but only within its category.
+  assert.deepEqual(getWorkspace({ businessCategory: 'retail-products', fulfillmentOptions: ['pickup'] }).fulfillment, ['pickup']);
+  assert.equal(getWorkspace({ businessCategory: 'retail-products', fulfillmentOptions: ['pickup'] }).modules.tracking, false);
+  assert.deepEqual(getWorkspace({ businessCategory: 'retail-products', fulfillmentOptions: ['remote'] }).fulfillment, ['delivery', 'pickup']);
   assert.ok(hasBusinessCategory('health-beauty'));
   assert.equal(hasBusinessCategory('not-a-real-category'), false);
 });

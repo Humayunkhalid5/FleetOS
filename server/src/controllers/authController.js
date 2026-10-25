@@ -1,4 +1,4 @@
-const bcrypt = require('bcryptjs');
+const { hashPassword, verifyPassword, needsRehash } = require('../utils/passwords');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
@@ -9,6 +9,7 @@ const { getJwtSecret } = require('../config/security');
 const { pick, slugify } = require('../utils/http');
 const { validateLogo, validateBusinessLicense } = require('../utils/uploads');
 const { broadcastPlatform } = require('../socket');
+const { coverImageFor } = require('../data/coverImages');
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -74,9 +75,37 @@ function oauthFailure(res, message) {
   return res.redirect(`${clientOrigin()}/login?oauth_error=${encodeURIComponent(message)}`);
 }
 
+const OAUTH_PROVIDERS = ['google', 'linkedin'];
+
+/** Providers whose client ID and secret are both set. */
+function configuredProviders() {
+  return OAUTH_PROVIDERS.filter((provider) => {
+    const key = provider.toUpperCase();
+    return Boolean(process.env[`${key}_CLIENT_ID`] && process.env[`${key}_CLIENT_SECRET`]);
+  });
+}
+
+// Linking by email is only safe when the provider vouches for the address;
+// otherwise anyone could claim an existing FleetOS account's email.
+function hasVerifiedEmail(profile) {
+  return Boolean(profile?.email) && (profile.email_verified === true || profile.email_verified === 'true');
+}
+
+/** Where a successful social sign-in lands, by account role. */
+function oauthLanding(user, provider) {
+  if (user.role === 'company') return `${clientOrigin()}/company/dashboard?oauth=${provider}`;
+  return `${clientOrigin()}/customer/companies?oauth=${provider}`;
+}
+
 async function authenticateCredentials(email, password) {
   const user = await User.findOne({ email: String(email || '').toLowerCase().trim() }).select('+password').populate('company');
-  if (!user || !(await bcrypt.compare(String(password || ''), user.password))) return null;
+  if (!user || !(await verifyPassword(String(password || ''), user.password))) return null;
+  // Upgrade older, slower hashes in the background without delaying sign-in.
+  if (needsRehash(user.password)) {
+    const previous = user.password;
+    // Only replaces the exact old hash, so a password changed meanwhile is never overwritten.
+    hashPassword(password).then((hash) => User.updateOne({ _id: user._id, password: previous }, { $set: { password: hash } })).catch(() => {});
+  }
   if (user.status !== 'active') {
     const error = new Error('This account is suspended');
     error.status = 403;
@@ -106,7 +135,7 @@ exports.register = async (req, res) => {
     businessLicense = validateBusinessLicense(req.body.businessLicense.data);
   }
 
-  const hashed = await bcrypt.hash(password, 12);
+  const hashed = await hashPassword(password);
   const user = await User.create({
     name: name || ownerName,
     email,
@@ -134,6 +163,7 @@ exports.register = async (req, res) => {
         description: String(description || '').trim(),
         businessCategory,
         logo: logo.data,
+        heroImage: coverImageFor(businessCategory, slug, companyName),
         businessLicense: {
           name: String(req.body.businessLicense.name || 'business-license').slice(0, 180),
           mimeType: businessLicense.mimeType,
@@ -166,6 +196,8 @@ exports.login = async (req, res) => {
   const token = issueSession(res, user);
   return res.json({ token, user: publicUser(user) });
 };
+
+exports.listOAuthProviders = async (req, res) => res.json({ providers: configuredProviders() });
 
 exports.startOAuth = async (req, res) => {
   const config = oauthConfig(req.params.provider, req);
@@ -205,14 +237,17 @@ exports.finishOAuth = async (req, res) => {
     if (!tokenResponse.ok || !token.access_token) throw new Error('OAuth token exchange failed');
     const profileResponse = await fetch(config.userInfoUrl, { headers: { Authorization: `Bearer ${token.access_token}` } });
     const profile = await profileResponse.json();
-    if (!profileResponse.ok || !profile.sub || !profile.email) throw new Error('OAuth profile did not include a verified email');
+    if (!profileResponse.ok || !profile.sub) throw new Error('OAuth profile request failed');
+    if (!hasVerifiedEmail(profile)) return oauthFailure(res, `Your ${provider === 'google' ? 'Google' : 'LinkedIn'} account has no verified email address`);
     const email = String(profile.email).toLowerCase().trim();
-    let user = await User.findOne({ $or: [{ [config.idField]: String(profile.sub) }, { email }] }).populate('company');
+    let user = await User.findOne({ [config.idField]: String(profile.sub) }).populate('company')
+      || await User.findOne({ email }).populate('company');
+    if (user?.role === 'super-admin') return oauthFailure(res, 'Super Admin accounts sign in through the Admin console');
     if (!user) {
       user = await User.create({
         name: profile.name || profile.given_name || email.split('@')[0],
         email,
-        password: await bcrypt.hash(crypto.randomBytes(32).toString('base64url'), 12),
+        password: await hashPassword(crypto.randomBytes(32).toString('base64url')),
         role: 'customer',
         avatar: profile.picture || '',
         [config.idField]: String(profile.sub),
@@ -226,7 +261,7 @@ exports.finishOAuth = async (req, res) => {
     }
     issueSession(res, user);
     res.append('Set-Cookie', 'fleetos_oauth_state=; HttpOnly; Path=/api/auth/oauth; SameSite=Lax; Max-Age=0');
-    return res.redirect(`${clientOrigin()}/customer/dashboard?oauth=${provider}`);
+    return res.redirect(oauthLanding(user, provider));
   } catch (error) {
     console.error(`OAuth ${provider} callback failed: ${error.message}`);
     return oauthFailure(res, 'Unable to complete social sign-in');
@@ -251,8 +286,8 @@ exports.changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   if (!String(newPassword || '').length) return res.status(400).json({ message: 'Enter a new password' });
   const user = await User.findById(req.user._id).select('+password');
-  if (!(await bcrypt.compare(String(currentPassword || ''), user.password))) return res.status(400).json({ message: 'Current password is incorrect' });
-  user.password = await bcrypt.hash(newPassword, 12);
+  if (!(await verifyPassword(String(currentPassword || ''), user.password))) return res.status(400).json({ message: 'Current password is incorrect' });
+  user.password = await hashPassword(newPassword);
   user.sessionVersion += 1;
   await user.save();
   await user.populate('company');
@@ -275,3 +310,4 @@ exports.authenticateCredentials = authenticateCredentials;
 exports.issueSession = issueSession;
 exports.clearSession = clearSession;
 exports.publicUser = publicUser;
+exports.oauthHelpers = { oauthConfig, configuredProviders, hasVerifiedEmail, oauthLanding };

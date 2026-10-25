@@ -1,19 +1,64 @@
-import { useEffect, useState } from 'react';
-import api from '../../../services/api';
-import CustomerTopNav from '../../../components/customer/CustomerTopNav';
-
-const money = (value) => `PKR ${Number(value || 0).toLocaleString('en-PK')}`;
+import { useState } from 'react';
+import { useLiveQuery } from '../../../hooks/useLiveQuery';
+import { usePageChrome } from '../../../hooks/usePageChrome';
+import { Alert, EmptyState, SkeletonRows, StatCard, StatusBadge } from '../../../components/ui';
+import InvoiceModal from '../../../components/common/InvoiceModal';
+import { downloadCsv, formatCurrency, formatDate } from '../../../utils/helpers';
 
 function Payments() {
-  const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  useEffect(() => { api.get('/payments', { noCache: true }).then((result) => setPayments(result.payments || [])).catch((requestError) => setError(requestError.message)).finally(() => setLoading(false)); }, []);
+  const { data, error, loading, refresh } = useLiveQuery('/payments', { events: ['booking:updated'] });
+  const [invoiceFor, setInvoiceFor] = useState(null);
+  const payments = data?.payments || [];
   const recorded = payments.filter((payment) => payment.status === 'recorded');
-  const total = recorded.reduce((sum, payment) => sum + payment.amount, 0);
-  const exportCsv = () => { const rows = [['Reference', 'Booking', 'Company', 'Method', 'Status', 'Amount', 'Recorded'], ...payments.map((payment) => [payment.reference, payment.booking?.reference, payment.company?.name, payment.method, payment.status, payment.amount, payment.recordedAt || payment.createdAt])]; const csv = rows.map((row) => row.map((cell) => `"${String(cell || '').replaceAll('"', '""')}"`).join(',')).join('\n'); const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'fleetos-payment-history.csv'; anchor.click(); URL.revokeObjectURL(url); };
-  return <div className="client-dashboard-shell min-h-screen text-[#0D1B2A]"><CustomerTopNav title="Payments & invoices" subtitle="Receipts for cash and invoice payments." backTo="/customer/companies" /><main className="max-w-6xl mx-auto p-5 md:p-8"><div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4"><div><h1 className="text-2xl font-black">Payments & invoices</h1><p className="text-sm text-[#415A77] mt-1">Receipts for cash and invoice payments.</p></div><button onClick={exportCsv} className="px-4 py-2.5 border border-[#E0E1DD] bg-white rounded-2xl text-sm font-black">Export CSV</button></div>{error && <p className="mt-5 p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg">{error}</p>}<section className="grid sm:grid-cols-3 gap-4 mt-6"><div className="bg-[#071f3d] text-white rounded-3xl p-5"><small className="text-slate-300">Total recorded</small><b className="block text-2xl mt-2">{money(total)}</b></div><div className="bg-white border border-[#E0E1DD] rounded-3xl p-5"><small className="text-[#415A77]">Receipts</small><b className="block text-2xl mt-2">{recorded.length}</b></div><div className="bg-amber-50 border border-amber-200 rounded-3xl p-5"><small className="text-amber-700">Online payment</small><b className="block mt-2 text-amber-900">Coming soon</b><p className="text-xs text-amber-700 mt-1">You can currently use cash or invoice payment.</p></div></section><section className="bg-white border border-[#E0E1DD] rounded-3xl mt-6 overflow-hidden shadow-sm"><div className="p-4 border-b border-[#E0E1DD]"><h2 className="font-black">Payment history</h2></div>{loading ? <p className="p-10 text-center text-[#415A77]">Loading payments…</p> : payments.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-50 text-xs text-slate-500 uppercase"><tr><th className="p-3 text-left">Receipt</th><th className="p-3 text-left">Booking</th><th className="p-3 text-left">Company</th><th className="p-3 text-left">Method</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">Amount</th><th className="p-3 text-left">Date</th></tr></thead><tbody className="divide-y">{payments.map((payment) => <tr key={payment._id}><td className="p-3 font-mono text-blue-600">{payment.reference}</td><td className="p-3">{payment.booking?.reference}</td><td className="p-3 font-medium">{payment.company?.name}</td><td className="p-3 capitalize">{payment.method}</td><td className="p-3"><span className={`px-2 py-1 rounded text-xs ${payment.status === 'recorded' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{payment.status}</span></td><td className="p-3 text-right font-semibold">{money(payment.amount)}</td><td className="p-3">{new Date(payment.recordedAt || payment.createdAt).toLocaleDateString()}</td></tr>)}</tbody></table></div> : <p className="p-10 text-center text-[#415A77]">Receipts appear after a company records payment for a completed service.</p>}</section></main></div>;
+  const total = recorded.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const last = recorded[0];
+
+  const exportCsv = () => downloadCsv('fleetos-payments.csv', [
+    ['Receipt', 'Booking', 'Company', 'Method', 'Status', 'Amount (PKR)', 'Date'],
+    ...payments.map((payment) => [payment.reference, payment.booking?.reference, payment.company?.name, payment.method, payment.status, payment.amount, formatDate(payment.recordedAt || payment.createdAt)]),
+  ]);
+
+  usePageChrome({
+    title: 'Payments',
+    subtitle: 'Receipts and invoices for completed work.',
+    actions: payments.length > 0 && <button type="button" className="btn btn-secondary" onClick={exportCsv}><span className="material-symbols-outlined">download</span>Export CSV</button>,
+  });
+
+  return (
+    <div className="grid gap-6">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3">
+        <StatCard icon="account_balance_wallet" label="Total paid" value={formatCurrency(total)} tone="success" />
+        <StatCard icon="receipt_long" label="Receipts" value={recorded.length} tone="brand" />
+        <StatCard icon="schedule" label="Last payment" value={last ? formatDate(last.recordedAt || last.createdAt, { day: 'numeric', month: 'short' }) : '—'} hint={last?.company?.name} tone="info" />
+      </div>
+      <Alert onRetry={refresh}>{error && !data ? error.message : ''}</Alert>
+      <section className="card overflow-hidden">
+        <div className="card-header"><h2 className="card-title">Payment history</h2></div>
+        {loading ? <div className="p-5"><SkeletonRows rows={4} /></div> : payments.length ? (
+          <div className="overflow-x-auto">
+            <table className="table min-w-[760px]">
+              <thead><tr><th>Receipt</th><th>Company</th><th>Booking</th><th>Method</th><th>Status</th><th>Date</th><th className="text-right">Amount</th><th /></tr></thead>
+              <tbody>
+                {payments.map((payment) => (
+                  <tr key={payment._id}>
+                    <td className="whitespace-nowrap"><span className="ref">{payment.reference}</span></td>
+                    <td className="font-medium">{payment.company?.name}</td>
+                    <td className="whitespace-nowrap text-muted">{payment.booking?.reference}</td>
+                    <td className="capitalize text-muted">{payment.method}</td>
+                    <td><StatusBadge status={payment.status === 'recorded' ? 'Recorded' : payment.status} /></td>
+                    <td className="text-muted">{formatDate(payment.recordedAt || payment.createdAt)}</td>
+                    <td className="whitespace-nowrap text-right font-semibold tabular-nums">{formatCurrency(payment.amount)}</td>
+                    <td className="text-right">{payment.booking?._id && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setInvoiceFor(payment.booking._id)}>Invoice</button>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : <EmptyState icon="receipt_long" title="No payments yet">Receipts appear here as soon as a company records payment for a completed job.</EmptyState>}
+      </section>
+      <InvoiceModal bookingId={invoiceFor} onClose={() => setInvoiceFor(null)} />
+    </div>
+  );
 }
 
 export default Payments;
-

@@ -1,0 +1,132 @@
+/* ==========================================================================
+   FleetOS semantic tokens — the single colour contract for the client and
+   company portals (the Admin console mirrors these names in admin/src/styles.css).
+
+   Values are RGB triplets so Tailwind can apply opacity: bg-brand/10 etc.
+   Light values follow design.md (navy/slate marketplace, #2563EB primary);
+   the dark theme is a deep navy night palette with the logo's cyan as accent.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  --canvas: 243 246 252;        /* #F3F6FC cool paper */
+  --surface: 255 255 255;
+  --raised: 255 255 255;
+  --sunken: 238 242 249;        /* recessed wells, table heads */
+  --ink: 11 22 40;              /* #0B1628 */
+  --muted: 61 79 106;           /* #3D4F6A */
+  --subtle: 84 101 128;         /* #546580 — 5.6:1 on white, 5:1 on wells */
+  --line: 225 231 241;
+  --line-strong: 199 210 226;
+  --navy: 13 27 42;             /* brand-dark bands */
+  --steel: 119 141 169;         /* #778DA9 */
+  --mist: 224 225 221;          /* #E0E1DD */
+
+  --brand: 37 99 235;           /* #2563EB */
+  --brand-hover: 29 78 216;     /* #1D4ED8 */
+  --brand-soft: 234 241 254;
+  --brand-fg: 29 78 216;
+  --brand-line: 191 211 251;
+  --brand-on: 255 255 255;
+
+  --accent: 8 145 178;
+  --accent-soft: 230 247 251;
+  --accent-fg: 14 116 144;
+  --accent-line: 165 227 240;
+
+  --success: 5 150 105;
+  --success-soft: 231 247 240;
+  --success-fg: 4 120 87;
+  --success-line: 167 227 203;
+
+  --warning: 217 119 6;
+  --warning-soft: 253 243 226;
+  --warning-fg: 180 83 9;
+  --warning-line: 246 217 164;
+
+  --danger: 220 38 38;
+  --danger-soft: 253 236 236;
+  --danger-fg: 185 28 28;
+  --danger-line: 245 189 189;
+
+  --info: 2 132 199;
+  --info-soft: 230 243 251;
+  --info-fg: 3 105 161;
+  --info-line: 180 219 242;
+
+  --violet: 124 58 237;
+  --violet-soft: 241 235 254;
+  --violet-fg: 109 40 217;
+  --violet-line: 213 196 251;
+
+  --shadow-xs: 0 1px 2px rgb(15 23 42 / 0.06);
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 2px 6px -1px rgb(15 23 42 / 0.04), 0 14px 32px -16px rgb(30 64 175 / 0.16);
+  --shadow-pop: 0 32px 70px -22px rgb(30 58 138 / 0.32), 0 4px 12px -2px rgb(15 23 42 / 0.08);
+  --shadow-glow: 0 12px 30px -10px rgb(37 99 235 / 0.55);
+
+  --header-bg: 255 255 255;
+  --map-filter: none;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --canvas: 6 11 21;            /* #060B15 */
+  --surface: 12 20 35;          /* #0C1423 */
+  --raised: 17 27 46;           /* #111B2E */
+  --sunken: 9 15 27;
+  --ink: 231 237 246;
+  --muted: 156 171 194;
+  --subtle: 124 140 167;        /* 4.8:1 on surface */
+  --line: 29 41 63;
+  --line-strong: 44 59 86;
+  --navy: 14 25 46;
+  --steel: 119 141 169;
+  --mist: 26 37 56;
+
+  --brand: 52 104 222;          /* #3468DE keeps white text at AA (4.9:1) */
+  --brand-hover: 68 119 232;
+  --brand-soft: 17 34 69;
+  --brand-fg: 141 178 255;
+  --brand-line: 36 64 122;
+  --brand-on: 255 255 255;
+
+  --accent: 34 211 238;
+  --accent-soft: 9 41 52;
+  --accent-fg: 103 232 249;
+  --accent-line: 21 83 102;
+
+  --success: 52 211 153;
+  --success-soft: 9 40 33;
+  --success-fg: 110 231 183;
+  --success-line: 20 83 63;
+
+  --warning: 251 191 36;
+  --warning-soft: 42 31 9;
+  --warning-fg: 252 211 77;
+  --warning-line: 92 67 16;
+
+  --danger: 248 113 113;
+  --danger-soft: 48 18 24;
+  --danger-fg: 252 165 165;
+  --danger-line: 107 36 48;
+
+  --info: 56 189 248;
+  --info-soft: 9 35 52;
+  --info-fg: 125 211 252;
+  --info-line: 19 75 106;
+
+  --violet: 167 139 250;
+  --violet-soft: 30 23 56;
+  --violet-fg: 196 181 253;
+  --violet-line: 62 47 115;
+
+  --shadow-xs: 0 1px 0 rgb(255 255 255 / 0.02) inset;
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.035) inset, 0 10px 30px -12px rgb(0 0 0 / 0.6);
+  --shadow-pop: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 30px 70px -20px rgb(0 0 0 / 0.8);
+  --shadow-glow: 0 12px 34px -10px rgb(62 116 232 / 0.65);
+
+  --header-bg: 6 11 21;
+  --map-filter: invert(0.92) hue-rotate(195deg) saturate(0.55) brightness(0.92) contrast(0.92);
+}

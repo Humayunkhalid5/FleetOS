@@ -2,23 +2,6 @@
 // FleetOS Client Portal — Shared helper utilities
 // ---------------------------------------------------------------------------
 
-const TECH_AVATARS = {
-  'Ayesha Khan':
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuDnCiWvnkOKQReJfbwVPnaN6tu7s5397gTYSVBPMyiX6toCf8p5wo3eRuZ2QIc2TqcZrm-1vI7JyRT7oqpSWXpAdRECBDCnRGuLQM6zGzCDYi5wegUEzJG2p7E7E7jfdx9hSCUUoveU458OaY-di3G4frMSjmTJwjSznLPYXVl_zY_nMTuD0q3drMrje1gMak8VTFXTBe687naWHZTIHqBAHuyZqtzAN7B6ZysOa9vPYFnRqmNuHtlY1A',
-  'Bilal Ahmed':
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuBdSq9kds-9hvrnwo749V1I2EinNun7_8MX5BIE5-IMKUNAe4eYNSZlRYfJsQoPN6Bhr_Si7Oj9uq3XH8CcF0q8t2BSjIFBI_5A248PGaEjKqs1N1rbNOcqGh-pFfZ5qZmC7dv0k7AJ0lOUJGzjeGN4P8Z_QnnObTriizg6iqp9D11hzs6aSOcdIpfpF8Q04gH3UJwNaz_BNK0OIH9K1hLW_V9CsATPDG8NQAVE-f5Eg0eDZhdoGe4WAg',
-  'Imran Ali':
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuCXwsweOO86ly3Mjt2oPOTZRYD1NP5mFpi-bynzXFWH7BK3T1YL55KCFFrZrOcUURPtfBegXO4gbwW3z5IQjimD9PJdNPhesJ7hL7KISKXUv2KgwVNlnz3xE0qI3A_5wrkX3sa2pXAqeANZCpoaBO2LDhb6qnmgB5-KmV-pNODRMH9NfpRAtxVFJQVyju9SQjow0qsPDwEUkQxQe7i-Ws5_NWjIGSggzyQu6yGIMjlDQRpIl02wL0Lvqw',
-  'Sana Malik':
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuAA0s0uXF9R0oeWt_xRe1aAG-jZfenDxKMfHW9DerTGE-bnswSKIGXkLUe9IkwU10-wbmvKPCi2PHPd6RaW3_47SFBQDw8hYEns8uxgsmA1nS0H5EPr4yWP4UJxNYtiJBe7P-Q1ZMb-wnlyFb5IcNJ6LDxlwNU2rdobu2pD3Ti75777gho0sWYPxSRrPEimVwf8LEaQ9PM5r5gscMjJFEgnpPhfDVYWlClbztKaNkBoooSJrXq6WcYw-Q',
-  'Faisal Khan':
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuBXDw7-G2hPyLFqCVSkM5LKif1fTrI-MifylqYOo5UmuN-wYVYBA0xIm2YUVjBbBTX_Tc_KIeJXPH6nMyVsRrkIYZPl1CbTd6ZrhIexF__V3tFxwRJHyQYDl-GuX2Nbrd-2mCRZv2lCubnVEFQ96dvaZsl08fxTnaX4Rjkh3sO7U3RiDXGAuT-HcoYP2sjFE5Ig6wR1viTfnXSlD2rxX679xzZqW2zGvUBAYOemTVZf591PVXLF0_dThw',
-};
-
-export function getTechAvatar(name) {
-  if (TECH_AVATARS[name]) return TECH_AVATARS[name];
-  return 'https://lh3.googleusercontent.com/aida-public/AB6AXuCYZfr7LM0amt7amV3qWRzvkJ0chN1P5Vl4ak4XWMFLv9cR1dVSKVEJboF-5wik_OaBGzQbe_f9zpEDGNelEXwpkwhRfCDzu2VSrcVbR395XicT3b4RJGvpMzH7XsiTXzbp8fwwVFQA-OcMy3Ox3onCOIgmS8yJsUido-6p-h_pNhdIOAC7ZJCIlrbfYLmHnHtdBJI5wRv0L98ng9SZ93ikcBUnCdIyedi614HkAnkqrcIDLX7mQr8uRg';
-}
 
 export const formatCurrency = (value) => `PKR ${Number(value || 0).toLocaleString('en-PK')}`;
 
@@ -29,3 +12,29 @@ export const getGreeting = () => {
   return 'Good evening';
 };
 
+
+/** Download rows (first row = header) as a CSV file. */
+export function downloadCsv(filename, rows) {
+  const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export const formatDate = (value, options = { day: 'numeric', month: 'short', year: 'numeric' }) => (value ? new Date(value).toLocaleDateString('en-PK', options) : '—');
+export const formatDateTime = (value) => (value ? new Date(value).toLocaleString('en-PK', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '—');
+
+export function timeAgo(value) {
+  if (!value) return '';
+  const seconds = Math.max(1, Math.round((Date.now() - new Date(value).getTime()) / 1000));
+  if (seconds < 60) return 'just now';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return days < 30 ? `${days}d ago` : formatDate(value);
+}

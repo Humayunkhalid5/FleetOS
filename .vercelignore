@@ -1,0 +1,17 @@
+# Uploaded files for the admin-console project (project root = repository root).
+# Dependencies are installed on Vercel from package.json, so local copies are
+# never uploaded. Large binary assets that the console does not use are
+# excluded too, which keeps each deployment small and fast.
+node_modules
+*/node_modules
+**/node_modules
+client/dist
+admin/dist
+server/.runtime
+server/uploads
+video
+docs
+*.docx
+*.log
+.git
+.vercel

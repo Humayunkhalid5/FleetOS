@@ -1,36 +1,140 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import CompanyShell from '../../../components/company/CompanyShell';
+import { useMemo, useState } from 'react';
 import api from '../../../services/api';
+import { useLiveQuery, setQueryData } from '../../../hooks/useLiveQuery';
+import { usePageChrome } from '../../../hooks/usePageChrome';
+import { useFeedback } from '../../../hooks/useFeedback';
+import { useWorkspace } from '../../../components/company/workspace';
+import { Alert, EmptyState, Modal, SkeletonRows, Spinner, StatCard, StatusBadge } from '../../../components/ui';
+import { downloadCsv, formatCurrency } from '../../../utils/helpers';
 
-const emptyItem = (category = '') => ({ name: '', category, qty: 0, threshold: 5, unitCost: 0, unitPrice: 0, unit: 'Units' });
-const money = (value) => `PKR ${Number(value || 0).toLocaleString('en-PK')}`;
-
-function ItemDialog({ item, categories, workspace, onClose, onSave }) {
-  const [form, setForm] = useState(item ? { ...item, qty: item.qty ?? item.quantity, threshold: item.threshold ?? item.reorderLevel } : emptyItem(categories[0] || ''));
-  const [customCategory, setCustomCategory] = useState('');
-  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-  const submit = (event) => { event.preventDefault(); onSave({ ...form, category: customCategory.trim() || form.category }); };
-  return <div className="fixed inset-0 z-[70] overflow-y-auto bg-slate-950/40 p-3 sm:p-6"><div className="flex min-h-full items-center justify-center"><form onSubmit={submit} className="my-auto w-full max-w-2xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:max-h-[calc(100dvh-3rem)] sm:p-6">
-    <div className="mb-5 flex items-start justify-between gap-4"><div><h2 className="text-xl font-bold text-slate-900">{item ? 'Edit item' : `Add ${workspace.inventoryLabel || 'item'}`}</h2><p className="mt-1 text-sm text-slate-500">This record belongs only to your company and is immediately available to its services.</p></div><button type="button" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200" aria-label="Close item form">✕</button></div>
-    <div className="grid gap-4 sm:grid-cols-2"><label className="sm:col-span-2 text-sm font-bold text-slate-700">Item name<input required value={form.name} onChange={(event) => update('name', event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3 font-normal" /></label><label className="text-sm font-bold text-slate-700">Category<select value={form.category} onChange={(event) => { update('category', event.target.value); setCustomCategory(''); }} className="mt-1 w-full rounded-xl border border-slate-200 p-3 font-normal"><option value="">Choose category</option>{categories.map((option) => <option key={option} value={option}>{option}</option>)}</select></label><label className="text-sm font-bold text-slate-700">Or new category<input value={customCategory} onChange={(event) => setCustomCategory(event.target.value)} placeholder="Business-specific category" className="mt-1 w-full rounded-xl border border-slate-200 p-3 font-normal" /></label>{[['qty', 'Quantity'], ['threshold', 'Low-stock alert'], ['unitCost', 'Unit cost (PKR)'], ['unitPrice', 'Client price (PKR)']].map(([key, label]) => <label key={key} className="text-sm font-bold text-slate-700">{label}<input type="number" min="0" required value={form[key]} onChange={(event) => update(key, Number(event.target.value))} className="mt-1 w-full rounded-xl border border-slate-200 p-3 font-normal" /></label>)}<label className="text-sm font-bold text-slate-700">Unit<input value={form.unit} onChange={(event) => update('unit', event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3 font-normal" /></label></div>
-    <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end"><button type="button" onClick={onClose} className="rounded-xl px-4 py-3 font-bold text-slate-600 hover:bg-slate-100">Cancel</button><button className="rounded-xl bg-blue-600 px-5 py-3 font-bold text-white hover:bg-blue-700">Save item</button></div>
-  </form></div></div>;
-}
+const blank = (category = '') => ({ name: '', sku: '', category, qty: 0, threshold: 5, unitCost: 0, unitPrice: 0, unit: 'Units' });
+const stockStatus = (item) => (Number(item.qty ?? item.quantity) <= 0 ? 'Out of stock' : Number(item.qty ?? item.quantity) <= Number(item.threshold ?? item.reorderLevel) ? 'Low stock' : 'In stock');
 
 export default function CompanyInventory() {
-  const [items, setItems] = useState([]); const [services, setServices] = useState([]); const [company, setCompany] = useState(null); const [query, setQuery] = useState(''); const [category, setCategory] = useState('All'); const [editing, setEditing] = useState(null); const [error, setError] = useState('');
-  const load = useCallback(async () => { try { const [inventoryResult, servicesResult, dashboardResult] = await Promise.all([api.get('/inventory', { noCache: true }), api.get('/services', { noCache: true }), api.get('/company/dashboard', { noCache: true })]); setItems(inventoryResult.inventory || []); setServices(servicesResult.services || []); setCompany(dashboardResult.company || null); } catch (requestError) { setError(requestError.message); } }, []);
-  useEffect(() => { const timer = window.setTimeout(load, 0); return () => window.clearTimeout(timer); }, [load]);
-  const workspace = company?.workspace || {};
-  const categoryOptions = useMemo(() => [...new Set([...(workspace.inventoryCategories || []), ...services.map((service) => service.category).filter(Boolean), ...items.map((item) => item.category).filter(Boolean)])], [workspace.inventoryCategories, services, items]);
-  const filtered = useMemo(() => items.filter((item) => (category === 'All' || item.category === category) && [item.name, item.sku, item.category].some((value) => String(value || '').toLowerCase().includes(query.toLowerCase()))), [items, category, query]);
-  const save = async (form) => { setError(''); if (!form.category) return setError('Choose or enter an item category that matches your company offers.'); try { if (editing) await api.put(`/inventory/${editing._id}`, form); else await api.post('/inventory', form); setEditing(null); await load(); } catch (requestError) { setError(requestError.message); } };
-  const changeQuantity = async (item, delta) => { try { await api.put(`/inventory/${item._id}`, { qty: Math.max(0, Number(item.qty ?? item.quantity ?? 0) + delta) }); await load(); } catch (requestError) { setError(requestError.message); } };
-  const remove = async (item) => { if (!window.confirm(`Delete “${item.name}” from this company inventory?`)) return; try { await api.del(`/inventory/${item._id}`); await load(); } catch (requestError) { setError(requestError.message); } };
-  return <CompanyShell title={workspace.inventoryLabel || 'Inventory'} subtitle="Only this company’s stock and business-specific item categories appear here." search={query} onSearch={setQuery} actions={<button onClick={() => setEditing({ isNew: true })} className="rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700"><span className="material-symbols-outlined mr-1 align-middle text-base">add</span>Add item</button>}>
-    {error && <p className="mb-5 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</p>}
-    <section className="mb-6 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm"><p className="text-sm font-semibold text-slate-500">Item categories are based on <b className="text-slate-900">{workspace.businessCategoryLabel || 'your company type'}</b> and your published offers.</p><div className="mt-4 flex flex-wrap gap-2">{['All', ...categoryOptions].map((value) => <button key={value} onClick={() => setCategory(value)} className={`rounded-full px-4 py-2 text-xs font-bold ${category === value ? 'bg-[#0D1B2A] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{value}</button>)}</div></section>
-    <section className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="p-4">Item</th><th className="p-4">Category</th><th className="p-4">Stock</th><th className="p-4">Price</th><th className="p-4 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">{filtered.map((item) => <tr key={item._id}><td className="p-4 font-bold text-slate-900">{item.name}<small className="mt-1 block font-mono font-medium text-slate-400">{item.sku}</small></td><td className="p-4 text-slate-600">{item.category}</td><td className="p-4 text-slate-700">{item.qty ?? item.quantity} {item.unit}<small className="block text-slate-400">Alert at {item.threshold ?? item.reorderLevel}</small></td><td className="p-4 font-semibold text-slate-900">{money(item.unitPrice)}</td><td className="p-4"><div className="flex justify-end gap-2"><button onClick={() => changeQuantity(item, -1)} className="rounded-lg bg-slate-100 px-2 py-1 font-bold">−</button><button onClick={() => changeQuantity(item, 1)} className="rounded-lg bg-slate-100 px-2 py-1 font-bold">+</button><button onClick={() => setEditing(item)} className="rounded-lg px-2 py-1 text-blue-700 hover:bg-blue-50">Edit</button><button onClick={() => remove(item)} className="rounded-lg px-2 py-1 text-rose-600 hover:bg-rose-50">Delete</button></div></td></tr>)}{!filtered.length && <tr><td colSpan="5" className="p-12 text-center text-slate-500">No items match this company category yet.</td></tr>}</tbody></table></div></section>
-    {editing && <ItemDialog item={editing.isNew ? null : editing} categories={categoryOptions} workspace={workspace} onClose={() => setEditing(null)} onSave={save} />}
-  </CompanyShell>;
+  const { workspace } = useWorkspace();
+  const { confirm, toast } = useFeedback();
+  const label = workspace.inventoryLabel || 'Inventory';
+  const { data, error, loading, refresh } = useLiveQuery('/inventory', { events: ['workspace:updated', 'booking:created'] });
+  const items = useMemo(() => data?.inventory || [], [data]);
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('');
+  const [onlyLow, setOnlyLow] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(blank());
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const categories = [...new Set([...(workspace.inventoryCategories || []), ...items.map((item) => item.category)].filter(Boolean))];
+
+  const q = query.trim().toLowerCase();
+  const list = items.filter((item) => (!category || item.category === category) && (!onlyLow || stockStatus(item) !== 'In stock') && (!q || [item.name, item.sku, item.category].some((value) => String(value || '').toLowerCase().includes(q))));
+  const low = items.filter((item) => stockStatus(item) !== 'In stock').length;
+  const value = items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.unitCost || 0), 0);
+
+  const open = (item = null) => { setEditing(item || 'new'); setForm(item ? { ...blank(), ...item } : blank(categories[0])); setFormError(''); };
+  const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.type === 'number' ? Number(event.target.value) : event.target.value }));
+
+  const save = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setFormError('');
+    const payload = { name: form.name, sku: form.sku || undefined, category: form.category, qty: form.qty, threshold: form.threshold, unitCost: form.unitCost, unitPrice: form.unitPrice, unit: form.unit };
+    try {
+      if (editing === 'new') await api.post('/inventory', payload); else await api.put(`/inventory/${editing._id}`, payload);
+      toast.success(`${form.name} saved`);
+      setEditing(null);
+    } catch (requestError) { setFormError(requestError.message); }
+    finally { setSaving(false); }
+  };
+
+  const adjust = async (item, delta) => {
+    const qty = Math.max(0, Number(item.qty || 0) + delta);
+    setQueryData('/inventory', (current) => current && { ...current, inventory: current.inventory.map((entry) => (entry._id === item._id ? { ...entry, qty, quantity: qty } : entry)) });
+    try { await api.put(`/inventory/${item._id}`, { qty }); }
+    catch (requestError) { toast.error(requestError.message); refresh(); }
+  };
+
+  const remove = async (item) => {
+    const ok = await confirm({ title: `Delete ${item.name}?`, message: 'It will no longer be offered as an add-on during booking.', confirmLabel: 'Delete', tone: 'danger' });
+    if (!ok) return;
+    try { await api.del(`/inventory/${item._id}`); toast.success(`${item.name} deleted`); }
+    catch (requestError) { toast.error(requestError.message); }
+  };
+
+  const exportCsv = () => downloadCsv('fleetos-inventory.csv', [['SKU', 'Name', 'Category', 'Quantity', 'Reorder level', 'Unit cost', 'Customer price', 'Status'], ...items.map((item) => [item.sku, item.name, item.category, item.qty, item.threshold, item.unitCost, item.unitPrice, stockStatus(item)])]);
+
+  usePageChrome({
+    title: label,
+    subtitle: 'Stock your team uses and add-ons customers can choose when booking.',
+    search: query,
+    onSearch: setQuery,
+    actions: <>
+      <button type="button" className="btn btn-secondary" onClick={exportCsv}><span className="material-symbols-outlined">download</span>Export</button>
+      <button type="button" className="btn btn-primary" onClick={() => open()}><span className="material-symbols-outlined">add</span>Add item</button>
+    </>,
+  });
+
+  return (
+    <div className="grid gap-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3">
+        <StatCard icon="inventory_2" label="Items" value={items.length} tone="brand" />
+        <StatCard icon="warning" label="Low or out of stock" value={low} tone={low ? 'warning' : 'success'} onClick={() => setOnlyLow((current) => !current)} hint={onlyLow ? 'Showing only these — click to show all' : 'Click to filter'} />
+        <StatCard icon="account_balance" label="Stock value (cost)" value={formatCurrency(value)} tone="info" />
+      </div>
+
+      <div className="hide-scrollbar edge-fade flex gap-2 overflow-x-auto">
+        <button type="button" className="chip" aria-pressed={!category} onClick={() => setCategory('')}>All categories</button>
+        {categories.map((entry) => <button key={entry} type="button" className="chip" aria-pressed={category === entry} onClick={() => setCategory(entry)}>{entry}</button>)}
+      </div>
+
+      <Alert onRetry={refresh}>{error && !data ? error.message : ''}</Alert>
+      <section className="card overflow-hidden">
+        {loading ? <div className="p-5"><SkeletonRows rows={5} /></div> : list.length ? (
+          <div className="overflow-x-auto">
+            <table className="table min-w-[900px]">
+              <thead><tr><th>Item</th><th>Category</th><th>Stock</th><th>Status</th><th className="text-right">Cost</th><th className="text-right">Customer price</th><th className="text-right">Actions</th></tr></thead>
+              <tbody>
+                {list.map((item) => (
+                  <tr key={item._id}>
+                    <td><p className="font-semibold">{item.name}</p><p className="font-mono text-[11.5px] text-subtle">{item.sku}</p></td>
+                    <td className="text-muted">{item.category}</td>
+                    <td>
+                      <div className="inline-flex items-center gap-1 rounded-xl border border-line p-0.5">
+                        <button type="button" className="btn btn-ghost btn-icon btn-sm h-7 w-7" disabled={!Number(item.qty)} onClick={() => adjust(item, -1)} aria-label="Decrease"><span className="material-symbols-outlined">remove</span></button>
+                        <span className="min-w-[44px] text-center text-[13.5px] font-semibold tabular-nums">{item.qty} <span className="text-[11px] font-normal text-subtle">{item.unit}</span></span>
+                        <button type="button" className="btn btn-ghost btn-icon btn-sm h-7 w-7" onClick={() => adjust(item, 1)} aria-label="Increase"><span className="material-symbols-outlined">add</span></button>
+                      </div>
+                    </td>
+                    <td><StatusBadge status={stockStatus(item)} /></td>
+                    <td className="text-right tabular-nums text-muted">{formatCurrency(item.unitCost)}</td>
+                    <td className="whitespace-nowrap text-right font-semibold tabular-nums">{formatCurrency(item.unitPrice)}</td>
+                    <td>
+                      <div className="flex justify-end gap-1">
+                        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => open(item)} aria-label={`Edit ${item.name}`}><span className="material-symbols-outlined">edit</span></button>
+                        <button type="button" className="btn btn-ghost btn-icon btn-sm hover:text-danger-fg" onClick={() => remove(item)} aria-label={`Delete ${item.name}`}><span className="material-symbols-outlined">delete</span></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : <EmptyState icon="inventory_2" title={q || category || onlyLow ? 'Nothing matches' : 'No items yet'} action={!q && !category && !onlyLow && <button type="button" className="btn btn-primary" onClick={() => open()}>Add item</button>}>Items with a customer price can be added to bookings as extras.</EmptyState>}
+      </section>
+
+      <Modal open={Boolean(editing)} onClose={() => setEditing(null)} size="lg" title={editing === 'new' ? 'New item' : `Edit ${form.name}`}
+        footer={<><button type="button" className="btn btn-secondary" onClick={() => setEditing(null)}>Cancel</button><button type="submit" form="inventory-form" className="btn btn-primary" disabled={saving}>{saving ? <><Spinner /> Saving</> : 'Save'}</button></>}>
+        <form id="inventory-form" onSubmit={save} className="grid gap-4 sm:grid-cols-2">
+          <label className="field sm:col-span-2"><span className="label">Item name</span><input className="input" required value={form.name} onChange={update('name')} /></label>
+          <label className="field"><span className="label">Category</span><input className="input" required list="inventory-categories" value={form.category} onChange={update('category')} /><datalist id="inventory-categories">{categories.map((entry) => <option key={entry} value={entry} />)}</datalist><span className="hint">Matching a service category shows it as an add-on for that service.</span></label>
+          <label className="field"><span className="label">SKU <span className="font-normal text-subtle">(optional)</span></span><input className="input font-mono uppercase" value={form.sku} onChange={update('sku')} placeholder="Auto-generated" /></label>
+          <label className="field"><span className="label">Quantity</span><input className="input" type="number" min="0" required value={form.qty} onChange={update('qty')} /></label>
+          <label className="field"><span className="label">Low-stock alert at</span><input className="input" type="number" min="0" required value={form.threshold} onChange={update('threshold')} /></label>
+          <label className="field"><span className="label">Unit cost (PKR)</span><input className="input" type="number" min="0" required value={form.unitCost} onChange={update('unitCost')} /></label>
+          <label className="field"><span className="label">Customer price (PKR)</span><input className="input" type="number" min="0" required value={form.unitPrice} onChange={update('unitPrice')} /></label>
+          <label className="field"><span className="label">Unit</span><input className="input" value={form.unit} onChange={update('unit')} placeholder="Units, litres, boxes…" /></label>
+          <div className="sm:col-span-2"><Alert>{formError}</Alert></div>
+        </form>
+      </Modal>
+    </div>
+  );
 }

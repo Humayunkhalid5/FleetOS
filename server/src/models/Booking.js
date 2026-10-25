@@ -10,6 +10,8 @@ const bookingSchema = new mongoose.Schema({
     name: { type: String, required: true },
     category: { type: String, default: '' },
     price: { type: Number, required: true, min: 0 },
+    kind: { type: String, default: 'service' },
+    unit: { type: String, default: '' },
   },
   technician: { type: mongoose.Schema.Types.ObjectId, ref: 'Technician', default: null },
   customerName: { type: String, required: true },
@@ -22,9 +24,15 @@ const bookingSchema = new mongoose.Schema({
     model: { type: String, default: '' },
   },
   materials: [{ name: String, quantity: Number, unitPrice: Number }],
+  quantity: { type: Number, default: 1, min: 1, max: 999 },
+  fulfillment: {
+    type: { type: String, enum: ['onsite', 'delivery', 'pickup', 'instore', 'remote'], default: 'onsite' },
+    fee: { type: Number, default: 0, min: 0 },
+  },
   pricing: {
     serviceTotal: { type: Number, default: 0 },
     materialsTotal: { type: Number, default: 0 },
+    fee: { type: Number, default: 0 },
     tax: { type: Number, default: 0 },
     finalTotal: { type: Number, default: 0 },
   },
@@ -35,6 +43,8 @@ const bookingSchema = new mongoose.Schema({
   paymentMethod: { type: String, enum: ['cash', 'card', 'invoice'], default: 'cash' },
   paymentStatus: { type: String, enum: ['unpaid', 'pending', 'paid', 'failed'], default: 'unpaid', index: true },
   cancellationReason: { type: String, default: '' },
+  // What the customer described when booking (visible to the company).
+  notes: { type: String, default: '', maxlength: 2000 },
   idempotencyKey: { type: String },
   tracking: {
     lat: Number,

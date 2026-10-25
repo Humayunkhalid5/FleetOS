@@ -1,295 +1,213 @@
-import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ROUTES } from '../../../constants';
-import api from '../../../services/api';
-import CustomerTopNav from '../../../components/customer/CustomerTopNav';
+import { useLiveQuery } from '../../../hooks/useLiveQuery';
+import { usePageChrome } from '../../../hooks/usePageChrome';
+import { useFeedback } from '../../../hooks/useFeedback';
+import { CompanyCover, CompanyLogo } from '../../../components/customer/CompanyCard';
+import { Alert, Avatar, EmptyState, Skeleton, Stars } from '../../../components/ui';
+import { formatCurrency } from '../../../utils/helpers';
+import { fulfillmentOf } from '../../../constants/fulfillment';
+
+const promises = [
+  ['verified', 'Verified by FleetOS', 'Documents reviewed by a Super Admin before listing.'],
+  ['my_location', 'Live job tracking', 'See assigned staff, status and ETA as it happens.'],
+  ['payments', 'Pay after the work', 'Cash or invoice once the job is completed.'],
+  ['receipt_long', 'Digital receipt', 'Invoice and history saved to your account.'],
+];
+
+function formatDuration(minutes) {
+  const value = Number(minutes) || 0;
+  if (!value) return '';
+  return value >= 60 ? `${Math.floor(value / 60)}h${value % 60 ? ` ${value % 60}m` : ''}` : `${value} min`;
+}
 
 function CompanyDetails() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const [company, setCompany] = useState(null);
-  const [dynamicServices, setDynamicServices] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { toast } = useFeedback();
+  const { data, error, loading, refresh } = useLiveQuery(`/companies/${id}`, { events: ['marketplace:updated'], keepPrevious: false });
+  const company = data?.company;
+  const { data: reviewData } = useLiveQuery(company?._id ? `/reviews/company/${company._id}` : null, { events: ['marketplace:updated'] });
+  const reviews = reviewData?.reviews || [];
+  const services = company?.services || [];
+  const staff = company?.technicians || [];
 
-  useEffect(() => {
-    const fetchCompanyAndServices = async () => {
-      try {
-        const response = await api.get(`/companies/${id}`);
-        const comp = response.company;
-
-        if (comp) {
-          setCompany(comp);
-          const compId = comp._id || comp.slug || id;
-          try {
-            const svcRes = await api.get(`/services?companyId=${compId}`);
-            if (svcRes && Array.isArray(svcRes.services) && svcRes.services.length > 0) {
-              setDynamicServices(svcRes.services);
-            } else if (comp.services?.length) {
-              setDynamicServices(comp.services);
-            }
-          } catch (e) {
-            if (comp.services?.length) setDynamicServices(comp.services);
-          }
-        } else {
-          setError('Company details not found');
-        }
-      } catch (err) {
-        setError(err.message || 'Company not found');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCompanyAndServices();
-  }, [id]);
-
-  const addToPlan = (service, price) => {
-    navigate(ROUTES.customizeBooking, { state: { companyId: company?._id || company?.slug || id, companyName: displayName, service, price } });
+  const book = (service) => navigate(ROUTES.customizeBooking, { state: { companyId: company?.slug || company?._id || id, companyName: company?.name, service: service?.name, price: service?.price || 0 } });
+  const share = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) await navigator.share({ title: `${company?.name} on FleetOS`, url });
+      else { await navigator.clipboard.writeText(url); toast.success('Link copied to clipboard'); }
+    } catch { /* share cancelled */ }
   };
 
-  if (loading) {
-    return <div className="client-dashboard-shell p-xl text-center text-on-surface-variant font-body-md min-h-screen bg-background">Loading company details...</div>;
-  }
+  usePageChrome({
+    title: company?.name || (loading ? 'Loading company' : 'Company'),
+    subtitle: company ? `${company.city || 'Pakistan'} · ${company.workspace?.businessCategoryLabel || 'Verified company'}` : '',
+    backTo: ROUTES.companies,
+    actions: company && (
+      <>
+        <button type="button" onClick={share} className="btn btn-secondary"><span className="material-symbols-outlined">ios_share</span>Share</button>
+        <button type="button" onClick={() => navigate(`${ROUTES.chat}/${company.slug || company._id}`)} className="btn btn-secondary"><span className="material-symbols-outlined">chat</span>Message</button>
+        <button type="button" onClick={() => book(services[0])} className="btn btn-primary"><span className="material-symbols-outlined">event_available</span>Book now</button>
+      </>
+    ),
+  });
 
-  if (error || !company) {
+  if (loading) {
     return (
-      <div className="client-dashboard-shell p-xl text-center text-error font-body-md min-h-screen bg-background">
-        {error || 'Company not found'}
-        <div className="mt-md">
-          <button onClick={() => navigate(-1)} className="px-lg py-sm bg-primary text-on-primary rounded-lg font-nav-item">Go Back</button>
-        </div>
+      <div className="grid gap-6">
+        <Skeleton className="h-56 rounded-3xl" />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]"><Skeleton className="h-80 rounded-2xl" /><Skeleton className="h-64 rounded-2xl" /></div>
       </div>
     );
   }
 
-  const displayName = company.name || 'Company Portal';
-  const rating = Number(company.rating) || 0;
-  const reviewCount = company.reviewCount || 0;
-  const heroImage = company.heroImage || '';
-  const logo = company.logo || '';
-  const services = dynamicServices;
-  const technicians = company.technicians || [];
-  const contactNumber = company.phone || '';
-  const contactHref = contactNumber ? `tel:${contactNumber.replace(/\s+/g, '')}` : '#';
+  if (error || !company) {
+    return (
+      <div className="card">
+        <EmptyState icon="storefront" title="This company isn't available" action={<button type="button" className="btn btn-primary" onClick={() => navigate(ROUTES.companies)}>Browse companies</button>}>
+          {error?.status === 404 ? 'It may have been unlisted or is waiting for approval.' : error?.message || 'Please try again.'}
+        </EmptyState>
+        {error?.status !== 404 && <div className="px-6 pb-6"><Alert onRetry={refresh}>{error?.message}</Alert></div>}
+      </div>
+    );
+  }
+
+  // Once the published reviews load, rating and count come from them so the
+  // header can never disagree with the reviews listed below.
+  const reviewCount = reviewData ? reviews.length : Number(company.reviewCount || 0);
+  const rating = reviewData
+    ? (reviews.length ? reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length : 0)
+    : Number(company.rating || 0);
+  const phone = company.phone || '';
 
   return (
-    <div className="client-dashboard-shell text-on-surface min-h-screen">
-      <CustomerTopNav title={displayName} subtitle={`${company.city || 'Pakistan'} · ${company.location || 'Company details and available services'}`} backTo={ROUTES.companies} actions={<>
-          <button
-            onClick={() => {
-              const shareData = { title: `${displayName} | FleetOS`, url: window.location.href };
-              if (navigator.share) navigator.share(shareData).catch(() => {});
-              else navigator.clipboard?.writeText(window.location.href);
-            }}
-            className="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors"
-          >share</button>
-          <button
-            onClick={() => {
-              const favBtn = document.getElementById('company-favorite');
-              if (!favBtn) return;
-              const isFav = favBtn.dataset.fav === 'true';
-              favBtn.dataset.fav = String(!isFav);
-              favBtn.classList.toggle('text-error', !isFav);
-              favBtn.classList.toggle('fill-icon', !isFav);
-              favBtn.style.fontVariationSettings = !isFav ? "'FILL' 1" : "'FILL' 0";
-            }}
-            id="company-favorite"
-            className="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors"
-          >favorite</button>
-      </>} />
-
-      <main className="pb-32 max-w-7xl mx-auto">
-        {/* Hero Section */}
-        <section className="relative w-full h-[400px] md:h-[500px] overflow-hidden">
-          <div className={`w-full h-full bg-cover bg-center ${!heroImage ? 'bg-gradient-to-r from-slate-900 via-primary to-slate-800' : ''}`} style={heroImage ? { backgroundImage: `url('${heroImage}')` } : {}}>
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
-
-          <div className="absolute bottom-lg left-container-margin right-container-margin text-white">
-            <div className="flex items-end gap-md">
-              <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl bg-white p-sm shadow-lg overflow-hidden flex-shrink-0 border-4 border-white/20 flex items-center justify-center">
-                {logo ? (
-                  <img className="w-full h-full object-contain" alt="Company Logo" src={logo} />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-primary text-white font-bold text-3xl md:text-4xl uppercase rounded-lg">
-                    {displayName.charAt(0)}
-                  </div>
-                )}
-              </div>
-              <div className="mb-sm">
-                <h1 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg leading-tight">{displayName}</h1>
-                <div className="flex items-center gap-sm mt-xs">
-                  {rating > 0 ? (
-                    <>
-                      <div className="flex text-yellow-400">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <span key={star} className="material-symbols-outlined text-sm" style={{ fontVariationSettings: star <= Math.round(rating) ? "'FILL' 1" : "'FILL' 0" }}>
-                            star
-                          </span>
-                        ))}
-                      </div>
-                      <span className="font-body-md text-body-md font-semibold">{rating.toFixed(1)}</span>
-                      <span className="font-body-md text-body-md opacity-80">({reviewCount.toLocaleString()} Reviews)</span>
-                    </>
-                  ) : (
-                    <span className="text-xs bg-white/20 px-2 py-0.5 rounded font-semibold text-slate-200">No Ratings Yet</span>
-                  )}
-                </div>
-              </div>
+    <div className="grid gap-6">
+      <section className="card overflow-hidden">
+        <CompanyCover company={company} eager className="h-40 w-full sm:h-52" />
+        <div className="flex flex-wrap items-end gap-5 px-5 pb-5 sm:px-6">
+          <CompanyLogo company={company} size={84} className="relative z-10 -mt-10 rounded-2xl ring-4 ring-surface" />
+          <div className="min-w-0 flex-1 pt-1 max-sm:w-full max-sm:basis-full sm:pt-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-[22px] font-bold tracking-tight">{company.name}</h2>
+              {company.verified && <span className="badge badge-success"><span className="material-symbols-outlined icon-fill">verified</span>Verified</span>}
             </div>
+            <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13.5px] text-muted">
+              <span className="inline-flex items-center gap-1"><span className="material-symbols-outlined text-[17px]">location_on</span>{company.location || company.city}</span>
+              <span className="inline-flex items-center gap-1.5">{rating > 0 ? <><Stars value={rating} size={15} /><b className="text-ink">{rating.toFixed(1)}</b> ({reviewCount} {reviewCount === 1 ? 'review' : 'reviews'})</> : 'No reviews yet'}</span>
+            </p>
+            {(company.workspace?.fulfillment || []).length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Ways to get it">
+                {company.workspace.fulfillment.map((type) => <span key={type} className="badge badge-brand"><span className="material-symbols-outlined">{fulfillmentOf(type).icon}</span>{fulfillmentOf(type).label}{type === 'delivery' && Number(company.workspace.deliveryFee) > 0 ? ` · ${formatCurrency(company.workspace.deliveryFee)}` : type === 'delivery' ? ' · free' : ''}</span>)}
+              </div>
+            )}
           </div>
-        </section>
+        </div>
+      </section>
 
-        <div className="px-container-margin py-xl grid grid-cols-1 lg:grid-cols-12 gap-xl">
-          {/* Left Column: Details & Services */}
-          <div className="lg:col-span-8 space-y-xl">
-            {/* Description */}
-            <article className="bg-white p-lg rounded-xl shadow-[0_4px_16px_0_rgba(11,29,45,0.12)]">
-              <h2 className="font-headline-md text-headline-md text-primary mb-md">About the Company</h2>
-              <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">{company.description}</p>
-              <div className="mt-md flex flex-wrap gap-sm">
-                <span className="inline-flex items-center gap-xs rounded-full bg-primary-container px-sm py-xs text-sm text-on-primary-container">✓ Verified company</span>
-                <span className="inline-flex items-center gap-xs rounded-full bg-surface-container px-sm py-xs text-sm text-on-surface-variant">📍 {company.location || 'Location available on request'}</span>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+        <div className="grid gap-6">
+          <section className="card card-pad">
+            <h3 className="section-title">About</h3>
+            <p className="mt-2 text-[14.5px] leading-7 text-muted">{company.description || 'This company has not added a description yet.'}</p>
+            {company.areas?.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {company.areas.map((area) => <span key={area} className="badge badge-neutral"><span className="material-symbols-outlined">pin_drop</span>{area}</span>)}
               </div>
-            </article>
+            )}
+          </section>
 
-            {/* Services List */}
-            <section className="bg-white p-lg rounded-xl shadow-[0_4px_16px_0_rgba(11,29,45,0.12)]">
-              <div className="flex justify-between items-center mb-md">
-                <h2 className="font-headline-md text-headline-md text-primary">Available Services</h2>
-                <span className="material-symbols-outlined text-outline">tune</span>
-              </div>
-              <div className="divide-y divide-surface-container">
+          <section className="card">
+            <div className="card-header">
+              <h3 className="card-title">{company.workspace?.offeringLabel || 'Services'}</h3>
+              <span className="text-[12.5px] text-subtle">{services.length} available</span>
+            </div>
+            {services.length ? (
+              <ul className="divide-y divide-line">
                 {services.map((service) => (
-                  <div key={service._id || service.name} className="py-md flex justify-between items-center hover:bg-surface-container-low transition-colors px-xs rounded-lg group">
-                    <div className="flex items-start gap-md">
-                      <div className="p-sm bg-secondary-container text-on-secondary-container rounded-lg">
-                        <span className="material-symbols-outlined">{service.icon || 'build'}</span>
-                      </div>
-                      <div>
-                        <p className="font-body-lg text-body-lg font-bold">{service.name}</p>
-                        <p className="font-body-md text-body-md text-on-surface-variant">{service.description}</p>
-                      </div>
+                  <li key={service._id || service.name} className="flex flex-wrap items-center gap-4 px-5 py-4 sm:px-6">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-soft text-brand-fg"><span className="material-symbols-outlined">{service.kind === 'product' ? 'inventory_2' : 'handyman'}</span></span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-ink">{service.name}</p>
+                      <p className="mt-0.5 line-clamp-1 text-[13px] text-muted">{[service.category, service.kind === 'product' ? null : formatDuration(service.durationMinutes)].filter(Boolean).join(' · ')}{service.description ? ` — ${service.description}` : ''}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-body-lg text-body-lg font-bold text-primary">${service.price.toFixed(2)}</p>
-                      <button onClick={() => addToPlan(service.name, service.price)} className="text-primary font-nav-item text-nav-item flex items-center gap-xs opacity-0 group-hover:opacity-100 transition-opacity">Add <span className="material-symbols-outlined text-sm">add_circle</span></button>
-                    </div>
-                  </div>
+                    <p className="text-right"><span className="block text-[15px] font-semibold tabular-nums">{service.price ? formatCurrency(service.price) : 'Free'}</span>{service.unit && <span className="block text-[11.5px] text-subtle">{service.unit}</span>}</p>
+                    <button type="button" onClick={() => book(service)} className="btn btn-soft btn-sm">{service.kind === 'product' ? 'Order' : 'Book'}</button>
+                  </li>
                 ))}
-              </div>
-            </section>
+              </ul>
+            ) : <EmptyState icon="inventory" title="Nothing listed yet">Message the business to ask about what they offer.</EmptyState>}
+          </section>
 
-            {/* Company Staff Section */}
-            <section>
-              <h2 className="font-headline-md text-headline-md text-primary mb-md">Company-managed staff</h2>
-              <div className="flex overflow-x-auto hide-scrollbar gap-md pb-md">
-                {technicians.map((tech) => (
-                  <div key={tech._id || tech.name} className="flex-shrink-0 w-64 bg-white rounded-xl shadow-sm border border-surface-container overflow-hidden p-md text-center">
-                    <div className="w-20 h-20 mx-auto rounded-full overflow-hidden mb-sm border-2 border-primary-fixed">
-                      <img className="w-full h-full object-cover" alt="Company staff" src={tech.avatar} />
+          <section className="card">
+            <div className="card-header">
+              <h3 className="card-title">Customer reviews</h3>
+              {rating > 0 && <span className="flex items-center gap-2 text-[13px] text-muted"><Stars value={rating} size={15} />{rating.toFixed(1)}</span>}
+            </div>
+            {reviews.length ? (
+              <ul className="divide-y divide-line">
+                {reviews.slice(0, 6).map((review) => (
+                  <li key={review._id} className="px-5 py-4 sm:px-6">
+                    <div className="flex items-center gap-3">
+                      <Avatar name={review.customer?.name || 'Customer'} src={review.customer?.avatar} size={32} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13.5px] font-semibold">{review.customer?.name || 'Verified customer'}</p>
+                        <p className="text-[12px] text-subtle">{new Date(review.createdAt).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                      </div>
+                      <Stars value={review.rating} size={14} />
                     </div>
-                    <h3 className="font-body-lg text-body-lg font-bold">{tech.name}</h3>
-                    <p className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-sm">{tech.role}</p>
-                    <div className="flex items-center justify-center gap-xs text-primary mb-sm">
-                      <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                      <span className="font-body-md text-body-md font-bold">{tech.rating}</span>
-                    </div>
-                    <button onClick={() => navigate(ROUTES.customizeBooking, { state: { companyId: id, companyName: displayName, service: services[0]?.name || 'Service Request', price: services[0]?.price || 120 } })} className="w-full py-2 bg-surface-container-low text-primary font-nav-item text-nav-item rounded-lg hover:bg-primary-container hover:text-white transition-colors">Request Through Company</button>
-                  </div>
+                    {review.comment && <p className="mt-2 text-[14px] leading-6 text-muted">{review.comment}</p>}
+                    {review.reply?.text && <p className="mt-2 rounded-xl bg-sunken px-3 py-2 text-[13px] text-muted"><b className="text-ink">Reply from {company.name}:</b> {review.reply.text}</p>}
+                  </li>
                 ))}
-              </div>
-            </section>
-          </div>
+              </ul>
+            ) : <EmptyState icon="reviews" title="No reviews yet">Reviews appear here after customers complete a booking.</EmptyState>}
+          </section>
+        </div>
 
-          {/* Right Column: Gallery & Quick Stats */}
-          <aside className="lg:col-span-4 space-y-xl">
-            {/* Project Gallery */}
-            <section className="bg-white p-lg rounded-xl shadow-[0_4px_16px_0_rgba(11,29,45,0.12)]">
-              <h2 className="font-headline-md text-headline-md text-primary mb-md">Past Projects</h2>
-              <div className="grid grid-cols-2 gap-sm">
-                {company.gallery && company.gallery.length > 0 ? company.gallery.map((img, i) => (
-                  <div key={i} className={`${i === 0 || i === 3 ? 'col-span-2' : ''} ${i === 0 ? 'h-40' : i === 3 ? 'h-32' : 'h-28'} rounded-lg overflow-hidden bg-surface-container relative group`}>
-                    <img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt={`Project ${i + 1}`} src={img} />
-                  </div>
-                )) : (
-                  <div className="col-span-2 h-40 rounded-lg overflow-hidden bg-surface-container relative group">
-                    <div className="w-full h-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant">
-                      No project photos yet
-                    </div>
-                  </div>
-                )}
-              </div>
-            </section>
+        <aside className="grid gap-6 lg:sticky lg:top-24">
+          <section className="card card-pad">
+            <h3 className="section-title">Ready to book?</h3>
+            <p className="mt-1 text-[13.5px] text-muted">Choose a service, add details and get a clear estimate before confirming.</p>
+            <button type="button" onClick={() => book(services[0])} className="btn btn-primary mt-4 w-full">Start a booking</button>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => navigate(`${ROUTES.chat}/${company.slug || company._id}`)} className="btn btn-secondary"><span className="material-symbols-outlined">chat</span>Message</button>
+              {phone ? <a href={`tel:${phone.replace(/\s+/g, '')}`} className="btn btn-secondary"><span className="material-symbols-outlined">call</span>Call</a> : <button type="button" disabled className="btn btn-secondary">No phone</button>}
+            </div>
+            {phone && <p className="mt-3 text-center text-[12.5px] text-subtle">{phone}</p>}
+          </section>
 
-            {/* Contact Card */}
-            <section className="bg-primary-container text-on-primary-container p-lg rounded-xl shadow-lg space-y-md">
-              <h3 className="font-headline-md text-headline-md">Contact the company</h3>
-              <div className="flex gap-sm">
-                <button onClick={() => navigate(`${ROUTES.chat}/${id}`)} className="flex-1 rounded-lg bg-surface-container-lowest px-md py-sm font-nav-item text-nav-item text-primary">💬 Chat</button>
-                <a href={contactHref} className="flex-1 rounded-lg bg-surface-container-lowest px-md py-sm font-nav-item text-nav-item text-primary text-center">📞 Call</a>
-              </div>
-              <p className="font-body-md text-body-md">Phone: {contactNumber}</p>
-            </section>
+          <section className="card card-pad">
+            <h3 className="section-title">What to expect</h3>
+            <ul className="mt-4 grid gap-4">
+              {promises.map(([icon, title, text]) => (
+                <li key={title} className="flex gap-3">
+                  <span className="material-symbols-outlined mt-0.5 text-[20px] text-brand-fg">{icon}</span>
+                  <div><p className="text-[13.5px] font-semibold">{title}</p><p className="text-[12.5px] text-muted">{text}</p></div>
+                </li>
+              ))}
+            </ul>
+          </section>
 
-            {/* Information Card */}
-            <section className="bg-primary-container text-on-primary-container p-lg rounded-xl shadow-lg space-y-md">
-              <h3 className="font-headline-md text-headline-md">Service Promise</h3>
-              <ul className="space-y-sm">
-                <li className="flex items-center gap-sm font-body-md text-body-md">
-                  <span className="material-symbols-outlined">verified</span>
-                  <span>Verified Company Staff</span>
-                </li>
-                <li className="flex items-center gap-sm font-body-md text-body-md">
-                  <span className="material-symbols-outlined">schedule</span>
-                  <span>Same-day turnaround for inspections</span>
-                </li>
-                <li className="flex items-center gap-sm font-body-md text-body-md">
-                  <span className="material-symbols-outlined">location_on</span>
-                  <span>Mobile service available (20 mile radius)</span>
-                </li>
-                <li className="flex items-center gap-sm font-body-md text-body-md">
-                  <span className="material-symbols-outlined">history</span>
-                  <span>Digital service history provided</span>
-                </li>
+          {staff.length > 0 && (
+            <section className="card card-pad">
+              <h3 className="section-title">{company.workspace?.workforceLabel || 'Team'}</h3>
+              <ul className="mt-4 grid gap-3">
+                {staff.slice(0, 5).map((member) => (
+                  <li key={member._id || member.name} className="flex items-center gap-3">
+                    <Avatar name={member.name} src={member.avatar} size={34} />
+                    <div className="min-w-0 flex-1"><p className="truncate text-[13.5px] font-semibold">{member.name}</p><p className="truncate text-[12px] text-subtle">{member.role}</p></div>
+                    {member.rating ? <span className="inline-flex items-center gap-0.5 text-[12.5px] font-semibold"><span className="material-symbols-outlined icon-fill text-[14px] text-warning">star</span>{Number(member.rating).toFixed(1)}</span> : null}
+                  </li>
+                ))}
               </ul>
             </section>
-          </aside>
-        </div>
-      </main>
-
-      {/* Sticky Footer Booking */}
-      <footer className="fixed bottom-0 w-full z-50 bg-white/70 backdrop-blur-md px-container-margin py-md shadow-[0_-4px_16px_0_rgba(11,29,45,0.08)] flex justify-between items-center max-w-none">
-        <div className="hidden md:block">
-          <p className="font-label-sm text-label-sm text-on-surface-variant uppercase">Estimated Total</p>
-          <p className="font-headline-md text-headline-md text-primary font-bold">$0.00</p>
-        </div>
-        <div className="flex flex-wrap gap-2 w-full md:w-auto">
-          <button 
-            onClick={() => navigate(`${ROUTES.chat}/${id}`)}
-            className="flex-1 md:flex-none px-4 py-3 bg-emerald-600 text-white rounded-xl font-nav-item text-nav-item font-bold shadow hover:bg-emerald-700 transition-all flex items-center justify-center gap-1"
-          >
-            <span className="material-symbols-outlined text-sm">chat</span>
-            Live Chat
-          </button>
-          <a 
-            href={contactHref}
-            className="flex-1 md:flex-none px-4 py-3 bg-secondary text-white rounded-xl font-nav-item text-nav-item font-bold shadow hover:bg-secondary-container transition-all flex items-center justify-center gap-1"
-          >
-            <span className="material-symbols-outlined text-sm">call</span>
-            Call Dealer
-          </a>
-          <button
-            onClick={() => navigate(ROUTES.customizeBooking, { state: { companyId: id, companyName: displayName } })}
-            className="flex-[2] md:flex-none px-6 py-3 bg-primary text-white rounded-xl font-nav-item text-nav-item font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all"
-          >
-            Submit Service Request
-          </button>
-        </div>
-      </footer>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }
 
 export default CompanyDetails;
-

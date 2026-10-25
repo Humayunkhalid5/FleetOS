@@ -1,0 +1,291 @@
+1
+00:00:00,650 --> 00:00:02,286
+A pipe bursts at midnight.
+
+2
+00:00:02,286 --> 00:00:04,258
+A gamer wants a new console today.
+
+3
+00:00:04,258 --> 00:00:06,999
+A family needs groceries from the shop down the street.
+
+4
+00:00:06,999 --> 00:00:10,406
+Three different businesses, and the same story every time:
+
+5
+00:00:10,406 --> 00:00:13,284
+calls that go unanswered, prices nobody confirms,
+
+6
+00:00:13,284 --> 00:00:15,364
+and promises that never show up.
+
+7
+00:00:15,816 --> 00:00:18,314
+Across Pakistan, small businesses still run
+
+8
+00:00:18,314 --> 00:00:19,998
+on phone calls and guesswork.
+
+9
+00:00:19,998 --> 00:00:22,205
+Customers can't see who they're dealing with,
+
+10
+00:00:22,205 --> 00:00:24,264
+what it will cost, or when it will arrive.
+
+11
+00:00:24,264 --> 00:00:28,690
+Businesses juggle orders and jobs across WhatsApp chats and notebooks.
+
+12
+00:00:28,690 --> 00:00:30,106
+And the staff doing the work
+
+13
+00:00:30,106 --> 00:00:32,079
+have no record of the jobs they finish,
+
+14
+00:00:32,079 --> 00:00:33,443
+or the trust they earn.
+
+15
+00:00:33,910 --> 00:00:35,236
+This is FleetOS.
+
+16
+00:00:35,236 --> 00:00:37,416
+One platform that connects three people
+
+17
+00:00:37,416 --> 00:00:39,149
+around every job: the customer,
+
+18
+00:00:39,149 --> 00:00:41,497
+the business that serves them, and a super
+
+19
+00:00:41,497 --> 00:00:43,877
+admin who keeps the marketplace honest.
+
+20
+00:00:44,348 --> 00:00:46,087
+And it isn't built for one trade.
+
+21
+00:00:46,087 --> 00:00:48,209
+FleetOS is a SaaS platform.
+
+22
+00:00:48,209 --> 00:00:51,458
+Plumbers, gaming and electronics stores, local shops,
+
+23
+00:00:51,458 --> 00:00:54,769
+salons, restaurants: each business picks its category,
+
+24
+00:00:54,769 --> 00:00:57,589
+and gets a workspace that speaks its language.
+
+25
+00:00:57,589 --> 00:00:59,969
+It starts with small and medium businesses,
+
+26
+00:00:59,969 --> 00:01:01,740
+and it's built to scale to large
+
+27
+00:01:01,740 --> 00:01:05,427
+private limited companies, across Pakistan and internationally.
+
+28
+00:01:05,898 --> 00:01:07,247
+It starts with the customer.
+
+29
+00:01:07,247 --> 00:01:10,167
+They search approved businesses by city and service,
+
+30
+00:01:10,167 --> 00:01:11,852
+compare ratings, and book with
+
+31
+00:01:11,852 --> 00:01:14,523
+a clear price, before anything is confirmed.
+
+32
+00:01:14,992 --> 00:01:17,350
+The request reaches the business instantly.
+
+33
+00:01:17,350 --> 00:01:19,275
+The team can accept it, or decline it
+
+34
+00:01:19,275 --> 00:01:21,513
+with a reason the customer sees right away.
+
+35
+00:01:21,513 --> 00:01:24,730
+Smart Dispatch then suggests the best staff member,
+
+36
+00:01:24,730 --> 00:01:27,516
+ranked by distance, workload, and rating.
+
+37
+00:01:27,974 --> 00:01:30,023
+Now the customer watches the job move.
+
+38
+00:01:30,023 --> 00:01:32,122
+The plumber is en route, and the arrival
+
+39
+00:01:32,122 --> 00:01:34,117
+time counts down live on their screen.
+
+40
+00:01:34,117 --> 00:01:34,931
+Arrived.
+
+41
+00:01:34,931 --> 00:01:35,963
+In progress.
+
+42
+00:01:35,963 --> 00:01:36,777
+Completed.
+
+43
+00:01:36,777 --> 00:01:40,096
+Every step updates for everyone, at the same moment.
+
+44
+00:01:40,548 --> 00:01:42,997
+When the work is done, the payment is recorded,
+
+45
+00:01:42,997 --> 00:01:44,091
+an invoice is issued,
+
+46
+00:01:44,091 --> 00:01:46,018
+and the customer leaves a rating that
+
+47
+00:01:46,018 --> 00:01:48,198
+helps good workers win their next job.
+
+48
+00:01:48,658 --> 00:01:51,146
+Behind it all, the super admin reviews every
+
+49
+00:01:51,146 --> 00:01:53,464
+business's documents before it goes live,
+
+50
+00:01:53,464 --> 00:01:57,026
+watches jobs and payments across the platform, handles support,
+
+51
+00:01:57,026 --> 00:01:59,714
+and can suspend anyone who breaks the rules.
+
+52
+00:02:00,176 --> 00:02:02,959
+Under the hood, it's a full MERN stack.
+
+53
+00:02:02,959 --> 00:02:05,803
+MongoDB is the single source of truth.
+
+54
+00:02:05,803 --> 00:02:09,277
+Express and Node power a secure, role-based API.
+
+55
+00:02:09,277 --> 00:02:11,789
+React drives three fast portals.
+
+56
+00:02:11,789 --> 00:02:15,922
+And Socket.IO keeps every screen in sync, in real time.
+
+57
+00:02:16,374 --> 00:02:17,494
+So, what changes?
+
+58
+00:02:17,494 --> 00:02:19,982
+Customers get transparency and safety.
+
+59
+00:02:19,982 --> 00:02:22,217
+Workers get a digital record of their work,
+
+60
+00:02:22,217 --> 00:02:24,764
+a reputation they can build, and steadier income.
+
+61
+00:02:24,764 --> 00:02:27,474
+Businesses trade paperwork for a live workspace,
+
+62
+00:02:27,474 --> 00:02:29,959
+and reach customers they never could before.
+
+63
+00:02:29,959 --> 00:02:33,252
+And every payment is documented, moving the informal
+
+64
+00:02:33,252 --> 00:02:36,111
+economy one step closer to the formal one.
+
+65
+00:02:36,556 --> 00:02:38,123
+And this is only version one.
+
+66
+00:02:38,123 --> 00:02:42,061
+Next up: mobile wallet payments like JazzCash and Easypaisa,
+
+67
+00:02:42,061 --> 00:02:43,899
+Urdu and regional languages,
+
+68
+00:02:43,899 --> 00:02:47,246
+a staff app with live GPS, SMS and WhatsApp alerts,
+
+69
+00:02:47,246 --> 00:02:49,940
+and verified skill badges for workers.
+
+70
+00:02:50,402 --> 00:02:51,350
+FleetOS.
+
+71
+00:02:51,350 --> 00:02:54,056
+Every service job, from request to receipt.
+
+72
+00:02:54,056 --> 00:02:55,974
+Designed and built end to end,
+
+73
+00:02:55,974 --> 00:02:58,476
+from the database to the last pixel.

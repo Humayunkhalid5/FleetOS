@@ -11,11 +11,15 @@ exports.getTracking = async (req, res) => {
   const booking = await Booking.findOne({ _id: req.params.id, ...filterFor(req) })
     .populate('technician', 'name phone avatar status currentLocation')
     .populate('company', 'name city location phone')
-    .select('reference status tracking technician vehicle company customer location serviceSnapshot updatedAt')
+    .select('reference status tracking technician vehicle company customer location serviceSnapshot pricing paymentMethod paymentStatus scheduledAt statusHistory notes updatedAt fulfillment quantity')
     .lean();
   if (!booking) return res.status(404).json({ message: 'Booking not found' });
   const stale = !booking.tracking?.updatedAt || Date.now() - new Date(booking.tracking.updatedAt).getTime() > 5 * 60 * 1000;
-  const destination = coordsForLocation(booking.location || booking.company?.city, booking.location || 'Service location');
+  // Prefer the exact coordinates the customer attached when booking.
+  const saved = booking.tracking?.destination;
+  const destination = Number.isFinite(Number(saved?.lat)) && Number.isFinite(Number(saved?.lng))
+    ? { lat: Number(saved.lat), lng: Number(saved.lng), label: saved.label || booking.location || 'Service location' }
+    : coordsForLocation(booking.location || booking.company?.city, booking.location || 'Service location');
   const origin = Number.isFinite(Number(booking.tracking?.lat)) && Number.isFinite(Number(booking.tracking?.lng))
     ? { lat: Number(booking.tracking.lat), lng: Number(booking.tracking.lng), label: 'Technician current location' }
     : offsetCoords(destination);
@@ -32,6 +36,15 @@ exports.getTracking = async (req, res) => {
       status: booking.status,
       technician: booking.technician,
       vehicle: booking.vehicle,
+      company: booking.company,
+      pricing: booking.pricing,
+      paymentMethod: booking.paymentMethod,
+      paymentStatus: booking.paymentStatus,
+      scheduledAt: booking.scheduledAt,
+      statusHistory: booking.statusHistory,
+      notes: booking.notes,
+      fulfillment: booking.fulfillment?.type || 'onsite',
+      quantity: booking.quantity || 1,
       stale,
     },
   });
@@ -47,7 +60,7 @@ exports.updateTracking = async (req, res) => {
   booking.tracking = {
     lat,
     lng,
-    destination: coordsForLocation(booking.location),
+    destination: Number.isFinite(Number(booking.tracking?.destination?.lat)) ? booking.tracking.destination : coordsForLocation(booking.location),
     etaMinutes: Math.max(0, Number(req.body.etaMinutes || 0)),
     vehicleLabel: String(req.body.vehicleLabel || booking.vehicle?.label || ''),
     updatedAt: new Date(),

@@ -1,150 +1,175 @@
-import { useEffect, useMemo, useState } from 'react';
-import CompanyShell from '../../../components/company/CompanyShell';
+import { useMemo, useRef, useState } from 'react';
 import api from '../../../services/api';
+import { useLiveQuery, revalidate } from '../../../hooks/useLiveQuery';
+import { usePageChrome } from '../../../hooks/usePageChrome';
+import { useFeedback } from '../../../hooks/useFeedback';
+import { DASHBOARD_KEY } from '../../../components/company/workspace';
+import { CompanyCover, CompanyLogo } from '../../../components/customer/CompanyCard';
+import { Alert, Skeleton, Spinner } from '../../../components/ui';
+import { companyRoute } from '../../../constants';
+import { FULFILLMENT } from '../../../constants/fulfillment';
 
-const fields = [
-  ['name', 'Company name'],
-  ['phone', 'Business phone'],
-  ['city', 'City'],
-  ['province', 'Province'],
-  ['location', 'Business address'],
-];
+const FIELDS = ['name', 'description', 'phone', 'location', 'city', 'businessCategory', 'logo', 'heroImage'];
 
-function CompanyDetails() {
-  const [company, setCompany] = useState({ name: '', description: '', phone: '', location: '', city: '', province: '', areas: [], logo: '', heroImage: '' });
-  const [areaText, setAreaText] = useState('');
-  const [message, setMessage] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    api.get('/company/dashboard', { noCache: true })
-      .then((result) => {
-        const record = result.company || {};
-        setCompany({ areas: [], ...record });
-        setAreaText(Array.isArray(record.areas) ? record.areas.join(', ') : '');
-      })
-      .catch((error) => setMessage(error.message));
-  }, []);
-
-  const previewAreas = useMemo(() => areaText.split(',').map((item) => item.trim()).filter(Boolean), [areaText]);
-
-  const readImage = (file, onReady) => {
-    if (!file) return;
-    if (!['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'].includes(file.type)) return setMessage('Please choose a PNG, JPG, WEBP, or SVG image.');
-    if (file.size > 1.5 * 1024 * 1024) return setMessage('Image must be under 1.5 MB.');
+function readImage(file, maxBytes = 1.5 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    if (!['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'].includes(file.type)) { reject(new Error('Choose a PNG, JPG, WEBP or SVG image.')); return; }
+    if (file.size > maxBytes) { reject(new Error('Images must be under 1.5 MB.')); return; }
     const reader = new FileReader();
-    reader.onload = () => onReady(reader.result);
-    reader.onerror = () => setMessage('Unable to read this image file.');
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('Could not read that image.'));
     reader.readAsDataURL(file);
-  };
-
-  const pickLogo = (event) => {
-    const file = event.target.files?.[0];
-    readImage(file, (result) => setCompany((current) => ({ ...current, logo: result, heroImage: current.heroImage || result })));
-    event.target.value = '';
-  };
-
-  const pickCover = (event) => {
-    const file = event.target.files?.[0];
-    readImage(file, (result) => setCompany((current) => ({ ...current, heroImage: result })));
-    event.target.value = '';
-  };
-
-  const saveCompany = async (event) => {
-    event.preventDefault();
-    setSaving(true);
-    setMessage('');
-    try {
-      const payload = { ...company, areas: previewAreas };
-      const result = await api.put('/company/settings', payload);
-      setCompany({ areas: [], ...(result.company || payload) });
-      setMessage('Company details saved. Client discovery updates immediately.');
-    } catch (error) {
-      setMessage(error.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <CompanyShell title="Company Details" subtitle="Control the profile clients see when they discover and book your company.">
-      {message && <div className="mb-6 p-4 rounded-2xl bg-blue-50 border border-blue-100 text-blue-700 text-sm font-semibold flex items-center gap-3"><span className="material-symbols-outlined">info</span>{message}</div>}
-
-      <div className="grid xl:grid-cols-[310px_minmax(0,1fr)] gap-6">
-        <aside className="bg-white rounded-3xl border border-slate-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] p-5 h-fit">
-          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4 flex items-center gap-3">
-            <div className="h-[76px] w-[76px] shrink-0 rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden flex items-center justify-center text-slate-300">
-              {company.logo ? <img src={company.logo} alt={`${company.name || 'Company'} logo`} className="h-full w-full object-contain p-2" /> : <span className="material-symbols-outlined text-3xl">domain</span>}
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Company profile</p>
-              <h2 className="mt-1 truncate text-base font-extrabold text-slate-900">{company.name || 'Your company'}</h2>
-              <p className="mt-1 truncate text-xs font-medium text-slate-500">{company.city || 'Add city'}{company.province ? `, ${company.province}` : ''}</p>
-            </div>
-          </div>
-          <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-blue-200 bg-blue-50/60 p-3 hover:bg-blue-50 transition-colors">
-            <span className="material-symbols-outlined rounded-xl bg-white p-2 text-blue-600 shadow-sm">cloud_upload</span>
-            <span className="min-w-0">
-              <span className="block text-sm font-bold text-blue-700">Replace company logo</span>
-              <span className="block text-xs text-slate-500 mt-0.5">PNG, JPG, WEBP or SVG · 1.5 MB max</span>
-            </span>
-            <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={pickLogo} className="sr-only" />
-          </label>
-          <label className="mt-3 flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-[#778DA9]/40 bg-[#E0E1DD]/50 p-3 hover:bg-[#E0E1DD] transition-colors">
-            <span className="material-symbols-outlined rounded-xl bg-white p-2 text-[#1B263B] shadow-sm">image</span>
-            <span className="min-w-0">
-              <span className="block text-sm font-bold text-[#1B263B]">Update client card cover</span>
-              <span className="block text-xs text-slate-500 mt-0.5">Shown on your public company card</span>
-            </span>
-            <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={pickCover} className="sr-only" />
-          </label>
-          <div className="mt-5 rounded-2xl bg-slate-50 border border-slate-100 p-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Discovery preview</p>
-            <div className="mt-3 h-28 rounded-2xl overflow-hidden bg-slate-200 flex items-center justify-center text-slate-400">
-              {(company.heroImage || company.logo) ? <img src={company.heroImage || company.logo} alt="Client card preview" className="h-full w-full object-cover" /> : <span className="material-symbols-outlined">storefront</span>}
-            </div>
-            <h3 className="mt-3 text-lg font-bold text-slate-900">{company.name || 'Your company name'}</h3>
-            <p className="text-sm text-slate-500 mt-1">{company.city || 'City'}, {company.province || 'Province'}</p>
-            <p className="text-xs leading-5 text-slate-500 mt-3 line-clamp-4">{company.description || 'Add a short professional description so clients understand your services before booking.'}</p>
-          </div>
-        </aside>
-
-        <form onSubmit={saveCompany} className="bg-white rounded-3xl border border-slate-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] p-6 md:p-8 space-y-6">
-          <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-5">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">Public company record</h2>
-              <p className="text-sm text-slate-500 mt-1">These details are used in client discovery and location results.</p>
-            </div>
-            <button type="submit" disabled={saving} className="px-5 py-2.5 bg-blue-600 text-white rounded-2xl text-sm font-bold hover:bg-blue-700 disabled:opacity-60 shadow-sm">{saving ? 'Saving...' : 'Save details'}</button>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-5">
-            {fields.map(([key, label]) => (
-              <label key={key} className="grid gap-2 text-xs font-bold text-slate-500 uppercase tracking-wide">
-                {label}
-                <input value={company[key] || ''} onChange={(event) => setCompany({ ...company, [key]: event.target.value })} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" />
-              </label>
-            ))}
-          </div>
-
-          <label className="grid gap-2 text-xs font-bold text-slate-500 uppercase tracking-wide">
-            Service areas inside Pakistan
-            <input value={areaText} onChange={(event) => setAreaText(event.target.value)} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" placeholder="Lahore, Johar Town, Gulberg, DHA" />
-          </label>
-
-          <label className="grid gap-2 text-xs font-bold text-slate-500 uppercase tracking-wide">
-            Company description
-            <textarea value={company.description || ''} onChange={(event) => setCompany({ ...company, description: event.target.value })} rows="6" className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium leading-6 text-slate-800 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10" />
-          </label>
-
-          <div className="flex flex-wrap gap-2">
-            {(previewAreas.length ? previewAreas : ['Add service areas']).map((area) => <span key={area} className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-bold">{area}</span>)}
-          </div>
-        </form>
-      </div>
-    </CompanyShell>
-  );
+  });
 }
 
-export default CompanyDetails;
+export default function CompanyDetails() {
+  const { toast } = useFeedback();
+  const { data, loading } = useLiveQuery(DASHBOARD_KEY, { events: ['workspace:updated'] });
+  const { data: catalogue } = useLiveQuery('/cities');
+  const company = data?.company;
+  const [form, setForm] = useState(null);
+  const [areas, setAreas] = useState([]);
+  const [areaInput, setAreaInput] = useState('');
+  const [ways, setWays] = useState([]);
+  const [fee, setFee] = useState('0');
+  const allowedFor = (value) => (catalogue?.businessCategories || []).find((entry) => entry.value === value)?.fulfillment || [];
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const logoRef = useRef(null);
+  const coverRef = useRef(null);
 
+  if (company && !form) {
+    setForm(Object.fromEntries(FIELDS.map((key) => [key, company[key] || ''])));
+    setAreas(company.areas || []);
+    setWays(company.workspace?.fulfillment || []);
+    setFee(String(company.deliveryFee ?? company.workspace?.deliveryFee ?? 0));
+  }
+
+  const dirty = useMemo(() => form && company && (FIELDS.some((key) => (form[key] || '') !== (company[key] || '')) || JSON.stringify(areas) !== JSON.stringify(company.areas || []) || JSON.stringify(ways) !== JSON.stringify(company.workspace?.fulfillment || []) || Number(fee || 0) !== Number(company.deliveryFee || 0)), [form, company, areas, ways, fee]);
+  const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
+  const pick = (key) => async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    try { const value = await readImage(file); setForm((current) => ({ ...current, [key]: value })); }
+    catch (readError) { toast.error(readError.message); }
+  };
+  const addArea = () => { const value = areaInput.trim(); if (value && !areas.includes(value)) setAreas((current) => [...current, value]); setAreaInput(''); };
+
+  const save = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setError('');
+    try {
+      await api.put('/company/settings', { ...form, areas, fulfillmentOptions: ways, deliveryFee: Number(fee || 0) });
+      await revalidate(DASHBOARD_KEY);
+      setForm(null);
+      toast.success('Profile published — customers see the changes now.');
+    } catch (requestError) { setError(requestError.message); }
+    finally { setSaving(false); }
+  };
+
+  usePageChrome({ title: 'Business profile', subtitle: 'What customers see when they find, book and order from you.' });
+
+  if (loading || !form) return <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]"><Skeleton className="h-[540px] rounded-2xl" /><Skeleton className="h-80 rounded-2xl" /></div>;
+
+  const preview = { ...company, ...form, areas, services: company?.services || [] };
+
+  return (
+    <form onSubmit={save} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+      <div className="grid gap-6">
+        <section className="card overflow-hidden">
+          <div className="relative">
+            <CompanyCover company={preview} className="h-40 w-full" />
+            <button type="button" className="btn btn-secondary btn-sm absolute right-3 top-3" onClick={() => coverRef.current?.click()}><span className="material-symbols-outlined">image</span>Change cover</button>
+            <input ref={coverRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="sr-only" onChange={pick('heroImage')} />
+          </div>
+          <div className="flex items-end gap-4 px-5 pb-5 sm:px-6">
+            <button type="button" onClick={() => logoRef.current?.click()} className="group relative z-10 -mt-9 rounded-2xl" aria-label="Change logo">
+              <CompanyLogo company={preview} size={76} className="rounded-2xl ring-4 ring-surface" />
+              <span className="absolute inset-0 grid place-items-center rounded-2xl bg-navy/50 text-white opacity-0 transition-opacity group-hover:opacity-100"><span className="material-symbols-outlined">photo_camera</span></span>
+            </button>
+            <input ref={logoRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="sr-only" onChange={pick('logo')} />
+            <p className="pb-1 text-[12.5px] text-subtle">Logo and cover: PNG, JPG, WEBP or SVG up to 1.5 MB.</p>
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="card-header"><h2 className="card-title">Business details</h2></div>
+          <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
+            <label className="field sm:col-span-2"><span className="label">Company name</span><input className="input" required value={form.name} onChange={update('name')} /></label>
+            <label className="field sm:col-span-2"><span className="label">Description</span><textarea className="textarea" rows={4} value={form.description} onChange={update('description')} placeholder="What you do, who you serve, and what makes you reliable." /><span className="hint">Customers search this text in the marketplace.</span></label>
+            <label className="field">
+              <span className="label">Business category</span>
+              <select className="select" value={form.businessCategory} onChange={(event) => { update('businessCategory')(event); setWays(allowedFor(event.target.value)); }}>
+                {(catalogue?.businessCategories || []).map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
+              </select>
+              <span className="hint">Changes the modules and labels in your workspace.</span>
+            </label>
+            <label className="field"><span className="label">Public phone</span><input className="input" type="tel" value={form.phone} onChange={update('phone')} /></label>
+            <label className="field">
+              <span className="label">City</span>
+              <select className="select" value={form.city} onChange={update('city')}>
+                {(catalogue?.cities || []).map((city) => <option key={`${city.name}-${city.province}`} value={city.name}>{city.name} — {city.province}</option>)}
+              </select>
+            </label>
+            <label className="field"><span className="label">Office location</span><input className="input" value={form.location} onChange={update('location')} placeholder="Area, city" /></label>
+            <div className="field sm:col-span-2">
+              <span className="label">Areas you serve</span>
+              <div className="flex gap-2">
+                <input className="input" value={areaInput} onChange={(event) => setAreaInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addArea(); } }} placeholder="e.g. DHA Phase 5" />
+                <button type="button" className="btn btn-secondary h-11" onClick={addArea}>Add</button>
+              </div>
+              {areas.length > 0 && <div className="mt-1 flex flex-wrap gap-1.5">{areas.map((area) => <button key={area} type="button" className="badge badge-brand" onClick={() => setAreas((current) => current.filter((value) => value !== area))}>{area}<span className="material-symbols-outlined">close</span></button>)}</div>}
+            </div>
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="card-header"><div><h2 className="card-title">How customers get it</h2><p className="text-[12.5px] text-subtle">Customers choose one of these when they book or order.</p></div></div>
+          <div className="grid gap-4 p-5 sm:p-6">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {allowedFor(form.businessCategory).map((type) => {
+                const info = FULFILLMENT[type];
+                const on = ways.includes(type);
+                return (
+                  <button key={type} type="button" aria-pressed={on} onClick={() => setWays((current) => (on ? (current.length > 1 ? current.filter((value) => value !== type) : current) : [...current, type]))} className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition-colors ${on ? 'border-brand bg-brand-soft/50 ring-1 ring-brand' : 'border-line hover:border-line-strong'}`}>
+                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${on ? 'bg-brand text-white' : 'bg-sunken text-subtle'}`}><span className="material-symbols-outlined text-[19px]">{info.icon}</span></span>
+                    <span><span className="block text-[14px] font-semibold">{info.label}</span><span className="block text-[12.5px] text-muted">{info.needsAddress ? `Customer gives an address${info.tracking ? '; tracked live' : ''}` : type === 'remote' ? 'Delivered online' : 'At your premises'}</span></span>
+                    <span className={`material-symbols-outlined ml-auto ${on ? 'icon-fill text-brand-fg' : 'text-subtle'}`}>{on ? 'check_circle' : 'radio_button_unchecked'}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {ways.includes('delivery') && (
+              <label className="field max-w-xs"><span className="label">Delivery fee (PKR)</span><input className="input" type="number" min="0" max="100000" step="10" value={fee} onChange={(event) => setFee(event.target.value)} /><span className="hint">Added to delivery orders. Use 0 for free delivery.</span></label>
+            )}
+          </div>
+        </section>
+        <Alert>{error}</Alert>
+      </div>
+
+      <aside className="grid gap-4 lg:sticky lg:top-24">
+        <div className="card overflow-hidden">
+          <div className="card-header"><h2 className="card-title">Customer preview</h2>{company?.slug && <a href={companyRoute(company.slug)} target="_blank" rel="noreferrer" className="link text-[12.5px]">Open</a>}</div>
+          <div className="p-4">
+            <div className="overflow-hidden rounded-2xl border border-line">
+              <CompanyCover company={preview} className="h-24 w-full" />
+              <div className="p-4 pt-0">
+                <CompanyLogo company={preview} size={44} className="relative z-10 -mt-5 ring-4 ring-surface" />
+                <p className="mt-2 truncate font-semibold">{form.name || 'Company name'}</p>
+                <p className="truncate text-[12.5px] text-muted">{form.location || form.city}</p>
+                <p className="mt-2 line-clamp-3 text-[13px] text-muted">{form.description || 'Add a description so customers know what you offer.'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="card card-pad grid gap-2">
+          <button type="submit" className="btn btn-primary w-full" disabled={!dirty || saving}>{saving ? <><Spinner /> Publishing</> : 'Publish changes'}</button>
+          <button type="button" className="btn btn-ghost w-full" disabled={!dirty || saving} onClick={() => setForm(null)}>Discard</button>
+          <p className="text-center text-[12px] text-subtle">{dirty ? 'You have unpublished changes.' : 'Everything is published.'}</p>
+        </div>
+      </aside>
+    </form>
+  );
+}

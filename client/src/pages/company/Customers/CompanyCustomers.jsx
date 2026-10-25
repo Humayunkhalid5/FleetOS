@@ -1,106 +1,104 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import api from '../../../services/api';
-import CompanyShell from '../../../components/company/CompanyShell';
+import { useLiveQuery } from '../../../hooks/useLiveQuery';
+import { usePageChrome } from '../../../hooks/usePageChrome';
+import { useFeedback } from '../../../hooks/useFeedback';
+import { Alert, Avatar, EmptyState, Modal, SkeletonRows, Spinner, StatCard, StatusBadge } from '../../../components/ui';
+import { downloadCsv, formatCurrency, formatDate } from '../../../utils/helpers';
 
-function formatMoney(value) {
-  return `PKR ${Number(value || 0).toLocaleString('en-PK')}`;
-}
+const blank = () => ({ name: '', email: '', phone: '', address: '', status: 'Active' });
 
-function CompanyCustomers() {
+export default function CompanyCustomers() {
+  const { confirm, toast } = useFeedback();
+  const { data, error, loading, refresh } = useLiveQuery('/customers', { events: ['booking:created', 'booking:updated'] });
+  const customers = useMemo(() => data?.customers || [], [data]);
   const [search, setSearch] = useState('');
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(blank());
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
 
-  useEffect(() => {
-    let mounted = true;
-    api.get('/customers', { noCache: true })
-      .then((data) => {
-        if (mounted) setCustomers(Array.isArray(data?.customers) ? data.customers : []);
-      })
-      .catch((requestError) => {
-        if (mounted) setError(requestError.message || 'Customers could not be loaded.');
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
-    return () => { mounted = false; };
-  }, []);
+  const q = search.trim().toLowerCase();
+  const list = q ? customers.filter((customer) => [customer.name, customer.email, customer.phone, customer.customerId].some((value) => String(value || '').toLowerCase().includes(q))) : customers;
+  const revenue = customers.reduce((sum, customer) => sum + Number(customer.totalSpent || 0), 0);
+  const repeat = customers.filter((customer) => Number(customer.totalBookings || 0) > 1).length;
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return customers;
-    return customers.filter((customer) => [customer.name, customer.email, customer.phone, customer.customerId]
-      .some((value) => String(value || '').toLowerCase().includes(term)));
-  }, [customers, search]);
-
-  const removeCustomer = async (customer) => {
-    if (!window.confirm(`Remove ${customer.name || 'this customer'} from the company directory?`)) return;
-    setError('');
+  const open = (customer = null) => { setEditing(customer || 'new'); setForm(customer ? { ...blank(), ...customer } : blank()); setFormError(''); };
+  const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
+  const save = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setFormError('');
+    const payload = { name: form.name, email: form.email, phone: form.phone, address: form.address, status: form.status };
     try {
-      await api.del(`/customers/${customer._id}`);
-      setCustomers((current) => current.filter((item) => item._id !== customer._id));
-    } catch (requestError) {
-      setError(requestError.message || 'Customer could not be removed.');
-    }
+      if (editing === 'new') await api.post('/customers', payload); else await api.put(`/customers/${editing._id}`, payload);
+      toast.success(`${form.name} saved`);
+      setEditing(null);
+    } catch (requestError) { setFormError(requestError.message); }
+    finally { setSaving(false); }
   };
+  const remove = async (customer) => {
+    const ok = await confirm({ title: `Remove ${customer.name}?`, message: 'This removes them from your directory. Their bookings and payments are kept.', confirmLabel: 'Remove', tone: 'danger' });
+    if (!ok) return;
+    try { await api.del(`/customers/${customer._id}`); toast.success(`${customer.name} removed`); }
+    catch (requestError) { toast.error(requestError.message); }
+  };
+  const exportCsv = () => downloadCsv('fleetos-customers.csv', [['Account', 'Name', 'Email', 'Phone', 'Bookings', 'Completed', 'Spent (PKR)', 'Last booking', 'Status'], ...customers.map((customer) => [customer.customerId, customer.name, customer.email, customer.phone, customer.totalBookings || 0, customer.totalJobs || 0, customer.totalSpent || 0, formatDate(customer.lastBookingAt), customer.status])]);
+
+  usePageChrome({
+    title: 'Customers',
+    subtitle: 'Everyone who has booked with you, with live job and spend totals.',
+    search,
+    onSearch: setSearch,
+    actions: <>
+      <button type="button" className="btn btn-secondary" onClick={exportCsv}><span className="material-symbols-outlined">download</span>Export</button>
+      <button type="button" className="btn btn-primary" onClick={() => open()}><span className="material-symbols-outlined">person_add</span>Add customer</button>
+    </>,
+  });
 
   return (
-    <CompanyShell
-      title="Customers"
-      subtitle="Review the clients connected to active and completed company work."
-      search={search}
-      onSearch={setSearch}
-      actions={<span className="text-xs font-semibold text-slate-500">{customers.length} account{customers.length === 1 ? '' : 's'}</span>}
-    >
-      {error && <div role="alert" className="mb-5 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</div>}
-
-      <section className="overflow-hidden rounded-3xl bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]">
-        <div className="overflow-x-auto">
-          <table className="min-w-[900px] w-full text-left text-sm">
-            <thead>
-              <tr className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
-                <th className="px-6 py-4">Account</th>
-                <th className="px-6 py-4">Customer</th>
-                <th className="px-6 py-4">Contact</th>
-                <th className="px-6 py-4">Completed jobs</th>
-                <th className="px-6 py-4">Total spend</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filtered.map((customer) => (
-                <tr key={customer._id} className="transition-colors hover:bg-slate-50/70">
-                  <td className="px-6 py-4 font-mono text-xs text-slate-500">{customer.customerId || customer._id}</td>
-                  <td className="px-6 py-4 font-bold text-slate-900">{customer.name || 'Client'}</td>
-                  <td className="px-6 py-4">
-                    <p className="font-semibold text-slate-700">{customer.email || 'No email'}</p>
-                    <p className="mt-1 text-xs text-slate-500">{customer.phone || 'No phone'}</p>
-                  </td>
-                  <td className="px-6 py-4 font-semibold text-slate-700">{Number(customer.totalJobs || 0)}</td>
-                  <td className="px-6 py-4 font-bold text-slate-900">{formatMoney(customer.totalSpent)}</td>
-                  <td className="px-6 py-4"><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{customer.status || 'Active'}</span></td>
-                  <td className="px-6 py-4 text-right">
-                    <button type="button" onClick={() => removeCustomer(customer)} className="rounded-xl px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50">Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {!loading && filtered.length === 0 && (
-          <div className="px-6 py-16 text-center">
-            <span className="material-symbols-outlined text-4xl text-slate-300">groups</span>
-            <h2 className="mt-3 text-base font-bold text-slate-900">{search ? 'No matching customers' : 'No customers recorded'}</h2>
-            <p className="mt-1 text-sm text-slate-500">{search ? 'Try a different name, email, phone, or account number.' : 'Clients appear here automatically as they place service requests.'}</p>
+    <div className="grid gap-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3">
+        <StatCard icon="groups" label="Customers" value={customers.length} tone="brand" />
+        <StatCard icon="repeat" label="Repeat customers" value={repeat} hint={customers.length ? `${Math.round((repeat / customers.length) * 100)}% of all customers` : ''} tone="violet" />
+        <StatCard icon="payments" label="Lifetime revenue" value={formatCurrency(revenue)} tone="success" />
+      </div>
+      <Alert onRetry={refresh}>{error && !data ? error.message : ''}</Alert>
+      <section className="card overflow-hidden">
+        {loading ? <div className="p-5"><SkeletonRows rows={5} /></div> : list.length ? (
+          <div className="overflow-x-auto">
+            <table className="table min-w-[900px]">
+              <thead><tr><th>Customer</th><th>Contact</th><th className="text-right">Bookings</th><th className="text-right">Completed</th><th className="text-right">Spent</th><th>Last booking</th><th>Status</th><th /></tr></thead>
+              <tbody>
+                {list.map((customer) => (
+                  <tr key={customer._id}>
+                    <td><div className="flex items-center gap-3"><Avatar name={customer.name} size={34} /><div><p className="font-semibold">{customer.name}</p><p className="font-mono text-[11.5px] text-subtle">{customer.customerId}</p></div></div></td>
+                    <td><p>{customer.email || '—'}</p><p className="text-[12px] text-subtle">{customer.phone || 'No phone'}</p></td>
+                    <td className="text-right tabular-nums">{customer.totalBookings || 0}</td>
+                    <td className="text-right tabular-nums">{customer.totalJobs || 0}</td>
+                    <td className="whitespace-nowrap text-right font-semibold tabular-nums">{formatCurrency(customer.totalSpent)}</td>
+                    <td className="text-muted">{formatDate(customer.lastBookingAt)}</td>
+                    <td><StatusBadge status={customer.status || 'Active'} /></td>
+                    <td><div className="flex justify-end gap-1"><button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => open(customer)} aria-label={`Edit ${customer.name}`}><span className="material-symbols-outlined">edit</span></button><button type="button" className="btn btn-ghost btn-icon btn-sm hover:text-danger-fg" onClick={() => remove(customer)} aria-label={`Remove ${customer.name}`}><span className="material-symbols-outlined">delete</span></button></div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-        {loading && <div className="px-6 py-16 text-center text-sm font-semibold text-slate-500">Loading customers…</div>}
+        ) : <EmptyState icon="groups" title={q ? 'No matching customers' : 'No customers yet'}>{q ? 'Try a name, email, phone or account number.' : 'Customers are added automatically when they book, or you can add one yourself.'}</EmptyState>}
       </section>
-    </CompanyShell>
+
+      <Modal open={Boolean(editing)} onClose={() => setEditing(null)} title={editing === 'new' ? 'Add customer' : `Edit ${form.name}`}
+        footer={<><button type="button" className="btn btn-secondary" onClick={() => setEditing(null)}>Cancel</button><button type="submit" form="customer-form" className="btn btn-primary" disabled={saving}>{saving ? <><Spinner /> Saving</> : 'Save'}</button></>}>
+        <form id="customer-form" onSubmit={save} className="grid gap-4 sm:grid-cols-2">
+          <label className="field sm:col-span-2"><span className="label">Full name</span><input className="input" required value={form.name} onChange={update('name')} /></label>
+          <label className="field"><span className="label">Email</span><input className="input" type="email" value={form.email} onChange={update('email')} /></label>
+          <label className="field"><span className="label">Phone</span><input className="input" type="tel" value={form.phone} onChange={update('phone')} /></label>
+          <label className="field sm:col-span-2"><span className="label">Address</span><input className="input" value={form.address} onChange={update('address')} /></label>
+          <label className="field"><span className="label">Status</span><select className="select" value={form.status} onChange={update('status')}><option>Active</option><option>Inactive</option></select></label>
+          <div className="sm:col-span-2"><Alert>{formError}</Alert></div>
+        </form>
+      </Modal>
+    </div>
   );
 }
-
-export default CompanyCustomers;

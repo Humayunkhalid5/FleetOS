@@ -1,247 +1,229 @@
-import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ROUTES } from '../../../constants';
-import fleetosLogo from '../../../assets/fleetos-light.svg';
+import LiveJobCard from '../../../components/public/LiveJobCard';
+import Reveal from '../../../components/ui/Reveal';
 
-const BrandMark = () => <img className="client-brand-image" src={fleetosLogo} alt="FleetOS" />;
+// The 3D city is decoration: if its chunk fails to load, the page still renders.
+const HeroScene = lazy(() => import('../../../components/public/HeroScene').catch(() => ({ default: () => null })));
+
+// The 3D city is decoration and its chunk pulls in Three.js, so it is fetched
+// only after the hero text has painted. The first screen arrives faster on a
+// phone; the scene then fades in on its own.
+function DeferredScene({ shift }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if ('requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(() => setReady(true), { timeout: 1200 });
+      return () => window.cancelIdleCallback?.(id);
+    }
+    const id = window.setTimeout(() => setReady(true), 200);
+    return () => window.clearTimeout(id);
+  }, []);
+  if (!ready) return null;
+  return <Suspense fallback={null}><HeroScene shift={shift} /></Suspense>;
+}
+
+const industries = [
+  ['home_repair_service', 'Home services & repair', 'Plumbing · Electrical · AC · Cleaning', 'field-services'],
+  ['sports_esports', 'Gaming & electronics', 'Consoles · Games · Phones · Repairs', 'electronics-gaming'],
+  ['storefront', 'Local shops & retail', 'Groceries · General store · Home goods', 'retail-products'],
+  ['restaurant', 'Restaurants & food', 'Delivery · Pickup · Table reservations', 'food-hospitality'],
+  ['spa', 'Salons, spas & wellness', 'Haircut · Facial · Bridal makeup', 'health-beauty'],
+  ['local_pharmacy', 'Clinics & pharmacies', 'Doctor visits · Lab tests · Medicines', 'healthcare'],
+  ['car_repair', 'Auto repair & car care', 'Car service · Car wash · Roadside help', 'auto-services'],
+  ['school', 'Tutoring & training', 'Home tuition · Online classes · Test prep', 'education'],
+  ['local_shipping', 'Courier & moving', 'Parcels · House shifting · Freight', 'logistics'],
+  ['celebration', 'Events & photography', 'Weddings · Decor · Sound & lights', 'events'],
+  ['local_gas_station', 'Fuel & energy', 'LPG refills · Solar · Generators', 'oil-energy'],
+  ['devices', 'Digital & IT services', 'Websites · IT support · CCTV', 'digital-technology'],
+];
+
+const customerSide = [
+  ['travel_explore', 'Find approved companies', 'Search providers by city, area and service.'],
+  ['tune', 'Book with a clear price', 'Pick a service, add materials and see the estimate before confirming.'],
+  ['my_location', 'Follow the job live', 'Assigned staff, ETA and status on a map.'],
+  ['reviews', 'Pay and review', 'Receipts, invoices and ratings linked to every booking.'],
+];
+
+const companySide = [
+  ['inbox', 'One request inbox', 'Every new booking lands in one list, ready to assign.'],
+  ['psychology', 'Smart Dispatch', 'Staff suggestions ranked by distance, workload and rating.'],
+  ['inventory_2', 'Staff, stock and services', 'Manage your people, parts and price list in one place.'],
+  ['monitoring', 'Revenue and analytics', 'Recorded payments, monthly trends and an assistant for daily questions.'],
+];
+
+const lifecycle = [
+  ['schedule', 'Pending', 'The customer confirms a booking with a priced service.'],
+  ['assignment_ind', 'Assigned', 'The company picks an available staff member.'],
+  ['local_shipping', 'En Route', 'Staff head out and the customer sees the ETA.'],
+  ['where_to_vote', 'Arrived', 'Arrival is added to the job timeline.'],
+  ['construction', 'In Progress', 'Work starts; chat stays open on both sides.'],
+  ['task_alt', 'Completed', 'The company closes the work order.'],
+  ['payments', 'Paid', 'Payment is recorded and an invoice is issued.'],
+  ['star', 'Reviewed', 'The customer rates the job on the company profile.'],
+];
+
+const faqs = [
+  ['How does a customer send a request?', 'Choose an approved company, select its service or product, add requirements and confirm. The booking reaches the company workspace straight away.'],
+  ['Are companies checked?', 'Companies are listed only after an admin reviews their documents and approves them. Access can be suspended at any time.'],
+  ['Which payment methods are supported?', 'Companies record cash and invoice payments after the work is complete; card checkout can be enabled once a payment provider is configured.'],
+  ['Can each company use its own terminology?', 'Yes. The business category chosen at registration sets the workspace modules and labels — a retailer sees Orders and Store staff, a field-service company sees Requests and Technicians.'],
+  ['Can a booking be cancelled?', 'Customers can cancel Pending or Assigned jobs. Companies can cancel with a recorded reason, which both sides can see.'],
+];
 
 function Home() {
-  const navigate = useNavigate();
-  const [openFaq, setOpenFaq] = useState('');
-
-  const serviceCards = [
-    ['storefront', 'Product Showcase', 'Pitch products to ready clients'],
-    ['support_agent', 'Service Requests', 'Receive and manage client requests'],
-    ['inventory_2', 'Inventory Items', 'Publish add-ons and product stock'],
-    ['campaign', 'Company Pitch', 'Promote your offer by city'],
-    ['chat_bubble', 'Client Chat', 'Talk directly before and after booking'],
-    ['payments', 'Payments', 'Cash, card, and online payment options'],
-  ];
-
-  const features = [
-    ['verified', 'Verified Companies', 'Only admin-approved businesses appear to clients'],
-    ['location_city', 'Pakistan Cities', 'Companies are listed city-wise for local discovery'],
-    ['edit_calendar', 'Easy Request Flow', 'Choose company, service/product, date and notes'],
-    ['groups', 'Assigned Staff ETA', 'Live tracking and status updates after assignment'],
-    ['chat_bubble', 'In-app Chat', 'Chat with the company or platform support'],
-    ['payments', 'Secure Payments', 'Pay with cash or card, your choice'],
-    ['map', 'Live Tracking', 'Track accepted work in real time'],
-    ['history', 'Booking History', 'View all your past bookings'],
-  ];
-
-  const steps = [
-    ['1', 'Discover Companies', 'Search by city, category, service, product, or company name.', 'fact_check'],
-    ['2', 'Send Request', 'Choose the company offer, add details, and chat if needed.', 'mobile_friendly'],
-    ['3', 'Track, Pay & Review', 'Follow status updates, complete payment, and rate the company.', 'credit_card'],
-  ];
-
-  const reviews = [
-    ['Muhammad Usman', 'Lahore', 'I found the right company in my city, compared their offer, and sent a request in minutes.'],
-    ['Sana Ahmed', 'Karachi', 'A clean platform for discovering trusted Pakistani businesses with transparent pricing.'],
-    ['Hassan Ali', 'Islamabad', 'The chat, tracking, payment, and review flow made the whole service request feel simple.'],
-  ];
-
-  const faqs = [
-    'How do I send a request?',
-    'Are the companies verified?',
-    'What payment methods do you accept?',
-    'Can companies list products and services?',
-    'Can I reschedule or cancel my booking?',
-    'How can I contact support?',
-  ];
+  const [openFaq, setOpenFaq] = useState(0);
 
   return (
-    <div className="client-landing min-h-screen text-[#0D1B2A]">
-      <header className="client-site-header">
-        <button onClick={() => navigate(ROUTES.home)} className="client-brand" aria-label="FleetOS home">
-          <BrandMark />
-        </button>
-        <nav className="client-nav-links" aria-label="Main navigation">
-          <button onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}>How it works</button>
-          <button onClick={() => navigate('/company/register')}>For Companies</button>
-          <button onClick={() => navigate(ROUTES.about)}>About us</button>
-          <button onClick={() => navigate(ROUTES.contact)}>Help</button>
-        </nav>
-        <div className="client-header-actions">
-          <button onClick={() => navigate(ROUTES.login)} className="client-soft-btn">Login</button>
-          <button onClick={() => navigate(ROUTES.companies)} className="client-dark-btn">Find companies</button>
+    <div className="relative">
+      {/* Hero */}
+      <section className="relative isolate">
+        <div className="hero-aurora" aria-hidden="true" />
+        <div className="mx-auto grid max-w-[1200px] items-center gap-10 px-4 pb-16 pt-10 sm:px-6 md:pt-16 lg:grid-cols-[1fr_1.05fr] lg:gap-6 lg:pb-24">
+          {/* min-w-0: the industry rail below is nowrap on phones, and without
+              this the grid column would grow to the rail's full width and clip
+              the hero instead of letting the rail scroll. */}
+          <div className="animate-rise-in min-w-0">
+            <h1 className="max-w-[15ch] text-[42px] font-extrabold leading-[1.03] tracking-[-0.045em] text-ink sm:text-[56px] lg:text-[62px]">
+              Every service job, <span className="text-gradient">from request to receipt.</span>
+            </h1>
+            <p className="mt-6 max-w-[50ch] text-[17px] leading-7 text-muted">
+              Find a trusted company near you, book what you need and follow the job until it is done. Companies get one workspace for requests, staff, stock and payments.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3 max-sm:flex-col">
+              <Link to={ROUTES.companies} className="btn btn-primary btn-lg">
+                <span className="material-symbols-outlined">search</span>
+                Find a company
+              </Link>
+              <Link to="/company/register" className="btn btn-secondary btn-lg">Register your company</Link>
+            </div>
+            <div className="mt-10">
+              <p className="text-[12.5px] font-semibold text-subtle">Popular on FleetOS</p>
+              <div className="rail-scroll hide-scrollbar mt-3 flex flex-wrap gap-2 max-sm:-mx-4 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:px-4 max-sm:pb-1">
+                {industries.slice(0, 6).map(([icon, name, , value]) => (
+                  <Link key={value} to={`${ROUTES.companies}?industry=${value}`} className="chip chip-lift">
+                    <span className="material-symbols-outlined">{icon}</span>{name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="hero-visual min-w-0">
+            <div className="hero-visual__scene">
+              <DeferredScene shift={0.13} />
+              <span className="scene-hint"><span className="material-symbols-outlined">swipe</span>Drag to turn the city</span>
+            </div>
+            <LiveJobCard className="hero-visual__card" />
+          </div>
         </div>
-      </header>
+      </section>
 
-      <main>
-        <section className="client-hero-shell">
-          <div className="client-hero-copy">
-            <div className="client-pill"><span className="material-symbols-outlined">stars</span> Pakistan’s multi-company SaaS marketplace</div>
-            <h1>Companies pitch. <br />Clients discover, request, and <em>book with confidence</em></h1>
-            <p>FleetOS lets approved Pakistani companies list their products, services, add-ons, and offers city-wise while clients search, compare, chat, book, pay, track, and review in one connected portal.</p>
-            <div className="client-cta-row">
-              <button onClick={() => navigate(ROUTES.companies)} className="client-dark-btn client-large-btn">Find companies</button>
-              <button onClick={() => navigate(ROUTES.companies)} className="client-outline-btn client-large-btn">Book service</button>
-            </div>
-            <div className="client-stats-row" aria-label="FleetOS stats">
-              <span><b>1M+</b> Happy customers</span>
-              <span><b>1,500+</b> Verified companies</span>
-              <span><b>50+</b> Cities in Pakistan</span>
-              <span><b>4.8★</b> Average rating</span>
-            </div>
-          </div>
+      {/* Two portals */}
+      <section className="band">
+        <div className="mx-auto grid max-w-[1200px] gap-6 px-4 py-20 sm:px-6 lg:grid-cols-2">
+          {[['For customers', 'Book a trusted company in minutes.', customerSide, ROUTES.register, 'Create a customer account'], ['For companies', 'Run operations without spreadsheets.', companySide, '/company/register', 'Register your company']].map(([kicker, title, items, to, cta], column) => (
+            <Reveal key={kicker} delay={column * 120} className="card card-hover p-6 md:p-8">
+              <p className="text-[13px] font-semibold text-brand-fg">{kicker}</p>
+              <h2 className="mt-2 text-[26px] font-bold leading-tight tracking-tight">{title}</h2>
+              <ul className="mt-8 grid gap-6">
+                {items.map(([icon, heading, text]) => (
+                  <li key={heading} className="flex gap-4">
+                    <span className="icon-tile"><span className="material-symbols-outlined">{icon}</span></span>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-ink">{heading}</p>
+                      <p className="mt-0.5 text-[14px] text-muted">{text}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <Link to={to} className="link mt-8 inline-flex items-center gap-1">{cta}<span className="material-symbols-outlined text-[18px]">arrow_forward</span></Link>
+            </Reveal>
+          ))}
+        </div>
+      </section>
 
-          <div className="client-hero-visual" aria-label="FleetOS booking preview">
-            <div className="client-float-card card-coral"><span className="material-symbols-outlined">verified_user</span><b>Verified</b><small>Trusted Companies</small></div>
-            <div className="client-float-card card-lilac"><span className="client-avatar-dot">QA</span><b>Request Status</b><small>Accepted by company</small></div>
-            <div className="client-float-card card-yellow"><span className="material-symbols-outlined">payments</span><b>Secure Payments</b><small>Cash or Card</small></div>
-            <div className="client-float-card card-cream"><span className="material-symbols-outlined">location_on</span><b>Live Tracking</b><small>On the way</small></div>
-            <div className="client-phone-mock">
-              <div className="client-phone-top"><span>9:41</span><span>● ● ●</span></div>
-              <p className="client-phone-muted">Good morning,</p>
-              <h3>Ali Raza 👋</h3>
-              <div className="client-location-chip"><span className="material-symbols-outlined">location_on</span>Lahore, Punjab</div>
-              <div className="client-phone-search">What product or service do you need?</div>
-              <div className="client-phone-grid">
-                <span>Browse offers</span><span>Track request</span><span>Chat company</span>
+      {/* Lifecycle */}
+      <section id="how-it-works" className="mx-auto max-w-[1200px] scroll-mt-20 px-4 py-20 sm:px-6">
+        <Reveal className="max-w-2xl">
+          <h2 className="text-[32px] font-bold leading-tight tracking-tight">How a job moves through FleetOS</h2>
+          <p className="mt-3 text-[16px] text-muted">Eight steps, from the first request to the final review.</p>
+        </Reveal>
+        <ol className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {lifecycle.map(([icon, status, text], index) => (
+            <Reveal as="li" key={status} delay={(index % 4) * 70} className="card card-hover p-5">
+              <div className="flex items-center justify-between">
+                <span className="icon-tile"><span className="material-symbols-outlined">{icon}</span></span>
+                <span className="font-mono text-[12px] text-subtle">{String(index + 1).padStart(2, '0')}</span>
               </div>
-              <div className="client-booking-card">
-                <div>
-                  <b>Service Request</b>
-                  <small>Company offer • Lahore</small>
-                </div>
-                <em>In progress</em>
-              </div>
+              <p className="mt-4 text-[15px] font-semibold text-ink">{status}</p>
+              <p className="mt-1 text-[13.5px] text-muted">{text}</p>
+            </Reveal>
+          ))}
+        </ol>
+      </section>
+
+      {/* Industries */}
+      <section className="mx-auto max-w-[1200px] px-4 pb-20 sm:px-6">
+        <div className="grid gap-10 lg:grid-cols-[.8fr_1.2fr] lg:items-start">
+          <Reveal className="lg:sticky lg:top-24">
+            <h2 className="text-[32px] font-bold leading-tight tracking-tight">One platform for every kind of business</h2>
+            <p className="mt-3 text-[16px] text-muted">Shops, service providers, restaurants, clinics and more. Each business picks its type and gets the right workspace: products or services, delivery, pickup, home visits, appointments or online work.</p>
+          </Reveal>
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {industries.map(([icon, name, labels, value], index) => (
+              <Reveal as="li" key={name} delay={(index % 2) * 80} className="card card-hover">
+                <Link to={`${ROUTES.companies}?industry=${value}`} className="flex items-start gap-4 p-5">
+                  <span className="icon-tile"><span className="material-symbols-outlined">{icon}</span></span>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-ink">{name}</p>
+                    <p className="mt-1 text-[13px] text-muted">{labels}</p>
+                  </div>
+                </Link>
+              </Reveal>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* CTA band */}
+      <section className="px-4 sm:px-6">
+        <Reveal className="cta-band relative mx-auto max-w-[1152px] overflow-hidden rounded-[28px] px-6 py-14 text-white sm:px-12 md:py-16">
+          <div className="relative grid gap-8 md:grid-cols-[1.4fr_1fr] md:items-center">
+            <div>
+              <h2 className="text-[30px] font-bold leading-tight tracking-tight text-white md:text-[36px]">Bring your company onto FleetOS</h2>
+              <p className="mt-3 max-w-[48ch] text-[16px] text-white/75">Register, upload your business documents and start taking bookings once you are approved.</p>
+            </div>
+            <div className="flex flex-wrap gap-3 md:justify-end">
+              <Link to="/company/register" className="btn btn-lg bg-white text-[#0D1B2A] hover:bg-white/90">Register your company</Link>
+              <Link to={ROUTES.contact} className="btn btn-lg border border-white/25 text-white hover:bg-white/10">Talk to sales</Link>
             </div>
           </div>
-        </section>
+        </Reveal>
+      </section>
 
-        <section className="client-section client-service-strip">
-          <div className="client-section-head compact">
-            <h2>Popular marketplace tools</h2>
-            <button onClick={() => navigate(ROUTES.companies)}>View companies <span>→</span></button>
-          </div>
-          <div className="client-service-row">
-            {serviceCards.map(([icon, title, text]) => (
-              <button key={title} onClick={() => navigate(`${ROUTES.companies}?q=${encodeURIComponent(title)}`)} className="client-service-card">
-                <span className="material-symbols-outlined">{icon}</span>
-                <b>{title}</b>
-                <small>{text}</small>
+      {/* FAQ */}
+      <section className="mx-auto grid max-w-[1200px] gap-10 px-4 py-20 sm:px-6 lg:grid-cols-[.8fr_1.2fr]">
+        <Reveal>
+          <h2 className="text-[32px] font-bold leading-tight tracking-tight">Questions, answered</h2>
+          <p className="mt-3 text-[16px] text-muted">Something else? <Link to={ROUTES.contact} className="link">Contact the FleetOS team</Link>.</p>
+        </Reveal>
+        <div className="card divide-y divide-line overflow-hidden">
+          {faqs.map(([question, answer], index) => (
+            <div key={question}>
+              <button type="button" onClick={() => setOpenFaq(openFaq === index ? -1 : index)} aria-expanded={openFaq === index} className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-[15px] font-semibold text-ink transition-colors hover:bg-sunken/50">
+                {question}
+                <span className={`material-symbols-outlined shrink-0 text-subtle transition-transform duration-200 ${openFaq === index ? 'rotate-45' : ''}`}>add</span>
               </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="client-trusted-row" aria-label="Trusted brands">
-          <p>Built for Pakistani companies and clients</p>
-          <div>
-            {['LAHORE', 'KARACHI', 'ISLAMABAD', 'MULTAN', 'PESHAWAR', 'QUETTA', 'FAISALABAD', 'SIALKOT'].map((brand) => <span key={brand}>{brand}</span>)}
-          </div>
-        </section>
-
-        <section className="client-section client-app-section">
-          <div>
-            <h2>Everything clients need <br />to find <em>the right company</em></h2>
-            <p>From discovery to chat, request tracking, payments, and reviews, every company-client interaction stays in one real-time flow.</p>
-            <div className="client-store-row">
-              <span>Download on the<br /><b>App Store</b></span>
-              <span>Get it on<br /><b>Google Play</b></span>
+              <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${openFaq === index ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                <p className="overflow-hidden px-5 text-[14px] leading-6 text-muted"><span className="block pb-5">{answer}</span></p>
+              </div>
             </div>
-          </div>
-          <div className="client-feature-grid">
-            {features.map(([icon, title, text], idx) => (
-              <article key={title} className={`client-mini-feature tone-${idx % 4}`}>
-                <span className="material-symbols-outlined">{icon}</span>
-                <h3>{title}</h3>
-                <p>{text}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="client-dark-band">
-          <h2>Why clients and companies choose FleetOS <br /><em>for trusted digital commerce</em></h2>
-          <div className="client-dark-features">
-            {[
-              ['workspace_premium', 'Verified & Rated', 'We onboard admin-approved companies with real client reviews.'],
-              ['receipt_long', 'Transparent Offers', 'Clients can see services, products, optional items, and prices before requesting.'],
-              ['health_and_safety', 'Trust You Can Measure', 'Approvals, reviews, status updates, and payments keep the workflow accountable.'],
-              ['support_agent', 'Support That Cares', 'Our support team is available before, during, and after a request.'],
-            ].map(([icon, title, text]) => (
-              <article key={title}>
-                <span className="material-symbols-outlined">{icon}</span>
-                <div><h3>{title}</h3><p>{text}</p></div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section id="how-it-works" className="client-section client-steps-section">
-          <h2>How booking <em>works</em></h2>
-          <p>Three simple steps to connect with the right company.</p>
-          <div className="client-steps-grid">
-            {steps.map(([num, title, text, icon]) => (
-              <article key={title} className="client-step-card">
-                <span className="client-step-num">{num}</span>
-                <div><h3>{title}</h3><p>{text}</p></div>
-                <span className="material-symbols-outlined">{icon}</span>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="client-section client-reviews-section">
-          <div className="client-section-head">
-            <h2>Loved by clients across Pakistan</h2>
-            <button onClick={() => navigate(ROUTES.reviews)}>View all reviews <span>→</span></button>
-          </div>
-          <div className="client-review-grid">
-            {reviews.map(([name, city, quote]) => (
-              <article key={name} className="client-review-card">
-                <div className="client-stars">★★★★★ <span>4.9</span></div>
-                <p>{quote}</p>
-                <div><span className="client-avatar-dot">{name.split(' ').map((n) => n[0]).join('')}</span><b>{name}</b><small>{city}</small></div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="client-section client-faq-section">
-          <div className="client-section-head">
-            <h2>Frequently asked <em>questions</em></h2>
-            <button onClick={() => navigate(ROUTES.contact)}>View all <span>→</span></button>
-          </div>
-          <div className="client-faq-grid">
-            {faqs.map((faq) => <article key={faq} className="client-faq-item">
-              <button type="button" onClick={() => setOpenFaq((current) => current === faq ? '' : faq)} aria-expanded={openFaq === faq}>{faq}<span>{openFaq === faq ? '−' : '＋'}</span></button>
-              {openFaq === faq && <p className="px-5 pb-4 text-sm leading-6 text-[#415A77]">{faq === 'How do I send a request?' ? 'Choose an approved company, select its service or product, add your requirements, then submit the request.' : faq === 'Are the companies verified?' ? 'Companies become visible only after Super Admin approval and can be removed if their access is suspended.' : faq === 'What payment methods do you accept?' ? 'Companies can record cash payments and card payments can be enabled through the online checkout configuration.' : faq === 'Can companies list products and services?' ? 'Yes. Each company manages its own services, inventory items, pricing, descriptions, and public profile.' : faq === 'Can I reschedule or cancel my booking?' ? 'You can cancel an eligible request before work begins; contact the company in chat for scheduling changes.' : 'Use the Help page to send a support request to the FleetOS team.'}</p>}
-            </article>)}
-          </div>
-        </section>
-      </main>
-
-      <footer className="client-footer">
-        <div>
-          <button onClick={() => navigate(ROUTES.home)} className="client-brand"><BrandMark /></button>
-          <p>Pakistan’s trusted SaaS platform for company discovery, service requests, products, payments, and reviews.</p>
+          ))}
         </div>
-        <div>
-          <h4>Company</h4>
-          <button onClick={() => navigate(ROUTES.about)}>About us</button>
-          <button onClick={() => navigate('/company/register')}>For Companies</button>
-          <button onClick={() => navigate(ROUTES.contact)}>Contact us</button>
-        </div>
-        <div>
-          <h4>Support</h4>
-          <button onClick={() => navigate(ROUTES.contact)}>Help center</button>
-          <button onClick={() => navigate(ROUTES.bookings)}>My bookings</button>
-          <button onClick={() => navigate(ROUTES.companies)}>Find companies</button>
-        </div>
-        <div className="client-footer-app">
-          <h4>Get the FleetOS app</h4>
-          <p>Discover, request, chat, pay, and review on the go.</p>
-          <button onClick={() => navigate(ROUTES.companies)} className="client-dark-btn">Start booking</button>
-        </div>
-      </footer>
+      </section>
     </div>
   );
 }
 
 export default Home;
-
-

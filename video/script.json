@@ -1,0 +1,59 @@
+{
+  "voice": "en-US-AndrewNeural",
+  "rate": "+9%",
+  "gapAfter": 0.55,
+  "scenes": [
+    {
+      "id": "hook",
+      "narration": "A pipe bursts at midnight. A gamer wants a new console today. A family needs groceries from the shop down the street. Three different businesses, and the same story every time: calls that go unanswered, prices nobody confirms, and promises that never show up."
+    },
+    {
+      "id": "problem",
+      "narration": "Across Pakistan, small businesses still run on phone calls and guesswork. Customers can't see who they're dealing with, what it will cost, or when it will arrive. Businesses juggle orders and jobs across WhatsApp chats and notebooks. And the staff doing the work have no record of the jobs they finish, or the trust they earn."
+    },
+    {
+      "id": "solution",
+      "narration": "This is FleetOS. One platform that connects three people around every job: the customer, the business that serves them, and a super admin who keeps the marketplace honest."
+    },
+    {
+      "id": "saas",
+      "narration": "And it isn't built for one trade. FleetOS is a SaaS platform. Plumbers, gaming and electronics stores, local shops, salons, restaurants: each business picks its category, and gets a workspace that speaks its language. It starts with small and medium businesses, and it's built to scale to large private limited companies, across Pakistan and internationally."
+    },
+    {
+      "id": "customer",
+      "narration": "It starts with the customer. They search approved businesses by city and service, compare ratings, and book with a clear price, before anything is confirmed."
+    },
+    {
+      "id": "merchant",
+      "narration": "The request reaches the business instantly. The team can accept it, or decline it with a reason the customer sees right away. Smart Dispatch then suggests the best staff member, ranked by distance, workload, and rating."
+    },
+    {
+      "id": "tracking",
+      "narration": "Now the customer watches the job move. The plumber is en route, and the arrival time counts down live on their screen. Arrived. In progress. Completed. Every step updates for everyone, at the same moment."
+    },
+    {
+      "id": "payment",
+      "narration": "When the work is done, the payment is recorded, an invoice is issued, and the customer leaves a rating that helps good workers win their next job."
+    },
+    {
+      "id": "admin",
+      "narration": "Behind it all, the super admin reviews every business's documents before it goes live, watches jobs and payments across the platform, handles support, and can suspend anyone who breaks the rules."
+    },
+    {
+      "id": "stack",
+      "narration": "Under the hood, it's a full MERN stack. MongoDB is the single source of truth. Express and Node power a secure, role-based API. React drives three fast portals. And Socket.IO keeps every screen in sync, in real time."
+    },
+    {
+      "id": "impact",
+      "narration": "So, what changes? Customers get transparency and safety. Workers get a digital record of their work, a reputation they can build, and steadier income. Businesses trade paperwork for a live workspace, and reach customers they never could before. And every payment is documented, moving the informal economy one step closer to the formal one."
+    },
+    {
+      "id": "roadmap",
+      "narration": "And this is only version one. Next up: mobile wallet payments like JazzCash and Easypaisa, Urdu and regional languages, a staff app with live GPS, SMS and WhatsApp alerts, and verified skill badges for workers."
+    },
+    {
+      "id": "cta",
+      "narration": "FleetOS. Every service job, from request to receipt. Designed and built end to end, from the database to the last pixel."
+    }
+  ]
+}

@@ -42,8 +42,21 @@ function offsetCoords(point, latOffset = 0.035, lngOffset = -0.035, label = 'Tec
   };
 }
 
+function calculateDistanceKm(pointA, pointB) {
+  if (!pointA?.lat || !pointA?.lng || !pointB?.lat || !pointB?.lng) return 5.0;
+  const R = 6371; // Earth radius in km
+  const dLat = (pointB.lat - pointA.lat) * (Math.PI / 180);
+  const dLng = (pointB.lng - pointA.lng) * (Math.PI / 180);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+    + Math.cos(pointA.lat * (Math.PI / 180)) * Math.cos(pointB.lat * (Math.PI / 180))
+    * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Number((R * c).toFixed(2));
+}
+
 module.exports = {
   PAKISTAN_CENTER,
   coordsForLocation,
   offsetCoords,
+  calculateDistanceKm,
 };
